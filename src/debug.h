@@ -10,6 +10,31 @@ internal void color_text(char *text, u8 r, u8 g, u8 b) {
 #define RED(text) color_text(text, 255, 0, 0)
 #define YELLOW(text) color_text(text, 255, 255, 0)
 #define DEBUG(text) ITALIC(UNDERLINE(BOLD(color_text(text, 255, 185, 0))))
+#define ERROR(text) {BOLD(RED("ERROR: ")); printf("%s\n", text);}
+#define ASSERT(text) {BOLD(RED("\nASSERT FAILED: ")); printf("%s\n", text);}
+
+#if DEVELOPMENT
+    #define assert(expression, message) if (!(expression)) {ASSERT(message);(*(u8 *)0) = 0;}
+
+    #define invalid_code_path assert(false, "INVALID CODE PATH")
+    #define invalid_code_path_msg(message) assert(false, message)
+
+    #define invalid_default_case default: {invalid_code_path;} break
+    #define invalid_default_case_msg(message) default: {invalid_code_path_msg(message);} break
+
+    #define not_implemented assert(false, "NOT IMPLEMENTED")
+#else
+    #define assert(expression, message)
+
+    #define invalid_code_path
+    #define invalid_code_path_msg(...)
+
+    #define invalid_default_case
+    #define invalid_default_case_msg(...)
+
+    #define not_implemented
+#endif
+
 
 void printf(char *string) { printf("%s", string); }
 void printf(f32 number)   { printf("%.2f", number); }

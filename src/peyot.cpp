@@ -10,9 +10,54 @@
 string
 */
 
+internal u32 to_int(char c) {
+    u32 result = c - '0';
+    return result;
+}
+
+internal bool is_whitespace(char c) {
+    if (c == ' ') return true;
+    if (c == '\t') return true;
+    if (c == '\r') return true;
+    return false;
+}
+
+internal bool is_alpha(char c) {
+    if ((c >= 'A') && (c <= 'Z')) return true;
+    if ((c >= 'a') && (c <= 'z')) return true;
+    return false;
+}
+
+internal bool is_numeric(char c) {
+    if ((c >= '0') && (c <= '9')) return true;
+    return false;
+}
+
+internal bool is_alpha_numeric(char c) {
+    return (is_alpha(c) || is_numeric(c));
+}
+
+internal u32 length(char *buffer) {
+    u64 c0 = (u64)buffer;
+
+    while (*buffer) {
+        buffer++;
+    }
+
+    u32 result = (u32)((u64)buffer - c0);
+    return result;
+}
+
 struct str {
     u32 count;
     char *buffer;
+};
+
+internal str create_str(char *buffer) {
+    str result;
+    result.buffer = buffer;
+    result.count = length(buffer);
+    return result;
 };
 
 internal u32 length(str string) {
@@ -21,17 +66,6 @@ internal u32 length(str string) {
 
 internal u32 length(str *string) {
     return string->count;
-}
-
-internal u32 length(char *buffer) {
-    u32 c0 = (u32)buffer;
-
-    while (*buffer) {
-        buffer++;
-    }
-
-    u32 result = (u32)buffer - c0;
-    return result;
 }
 
 /*
@@ -51,7 +85,7 @@ string
 -performance analysis probably multithread the asm creation just to test performance
 -you can set the stack size of the program and if overflowed an error is shown
 -stream files by chunk
--create a macro for assert and default_case_error and replace DEFAULT_CASE_STUB with the correct one
+-debugger for the virtual machine, showing the content of the registers and the content of the stack, show a window of the code (like 11 lines of assembly, the current one, 5 above and 5 below)
 */
 
 #define DEFAULT_CASE_STUB
@@ -95,6 +129,7 @@ enum TOKEN_TYPE {
     TOKEN_TYPE_DECLARATION,
     TOKEN_VARIABLE,
     TOKEN_EQUALS,
+    TOKEN_ASSIGNMENT,
     TOKEN_LITERAL_INTEGER,
     TOKEN_SEMICOLON,
     TOKEN_EOL,
@@ -128,6 +163,10 @@ internal char *to_string(TOKEN_TYPE type) {
 
         case TOKEN_EQUALS: {
             return "TOKEN_EQUALS";
+        } break;
+
+        case TOKEN_ASSIGNMENT: {
+            return "TOKEN_ASSIGNMENT";
         } break;
 
         case TOKEN_LITERAL_INTEGER: {
@@ -165,7 +204,8 @@ internal char *to_string(TOKEN_TYPE type) {
         case TOKEN_COUNT: {
             return "TOKEN_COUNT";
         } break;
-DEFAULT_CASE_STUB
+
+        invalid_default_case_msg("missing TOKEN_TYPE");
     }
 }
 
@@ -173,11 +213,17 @@ struct Token {
     TOKEN_TYPE type;
     u32 line;
     u32 c0, cf;
+
+    union {
+        u64 u64_value;
+        s64 s64_value;
+        f64 f64_value;
+        str str_value;
+    };
 };
 
 struct Lexer {
-    char *buffer;
-    u32 size;
+    str source;
     u32 index;
     u32 current_line;
 };
@@ -186,8 +232,7 @@ struct Lexer {
 internal Lexer create_lexer(char *program) {
     Lexer result;
 
-    result.buffer = program;
-    result.size = length(program);
+    result.source = create_str(program);
     result.index = 0;
     result.current_line = 0;
 
@@ -195,7 +240,7 @@ internal Lexer create_lexer(char *program) {
 }
 
 internal char get_char(Lexer *lexer) {
-    char result = lexer->buffer[lexer->index];
+    char result = lexer->source.buffer[lexer->index];
     return result;
 }
 
@@ -203,21 +248,102 @@ internal void advance(Lexer *lexer) {
     lexer->index++;
 }
 
+internal str get_variable_name(Lexer *lexer) {
+    str result;
+    result.buffer = lexer->source.buffer + lexer->index;
+    result.count = 0;
+    char c = get_char(lexer);
+
+    while (is_alpha_numeric(c)) {
+        result.count++;
+        advance(lexer);
+        c = get_char(lexer);
+    }
+
+    return result;
+}
+
+internal void get_numeric_token(Lexer *lexer, Token *result) {
+    u64 number = 0;
+    char c = get_char(lexer);
+
+    while (is_numeric(c)) {
+        number *= 10;
+        number += to_int(c);
+        advance(lexer);
+        c = get_char(lexer);
+    }
+
+    result->type = TOKEN_LITERAL_INTEGER;
+    result->u64_value = number;
+}
+
 internal Token get_next_token(Lexer *lexer) {
+    char c = get_char(lexer);
+
+    while (is_whitespace(c)) {
+        advance(lexer);
+        c = get_char(lexer);
+    }
+
     Token result;
     result.c0 = lexer->index;
     result.line = lexer->current_line;
 
-    char c = get_char(lexer);
-
-    if (lexer->index >= lexer->size) {
+    if (lexer->index >= length(lexer->source)) {
         result.type = TOKEN_EOF;
     } else if (c == '\n') {
         result.type = TOKEN_EOL;
         lexer->current_line++;
         advance(lexer);
+    } else if (c == ';') {
+        result.type = TOKEN_SEMICOLON;
+        lexer->current_line++;
+        advance(lexer);
+    } else if (c == '+') {
+        result.type = TOKEN_BINARY_PLUS;
+        lexer->current_line++;
+        advance(lexer);
+    } else if (c == '-') {
+        result.type = TOKEN_BINARY_MINUS;
+        lexer->current_line++;
+        advance(lexer);
+    } else if (c == '*') {
+        result.type = TOKEN_BINARY_MUL;
+        lexer->current_line++;
+        advance(lexer);
+    } else if (c == '/') {
+        result.type = TOKEN_BINARY_DIV;
+        lexer->current_line++;
+        advance(lexer);
+    } else if (c == '=') {
+        result.type = TOKEN_ASSIGNMENT;
+
+        advance(lexer);
+        c = get_char(lexer);
+
+        if (c == '=') {
+            result.type = TOKEN_EQUALS;
+            advance(lexer);
+        }
+    // } else if (c == 'u') {
+    //     // unsigned types
+    //     advance(lexer);
+    // } else if (c == 's') {
+    //     // signed types
+    //     advance(lexer);
+    // } else if (c == 'f') {
+    //     // float types
+    //     advance(lexer);
+    } else if (false) {
+        // do something for the keywords like next_is_keyword(lexer) {get_keyword(lexer, &result);} that stores the state of the lexer and rewinds if next isnt a keyword
+    } else if (is_alpha(c)) {
+        result.type = TOKEN_VARIABLE;
+        result.str_value = get_variable_name(lexer);
+    } else if (is_numeric(c)) {
+        get_numeric_token(lexer, &result);
     } else {
-        result.type = TOKEN_EQUALS;
+        result.type = TOKEN_NULL;
         advance(lexer);
     }
 
@@ -231,9 +357,22 @@ internal Ast *parse_program(Lexer *lexer) {
     Token token = get_next_token(lexer);
 
     while (token.type != TOKEN_EOF) {
-        if (token.type == TOKEN_EOL) {
-            printf("%d[%d:%d]: %s\n", token.line, token.c0, token.cf, to_string(token.type));
+        printf("%d[%d:%d]: %s", token.line, token.c0, token.cf, to_string(token.type));
+
+        switch (token.type) {
+            // case TOKEN_EOL: {
+            // } break;
+            case TOKEN_VARIABLE: {
+                printf("<%.*s>", token.str_value.count, token.str_value.buffer);
+                assert(token.str_value.count == (token.cf - token.c0), "the char offset selection in get_next_token is wrong");
+            } break;
+
+            case TOKEN_LITERAL_INTEGER: {
+                printf("<%lld>", token.u64_value);
+            } break;
         }
+
+        putchar('\n');
 
         token = get_next_token(lexer);
     }
@@ -251,8 +390,8 @@ u32 c = a + b;
 )PROGRAM";
     
     Lexer lexer = create_lexer(program);
-    debug(lexer.buffer);
-    debug(lexer.size);
+    debug(lexer.source.buffer);
+    debug(lexer.source.count);
     debug(lexer.index);
     debug(lexer.current_line);
 
