@@ -11,10 +11,10 @@ internal void color_text(char *text, u8 r, u8 g, u8 b) {
 #define YELLOW(text) color_text(text, 255, 255, 0)
 #define DEBUG(text) ITALIC(UNDERLINE(BOLD(color_text(text, 255, 185, 0))))
 #define ERROR(text) {BOLD(RED("ERROR: ")); printf("%s\n", text);}
-#define ASSERT(text) {BOLD(RED("\nASSERT FAILED: ")); printf("%s\n", text);}
+#define ASSERT(text, file, line) {BOLD(RED("\nASSERT FAILED: ")); printf("%s[%d]: %s\n", file, line, text);}
 
 #if DEVELOPMENT
-    #define assert(expression, message) if (!(expression)) {ASSERT(message);(*(u8 *)0) = 0;}
+    #define assert(expression, message) if (!(expression)) {ASSERT(message, __FILE__, __LINE__);(*(u8 *)0) = 0;}
 
     #define invalid_code_path assert(false, "INVALID CODE PATH")
     #define invalid_code_path_msg(message) assert(false, message)
