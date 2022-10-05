@@ -2,7 +2,7 @@ struct Symbol {
     str name;
     PEYOT_TYPE type;
     str custom_type;
-    // str type; when structs appear this will be needed??
+    // str type; when structs appear this will be needed?? 2022-10-05: NO, just use an incremental number to determine the type, and have a parallel array to store the string name of the type for debug and error reporting
     Symbol *next;
 };
 

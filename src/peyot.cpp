@@ -13,8 +13,26 @@
     -you can set the stack size of the program and if overflowed an error is shown
     -debugger for the virtual machine, showing the content of the registers and the content of the stack, show a window of the code (like 11 lines of assembly, the current one, 5 above and 5 below)
     -function parsing is easier if a keyword is introduced for function declaration like "fn" or "func" "fn do_stuff(u32 a) -> u32 {return 2 * a;}"
+      maybe "function" since 
     -error reporter that shows a sample of the code that created the error (a couple of lines above the current line should be enough)
+    -add introspection for example have .type in structs to check for the type of structs and also be able to iterate over the members of structs, implement this with an integer, each time a struct is declare the type integer is incremented and that is asign to the struct, the basic types of the language are the first numbers. Add also something like typedef??
+    -add the hability to undefine variables with the keyword undef
     -get the stb_printf for compositing strings (for the ast debug print)
+    -structs
+    -arrays
+    -variable names with _ and the other special characters allowed in variable names in c-like languages
+    -add introspection, be able to check a struct type and iterate over struct members
+    -type checking in the ast
+    -generics struct v2 <T> {
+        T x, y;
+    }
+    maybe expand the struct later to v2_u32 internally in the ast if v2<u32> is in the code and another like v2_f32 if v2<f32> is found, etc. These will just invoke to the create_type() thing or whatever i make for the structs
+    -operator overload
+    -before allocating the memory for the bytecode, calculate all of the constants sizes and take that into account
+    -do string pooling in the .data segment for constant strings
+    -interface with the OS to get memory/open_files/etc
+    -grammar check with a function require_token(lexer, TOKEN_OPEN_BRACE); and maybe have an error bool in the lexer or something to check stuff??
+    -try Casey's idea for integers: dont have signed/unsigned types, have only integers and when type is important in an operation (multiply/divide/shift/etc) show an error and ask the user to specify someway (figure out this) which type is going to be used
 */
 
 #include"types.h"
@@ -37,6 +55,23 @@ enum PEYOT_TYPE {
 
     TYPE_COUNT,
 };
+
+internal char *to_string(PEYOT_TYPE type) {
+    switch(type) {
+        case TYPE_NULL: {
+            return "NULL";
+        } break;
+        case TYPE_U32: {
+            return "U32";
+        } break;
+        case TYPE_CUSTOM: {
+            return "CUSTOM";
+        } break;
+        case TYPE_COUNT: {
+            return "COUNT";
+        } break;
+    }
+}
 
 #include"symbol_table.h"
 #include"lexer.cpp"
@@ -86,6 +121,7 @@ struct Ast_expression {
         str variable_name;
     };
 
+    Symbol *symbol;
     Ast_expression *left;
     Ast_expression *right;
 };
@@ -95,11 +131,13 @@ internal void print(Ast_expression *ast, u32 indent=0) {
 
     switch (ast->type) {
         case AST_LITERAL_U32: {printf("%lld\n", ast->u64_value);} break;
-        case AST_BINARY_ADD: {printf("+:\n"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
-        case AST_BINARY_SUB: {printf("-:\n"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
-        case AST_BINARY_MUL: {printf("*:\n"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
-        case AST_BINARY_DIV: {printf("/:\n"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
-        case AST_BINARY_MOD: {printf("%:\n"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
+        case AST_BINARY_ADD:  {printf("+:\n"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
+        case AST_BINARY_SUB:  {printf("-:\n"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
+        case AST_BINARY_MUL:  {printf("*:\n"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
+        case AST_BINARY_DIV:  {printf("/:\n"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
+        case AST_BINARY_MOD:  {printf("%:\n"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
+        case AST_VARIABLE:    {printf("%.*s\n", ast->variable_name.count, ast->variable_name.buffer);} break;
+        case AST_ASSIGNMENT:  {printf("=:\n"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
     }
 }
 
@@ -120,57 +158,6 @@ struct Ast {
 };
 
 
-
-internal Ast_expression *parse_basic_token(Token token) {
-    Ast_expression *result = (Ast_expression *)malloc(sizeof(Ast_expression));
-
-    switch (token.type) {
-        case TOKEN_VARIABLE: {
-            result->type = AST_VARIABLE;
-            result->variable_name = token.variable_name;
-        } break;
-
-        case TOKEN_LITERAL_U32: {
-            result->type = AST_LITERAL_U32;
-            result->u64_value = token.u64_value;
-        } break;
-
-        invalid_default_case_msg("unable to parse basic token");
-    }
-
-    return result;
-}
-
-internal Ast_expression *parse_declaration(Lexer *lexer) {
-    Ast_expression *result = 0;
-
-    Token type = get_next_token(lexer);
-    Token variable = get_next_token(lexer);
-    Token next = get_next_token(lexer);
-
-    // TODO: check if symbol already declared (track scope also) and log error
-    Symbol *symbol = create_symbol(
-        lexer->symbol_table,
-        variable.variable_name,
-        token_type_to_peyot_type(type.type)
-    );
-    put(lexer->symbol_table, symbol);
-
-    if (next.type == TOKEN_ASSIGNMENT) {
-        result = (Ast_expression *)malloc(sizeof(Ast_expression));
-        result->type = AST_ASSIGNMENT;
-        result->left = parse_basic_token(variable);
-        Token right_side = get_next_token(lexer);
-        result->right = parse_basic_token(right_side);
-    } else {
-        // TODO: do this with the error reporter
-        assert(next.type == TOKEN_SEMICOLON, "now this is an assert next should be an error with check or something");
-        result = parse_basic_token(variable);
-    }
-
-
-    return result;
-}
 
 /*
 expression ::= term ([+-] term)*
@@ -237,16 +224,86 @@ internal Ast_expression *parse_expression(Lexer *lexer) {
         operator_tree->left = result;
         operator_tree->right = parse_term(lexer);
         result = operator_tree;
-        
         token = lexer->current_token;
     }
 
     return result;
 }
 
-internal Ast *parse_block(Lexer *lexer) {
-    // Ast *result = parse_expression(lexer);
-    // return result;
+
+internal Ast_expression *parse_basic_token(Token token) {
+    Ast_expression *result = (Ast_expression *)malloc(sizeof(Ast_expression));
+
+    switch (token.type) {
+        case TOKEN_VARIABLE: {
+            result->type = AST_VARIABLE;
+            result->variable_name = token.variable_name;
+        } break;
+
+        case TOKEN_LITERAL_U32: {
+            result->type = AST_LITERAL_U32;
+            result->u64_value = token.u64_value;
+        } break;
+
+        invalid_default_case_msg("unable to parse basic token");
+    }
+
+    return result;
+}
+
+internal Ast_expression *parse_declaration(Lexer *lexer) {
+    Ast_expression *result = 0;
+
+    Token type = get_next_token(lexer);
+    Token variable = get_next_token(lexer);
+    Token next = get_next_token(lexer);
+
+    // TODO: check if symbol already declared (track scope also) and log error
+    Symbol *symbol = create_symbol(
+        lexer->symbol_table,
+        variable.variable_name,
+        token_type_to_peyot_type(type.type)
+    );
+    put(lexer->symbol_table, symbol);
+
+    if (next.type == TOKEN_ASSIGNMENT) {
+        result = (Ast_expression *)malloc(sizeof(Ast_expression));
+        result->type = AST_ASSIGNMENT;
+        result->left = parse_basic_token(variable);
+        result->right = parse_expression(lexer);
+        Token semicolon = lexer->current_token;
+        assert(semicolon.type == TOKEN_SEMICOLON, "now this is an assert next should be an error with check or something");
+    } else {
+        // TODO: do this with the error reporter
+        assert(next.type == TOKEN_SEMICOLON, "now this is an assert next should be an error with check or something");
+        result = parse_basic_token(variable);
+    }
+
+    return result;
+}
+
+internal Ast_block *new_ast_block(void *allocator) {
+    Ast_block *result = (Ast_block *)malloc(sizeof(Ast_block));
+    result->expression_count = 0;
+    result->next = 0;
+    return result;
+}
+
+internal Ast_block *parse_block(Lexer *lexer) {
+    Ast_block *result = new_ast_block(0);
+    /*
+        TODO: 
+            -make a loop here with a while (still_parsing(lexer)) and parse al of the declarations
+            -introduce now the allocator
+            -add a parameter to the parse_expression stuff to send a Ast_expression *result to be able to do this here parse_expression(lexer, block->expressions + i) and store the result there
+    */
+
+// struct Ast_block {
+//     u32 expression_count;
+//     Ast_expression expressions[AST_EXPRESSIONS_PER_BLOCK_LINK];
+//     Ast_block *next;
+// };
+    return result;
 }
 
 internal Ast *parse_program(Lexer *lexer) {
@@ -289,18 +346,23 @@ s16 main(s16 arg_count, char **args) {
         u32 c = a + b;
     )PROGRAM";
 
+    char *program2 = R"PROGRAM(
+        u32 a = 1;
+    )PROGRAM";
+
     char *program = R"PROGRAM(
         1+2+3*2+4*4;
     )PROGRAM";
+
     
-    Lexer lexer = create_lexer(program);
-    lexer.symbol_table = create_symbol_table(0);
-    debug(lexer.source.buffer);
-    debug(lexer.source.count);
+    Lexer lexer = create_lexer(program1);
+
+    debug(lexer.source);
     debug(lexer.index);
     debug(lexer.current_line);
 
-    Ast_expression *ast = parse_expression(&lexer);
+    // Ast_expression *ast = parse_expression(&lexer);
+    Ast_expression *ast = parse_declaration(&lexer);
     // test_parser(&lexer);
     print(ast);
 

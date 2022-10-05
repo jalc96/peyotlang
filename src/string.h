@@ -3,13 +3,81 @@ struct str {
     char *buffer;
 };
 
+void printf(str s) {
+    // this is for the debug() macro
+    printf("(%d)%.*s", s.count, s.count, s.buffer);
+}
+
+#if !defined(static_length)
+    #define static_length(array) (sizeof(array) / sizeof((array)[0]))
+#endif
+
 #define str_for(string) char it = string.buffer[0]; for (u32 i = 0; i < string.count; i++, it = string.buffer[i])
+#define STR(zero_terminated_string) {static_length(zero_terminated_string) - 1, zero_terminated_string}
 
 
 internal u32 to_int(char c) {
     u32 result = c - '0';
     return result;
 }
+
+
+#define isdigit(c) (c >= '0' && c <= '9')
+
+internal f64 atof(char *s) {
+    // https://github.com/GaloisInc/minlibc/blob/master/atof.c
+    // look for ascii to float transformation and use a good implementation, i dont know if this code is a good implementation
+    // This function stolen from either Rolf Neugebauer or Andrew Tolmach. 
+    // Probably Rolf.
+    f64 a = 0.0;
+    s32 e = 0;
+    s32 c;
+
+    while ((c = *s++) != '\0' && isdigit(c)) {
+        a = a*10.0 + (c - '0');
+    }
+
+    if (c == '.') {
+        while ((c = *s++) != '\0' && isdigit(c)) {
+            a = a*10.0 + (c - '0');
+            e = e-1;
+        }
+    }
+
+    if (c == 'e' || c == 'E') {
+        s32 sign = 1;
+        s32 i = 0;
+        c = *s++;
+
+        if (c == '+') {
+            c = *s++;
+        } else if (c == '-') {
+            c = *s++;
+            sign = -1;
+        }
+
+        while (isdigit(c)) {
+            i = i*10 + (c - '0');
+            c = *s++;
+        }
+
+        e += (i * sign);
+    }
+
+    while (e > 0) {
+        a *= 10.0;
+        e--;
+    }
+
+    while (e < 0) {
+        a *= 0.1;
+        e++;
+    }
+
+    return a;
+}
+
+
 
 internal bool is_eol(char c) {
     return (c == '\n');

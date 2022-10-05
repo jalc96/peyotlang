@@ -12,6 +12,6 @@ del *.obj > NUL 2> NUL
 @echo -------------------------------------------------
 @echo off
 
-cl -Od /Zi -DDEVELOPMENT=1 ../src/peyot.cpp -Fepeyot_debug.exe | msvc_color_release.exe
+cl -diagnostics:column -Od /Zi -DDEVELOPMENT=1 ../src/peyot.cpp -Fepeyot_debug.exe | msvc_color_release.exe
 
 popd

@@ -133,6 +133,7 @@ internal Lexer create_lexer(char *program) {
     result.source = create_str(program);
     result.index = 0;
     result.current_line = 1;
+    result.symbol_table = create_symbol_table(0);
 
     return result;
 }
