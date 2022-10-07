@@ -12,8 +12,7 @@
     -performance analysis probably multithread the asm creation just to test performance
     -you can set the stack size of the program and if overflowed an error is shown
     -debugger for the virtual machine, showing the content of the registers and the content of the stack, show a window of the code (like 11 lines of assembly, the current one, 5 above and 5 below)
-    -function parsing is easier if a keyword is introduced for function declaration like "fn" or "func" "fn do_stuff(u32 a) -> u32 {return 2 * a;}"
-      maybe "function" since 
+    -function parsing is easier if a keyword is introduced for function declaration like "fn" or "func" "fn do_stuff(u32 a) -> u32 {return 2 * a;}" maybe "function" since a lot of languages use that
     -error reporter that shows a sample of the code that created the error (a couple of lines above the current line should be enough)
     -add introspection for example have .type in structs to check for the type of structs and also be able to iterate over the members of structs, implement this with an integer, each time a struct is declare the type integer is incremented and that is asign to the struct, the basic types of the language are the first numbers. Add also something like typedef??
     -add the hability to undefine variables with the keyword undef
@@ -26,7 +25,7 @@
     -generics struct v2 <T> {
         T x, y;
     }
-    maybe expand the struct later to v2_u32 internally in the ast if v2<u32> is in the code and another like v2_f32 if v2<f32> is found, etc. These will just invoke to the create_type() thing or whatever i make for the structs
+    maybe expand the struct later to v2_u32 internally in the ast if v2<u32> is in the code and another like v2_f32 if v2<f32> is found, etc. These will just invoke to the create_type() thing or whatever i make for the structs, allow to check the type that was used in the T.
     -operator overload
     -before allocating the memory for the bytecode, calculate all of the constants sizes and take that into account
     -do string pooling in the .data segment for constant strings
@@ -354,12 +353,6 @@ internal void update_block_parser(Block_parser *parser) {
     parser->finished = lexer_finished(parser->lexer);
 }
 
-
-// struct Ast_block {
-//     u32 expression_count;
-//     Ast_expression expressions[AST_EXPRESSIONS_PER_BLOCK_LINK];
-//     Ast_block *next;
-// };
 struct Ast_block_creation_iterator {
     void *allocator;
     Ast_block *current;
@@ -399,16 +392,6 @@ internal Ast_block *parse_block(Lexer *lexer) {
         update_block_parser(&parser);
     }
 
-    /*
-        TODO: 
-            -introduce now the allocator
-    */
-
-// struct Ast_block {
-//     u32 expression_count;
-//     Ast_expression expressions[AST_EXPRESSIONS_PER_BLOCK_LINK];
-//     Ast_block *next;
-// };
     return result;
 }
 
@@ -420,7 +403,7 @@ internal Ast *parse_program(Lexer *lexer) {
 internal Ast *test_parser(Lexer *lexer) {
     Ast *result = {};
 
-    Token token = get_next_token(lexer);
+    Token token = lexer->current_token;
 
     while (!lexer_finished(lexer)) {
         printf("%d[%d:%d]: %s", token.line, token.c0, token.cf, to_string(token.type));
@@ -460,19 +443,24 @@ s16 main(s16 arg_count, char **args) {
         1+2+3*2+4*4;
     )PROGRAM";
 
+    char *program_if = R"PROGRAM(
+        u32 a = 1;
+        if (a) {
+            a = 0;
+        }
+    )PROGRAM";
+
     
-    Lexer lexer = create_lexer(program1);
+    Lexer lexer = create_lexer(program_if);
     get_next_token(&lexer);
 
     debug(lexer.source);
     debug(lexer.index);
     debug(lexer.current_line);
 
-    // Ast_expression *ast = parse_expression(&lexer);
-    // Ast_expression *ast = parse_declaration(&lexer);
-    Ast_block *ast = parse_block(&lexer);
-    // test_parser(&lexer);
-    print(ast);
+    // Ast_block *ast = parse_block(&lexer);
+    // print(ast);
+    test_parser(&lexer);
 
     BOLD(ITALIC(UNDERLINE(GREEN("\nfinished correctly\n"))));
 

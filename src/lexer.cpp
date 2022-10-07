@@ -16,6 +16,13 @@ enum TOKEN_TYPE {
     TOKEN_BINARY_DIV,
     TOKEN_BINARY_MOD,
 
+    TOKEN_OPEN_BRACE = '{',
+    TOKEN_CLOSE_BRACE = '}',
+    TOKEN_OPEN_PARENTHESIS = '(',
+    TOKEN_CLOSE_PARENTHESIS = ')',
+
+
+
     TOKEN_EOL,
     TOKEN_EOF,
 
@@ -43,61 +50,40 @@ internal PEYOT_TYPE token_type_to_peyot_type(TOKEN_TYPE token_type) {
 
 internal char *to_string(TOKEN_TYPE type) {
     switch (type){
-        case TOKEN_NULL: {
-            return "TOKEN_NULL";
-        } break;
+        case TOKEN_NULL: {return "TOKEN_NULL";} break;
 
-        case TOKEN_U32: {
-            return "TOKEN_U32";
-        } break;
+        case TOKEN_U32: {return "TOKEN_U32";} break;
 
-        case TOKEN_VARIABLE: {
-            return "TOKEN_VARIABLE";
-        } break;
+        case TOKEN_VARIABLE: {return "TOKEN_VARIABLE";} break;
 
-        case TOKEN_EQUALS: {
-            return "TOKEN_EQUALS";
-        } break;
+        case TOKEN_EQUALS: {return "TOKEN_EQUALS";} break;
 
-        case TOKEN_ASSIGNMENT: {
-            return "TOKEN_ASSIGNMENT";
-        } break;
+        case TOKEN_ASSIGNMENT: {return "TOKEN_ASSIGNMENT";} break;
 
-        case TOKEN_LITERAL_U32: {
-            return "TOKEN_LITERAL_U32";
-        } break;
+        case TOKEN_LITERAL_U32: {return "TOKEN_LITERAL_U32";} break;
 
-        case TOKEN_SEMICOLON: {
-            return "TOKEN_SEMICOLON";
-        } break;
+        case TOKEN_SEMICOLON: {return "TOKEN_SEMICOLON";} break;
 
-        case TOKEN_EOL: {
-            return "TOKEN_EOL";
-        } break;
+        case TOKEN_EOL: {return "TOKEN_EOL";} break;
 
-        case TOKEN_BINARY_ADD: {
-            return "TOKEN_BINARY_ADD";
-        } break;
+        case TOKEN_BINARY_ADD: {return "TOKEN_BINARY_ADD";} break;
 
-        case TOKEN_BINARY_SUB: {
-            return "TOKEN_BINARY_SUB";
-        } break;
+        case TOKEN_BINARY_SUB: {return "TOKEN_BINARY_SUB";} break;
 
-        case TOKEN_BINARY_MUL: {
-            return "TOKEN_BINARY_MUL";
-        } break;
+        case TOKEN_BINARY_MUL: {return "TOKEN_BINARY_MUL";} break;
 
-        case TOKEN_BINARY_DIV: {
-            return "TOKEN_BINARY_DIV";
-        } break;
+        case TOKEN_BINARY_DIV: {return "TOKEN_BINARY_DIV";} break;
 
-        case TOKEN_EOF: {
-            return "TOKEN_EOF";
-        } break;
+        case TOKEN_EOF: {return "TOKEN_EOF";} break;
 
-        case TOKEN_COUNT: {
-            return "TOKEN_COUNT";
-        } break;
+        case TOKEN_COUNT: {return "TOKEN_COUNT";} break;
+
+        case TOKEN_IF: {return "TOKEN_IF";} break;
+
+        case TOKEN_OPEN_BRACE: {return "TOKEN_OPEN_BRACE";} break;
+        case TOKEN_CLOSE_BRACE: {return "TOKEN_CLOSE_BRACE";} break;
+        case TOKEN_OPEN_PARENTHESIS: {return "TOKEN_OPEN_PARENTHESIS";} break;
+        case TOKEN_CLOSE_PARENTHESIS: {return "TOKEN_CLOSE_PARENTHESIS";} break;
 
         invalid_default_case_msg("missing TOKEN_TYPE");
     }
@@ -186,11 +172,10 @@ struct Keyword_match {
     TOKEN_TYPE type;
 };
 
-#define str_(static_string) {sizeof(static_string), static_string}
-
 internal Token get_next_token(Lexer *lexer) {
     char c = get_char(lexer);
 
+    // TODO: thest what happend in this loop with a ill-defined program, maybe it also needs the lexer_finished(Lexer *lexer) function, maybe not...
     while (is_whitespace(c) || is_eol(c)) {
         advance(lexer);
         c = get_char(lexer);
@@ -221,6 +206,18 @@ internal Token get_next_token(Lexer *lexer) {
     } else if (c == '/') {
         result.type = TOKEN_BINARY_DIV;
         advance(lexer);
+    } else if (c == '(') {
+        result.type = TOKEN_OPEN_PARENTHESIS;
+        advance(lexer);
+    } else if (c == ')') {
+        result.type = TOKEN_CLOSE_PARENTHESIS;
+        advance(lexer);
+    } else if (c == '{') {
+        result.type = TOKEN_OPEN_BRACE;
+        advance(lexer);
+    } else if (c == '}') {
+        result.type = TOKEN_CLOSE_BRACE;
+        advance(lexer);
     } else if (c == '=') {
         result.type = TOKEN_ASSIGNMENT;
 
@@ -236,8 +233,8 @@ internal Token get_next_token(Lexer *lexer) {
         result.variable_name = get_variable_name(lexer);
 
         Keyword_match keywords[] = {
-            {str_("u32"), TOKEN_U32},
-            {str_("if"), TOKEN_IF}
+            {STATIC_STR("u32"), TOKEN_U32},
+            {STATIC_STR("if"), TOKEN_IF}
         };
 
         sfor (keywords) {

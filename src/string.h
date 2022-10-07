@@ -13,7 +13,8 @@ void printf(str s) {
 #endif
 
 #define str_for(string) char it = string.buffer[0]; for (u32 i = 0; i < string.count; i++, it = string.buffer[i])
-#define STR(zero_terminated_string) {static_length(zero_terminated_string) - 1, zero_terminated_string}
+#define STATIC_STR(zero_terminated_string) {static_length(zero_terminated_string) - 1, zero_terminated_string}
+#define STR(zero_terminated_string) {length(zero_terminated_string), zero_terminated_string}
 
 
 internal u32 to_int(char c) {
