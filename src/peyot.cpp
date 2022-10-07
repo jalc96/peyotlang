@@ -149,6 +149,48 @@ struct Ast_block {
     Ast_block *next;
 };
 
+struct Ast_block_iterator {
+    Ast_block *current;
+    u32 i;
+};
+
+internal Ast_block_iterator iterate(Ast_block *block) {
+    Ast_block_iterator result;
+
+    result.current = block;
+    result.i = 0;
+
+    return result;
+}
+
+internal bool valid(Ast_block_iterator it) {
+    return it.current;
+}
+
+internal Ast_expression *advance(Ast_block_iterator *it) {
+    if (it->i >= AST_EXPRESSIONS_PER_BLOCK_LINK) {
+        it->i = 0;
+        it->current = it->current->next;
+    }
+
+    Ast_expression *result = 0;
+
+    if (it->current) {
+        result = it->current->expressions + it->i++;
+    }
+
+    return result;
+}
+
+internal void print(Ast_block *block, u32 indent=0) {
+    Ast_block_iterator it = iterate(block);
+
+    while (valid(it)) {
+        Ast_expression *e = advance(&it);
+        print(e, indent + 4);
+    }
+}
+
 struct Ast {
     AST_TYPE type;
 
@@ -172,9 +214,12 @@ internal void leaf(Ast_expression *ast, AST_TYPE type) {
     ast->right = 0;
 }
 
-internal Ast_expression *parse_factor(Lexer *lexer) {
+internal Ast_expression *parse_factor(Lexer *lexer, Ast_expression *result) {
     Token token = get_next_token(lexer);
-    Ast_expression *result = (Ast_expression *)malloc(sizeof(Ast_expression));
+
+    if (!result) {
+        result = (Ast_expression *)malloc(sizeof(Ast_expression));
+    }
 
     switch (token.type){
         case TOKEN_VARIABLE: {
@@ -195,8 +240,8 @@ internal Ast_expression *parse_factor(Lexer *lexer) {
     return result;
 }
 
-internal Ast_expression *parse_term(Lexer *lexer) {
-    Ast_expression *result = parse_factor(lexer);
+internal Ast_expression *parse_term(Lexer *lexer, Ast_expression *result) {
+    result = parse_factor(lexer, result);
 
     Token token = lexer->current_token;
 
@@ -204,7 +249,7 @@ internal Ast_expression *parse_term(Lexer *lexer) {
         Ast_expression *operator_tree = (Ast_expression *)malloc(sizeof(Ast_expression));
         operator_tree->type = token_type_to_operation(token.type);
         operator_tree->left = result;
-        operator_tree->right = parse_factor(lexer);
+        operator_tree->right = parse_factor(lexer, 0);
         result = operator_tree;
         
         token = lexer->current_token;
@@ -213,8 +258,8 @@ internal Ast_expression *parse_term(Lexer *lexer) {
     return result;
 }
 
-internal Ast_expression *parse_expression(Lexer *lexer) {
-    Ast_expression *result = parse_term(lexer);
+internal Ast_expression *parse_expression(Lexer *lexer, Ast_expression *result) {
+    result = parse_term(lexer, result);
 
     Token token = lexer->current_token;
 
@@ -222,7 +267,7 @@ internal Ast_expression *parse_expression(Lexer *lexer) {
         Ast_expression *operator_tree = (Ast_expression *)malloc(sizeof(Ast_expression));
         operator_tree->type = token_type_to_operation(token.type);
         operator_tree->left = result;
-        operator_tree->right = parse_term(lexer);
+        operator_tree->right = parse_term(lexer, 0);
         result = operator_tree;
         token = lexer->current_token;
     }
@@ -231,8 +276,10 @@ internal Ast_expression *parse_expression(Lexer *lexer) {
 }
 
 
-internal Ast_expression *parse_basic_token(Token token) {
-    Ast_expression *result = (Ast_expression *)malloc(sizeof(Ast_expression));
+internal Ast_expression *parse_basic_token(Token token, Ast_expression *result) {
+    if (!result) {
+        result = (Ast_expression *)malloc(sizeof(Ast_expression));
+    }
 
     switch (token.type) {
         case TOKEN_VARIABLE: {
@@ -251,10 +298,12 @@ internal Ast_expression *parse_basic_token(Token token) {
     return result;
 }
 
-internal Ast_expression *parse_declaration(Lexer *lexer) {
-    Ast_expression *result = 0;
+internal Ast_expression *parse_declaration(Lexer *lexer, Ast_expression *result) {
+    if (!result) {
+        result = (Ast_expression *)malloc(sizeof(Ast_expression));
+    }
 
-    Token type = get_next_token(lexer);
+    Token type = lexer->current_token;
     Token variable = get_next_token(lexer);
     Token next = get_next_token(lexer);
 
@@ -267,16 +316,17 @@ internal Ast_expression *parse_declaration(Lexer *lexer) {
     put(lexer->symbol_table, symbol);
 
     if (next.type == TOKEN_ASSIGNMENT) {
-        result = (Ast_expression *)malloc(sizeof(Ast_expression));
         result->type = AST_ASSIGNMENT;
-        result->left = parse_basic_token(variable);
-        result->right = parse_expression(lexer);
+        result->left = parse_basic_token(variable, 0);
+        result->right = parse_expression(lexer, 0);
         Token semicolon = lexer->current_token;
         assert(semicolon.type == TOKEN_SEMICOLON, "now this is an assert next should be an error with check or something");
+        // Consume the semicolon to start fresh
+        get_next_token(lexer);
     } else {
         // TODO: do this with the error reporter
         assert(next.type == TOKEN_SEMICOLON, "now this is an assert next should be an error with check or something");
-        result = parse_basic_token(variable);
+        result = parse_basic_token(variable, result);
     }
 
     return result;
@@ -289,13 +339,69 @@ internal Ast_block *new_ast_block(void *allocator) {
     return result;
 }
 
+struct Block_parser {
+    Lexer *lexer;
+    bool finished;
+};
+
+internal bool parsing_block(Block_parser *parser) {
+    return !parser->finished;
+}
+
+internal void update_block_parser(Block_parser *parser) {
+    // Token t = parser->lexer->current_token;
+    // if (t.type == TOKEN_CLOSE_BRACE)
+    parser->finished = lexer_finished(parser->lexer);
+}
+
+
+// struct Ast_block {
+//     u32 expression_count;
+//     Ast_expression expressions[AST_EXPRESSIONS_PER_BLOCK_LINK];
+//     Ast_block *next;
+// };
+struct Ast_block_creation_iterator {
+    void *allocator;
+    Ast_block *current;
+};
+
+internal Ast_block_creation_iterator iterate(Ast_block *block, void *allocator) {
+    Ast_block_creation_iterator result;
+
+    result.current = block;
+    result.allocator = allocator;
+
+    return result;
+}
+
+internal Ast_expression *advance(Ast_block_creation_iterator *it) {
+    if (it->current->expression_count >= AST_EXPRESSIONS_PER_BLOCK_LINK) {
+        Ast_block *t = it->current;
+        t->next = new_ast_block(it->allocator);
+        it->current = t->next;
+    }
+
+    Ast_expression *result = it->current->expressions + it->current->expression_count++;
+
+    return result;
+}
+
 internal Ast_block *parse_block(Lexer *lexer) {
     Ast_block *result = new_ast_block(0);
+    Block_parser parser;
+    parser.lexer = lexer;
+    parser.finished = false;
+    Ast_block_creation_iterator it = iterate(result, 0);
+
+    while (parsing_block(&parser)) {
+        Ast_expression *e = advance(&it);
+        parse_declaration(lexer, e);
+        update_block_parser(&parser);
+    }
+
     /*
         TODO: 
-            -make a loop here with a while (still_parsing(lexer)) and parse al of the declarations
             -introduce now the allocator
-            -add a parameter to the parse_expression stuff to send a Ast_expression *result to be able to do this here parse_expression(lexer, block->expressions + i) and store the result there
     */
 
 // struct Ast_block {
@@ -316,7 +422,7 @@ internal Ast *test_parser(Lexer *lexer) {
 
     Token token = get_next_token(lexer);
 
-    while (token.type != TOKEN_EOF) {
+    while (!lexer_finished(lexer)) {
         printf("%d[%d:%d]: %s", token.line, token.c0, token.cf, to_string(token.type));
 
         switch (token.type) {
@@ -356,17 +462,19 @@ s16 main(s16 arg_count, char **args) {
 
     
     Lexer lexer = create_lexer(program1);
+    get_next_token(&lexer);
 
     debug(lexer.source);
     debug(lexer.index);
     debug(lexer.current_line);
 
     // Ast_expression *ast = parse_expression(&lexer);
-    Ast_expression *ast = parse_declaration(&lexer);
+    // Ast_expression *ast = parse_declaration(&lexer);
+    Ast_block *ast = parse_block(&lexer);
     // test_parser(&lexer);
     print(ast);
 
-    printf("finished correctly\n");
+    BOLD(ITALIC(UNDERLINE(GREEN("\nfinished correctly\n"))));
 
     return 0;
 }

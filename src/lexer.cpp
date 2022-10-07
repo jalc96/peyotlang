@@ -138,6 +138,10 @@ internal Lexer create_lexer(char *program) {
     return result;
 }
 
+internal bool lexer_finished(Lexer *lexer) {
+    return lexer->current_token.type == TOKEN_EOF;
+}
+
 internal char get_char(Lexer *lexer) {
     char result = lexer->source.buffer[lexer->index];
     return result;
