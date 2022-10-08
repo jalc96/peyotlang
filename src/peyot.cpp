@@ -142,15 +142,49 @@ internal void print(Ast_expression *ast, u32 indent=0) {
 
 #define AST_EXPRESSIONS_PER_BLOCK_LINK 32
 
+struct Ast_block;
+struct Ast_if;
+struct Ast_expression;
+
+enum AST_STATEMENT_TYPE {
+    AST_STATEMENT_NONE,
+
+    AST_STATEMENT_BLOCK,
+    AST_STATEMENT_IF,
+    AST_STATEMENT_DECLARATION,
+    AST_STATEMENT_EXPRESSION,
+
+    AST_STATEMENT_COUNT,
+};
+
+struct Ast_statement {
+    AST_STATEMENT_TYPE type;
+
+    union {
+        Ast_block *block_statement;
+        Ast_if *if_statement;
+        Ast_expression *expression_statement;
+    };
+};
+
+internal Ast_statement *new_ast_statement(void *allocator) {
+    Ast_statement *result = (Ast_statement *)malloc(sizeof(Ast_statement));
+
+    *result = {};
+    result->type = AST_STATEMENT_NONE;
+
+    return result;
+}
+
 struct Ast_block {
-    u32 expression_count;
-    Ast_expression expressions[AST_EXPRESSIONS_PER_BLOCK_LINK];
+    u32 statement_count;
+    Ast_statement statements[AST_EXPRESSIONS_PER_BLOCK_LINK];
     Ast_block *next;
 };
 
 internal Ast_block *new_ast_block(void *allocator) {
     Ast_block *result = (Ast_block *)malloc(sizeof(Ast_block));
-    result->expression_count = 0;
+    result->statement_count = 0;
     result->next = 0;
     return result;
 }
@@ -170,41 +204,35 @@ internal Ast_block_iterator iterate(Ast_block *block) {
 }
 
 internal bool valid(Ast_block_iterator it) {
-    return (it.current && (it.i < it.current->expression_count));
+    return (it.current && (it.i < it.current->statement_count));
 }
 
-internal Ast_expression *advance(Ast_block_iterator *it) {
+internal Ast_statement *advance(Ast_block_iterator *it) {
     if (it->i >= AST_EXPRESSIONS_PER_BLOCK_LINK) {
         it->i = 0;
         it->current = it->current->next;
     }
 
-    Ast_expression *result = 0;
+    Ast_statement *result = 0;
 
     if (it->current) {
-        result = it->current->expressions + it->i++;
+        result = it->current->statements + it->i++;
     }
 
     return result;
 }
 
+internal void print(Ast_statement *ast, u32 indent=0);
+
 internal void print(Ast_block *block, u32 indent=0) {
+    printf("%*s", indent, "");
     Ast_block_iterator it = iterate(block);
 
     while (valid(it)) {
-        Ast_expression *e = advance(&it);
+        Ast_statement *e = advance(&it);
         print(e, indent + 4);
     }
 }
-
-enum AST_STATEMENT_TYPE {
-    AST_STATEMENT_NONE,
-
-    AST_STATEMENT_BLOCK,
-    AST_STATEMENT_IF,
-
-    AST_STATEMENT_COUNT,
-};
 
 struct Ast_if {
     Ast_expression condition;
@@ -220,23 +248,32 @@ internal Ast_if *new_ast_if(void *allocator) {
     return result;
 }
 
-struct Ast_statement {
-    AST_STATEMENT_TYPE type;
-
-    union {
-        Ast_block block_statement;
-        Ast_if if_statement;
-    };
-};
-
-internal Ast_statement *new_ast_statement(void *allocator) {
-    Ast_statement *result = (Ast_statement *)malloc(sizeof(Ast_statement));
-
-    *result = {};
-    result->type = AST_STATEMENT_NONE;
-
-    return result;
+internal void print(Ast_if *ast, u32 indent=0) {
+    printf("%*s", indent, "");
+    printf("if ");
+    print(&ast->condition);
+    print(&ast->block, indent);
 }
+
+internal void print(Ast_statement *ast, u32 indent) {
+    printf("%*s", indent, "");
+
+    switch (ast->type) {
+        case AST_STATEMENT_BLOCK: {
+            print(ast->block_statement);
+        } break;
+        case AST_STATEMENT_IF: {
+            print(ast->if_statement);
+        } break;
+        case AST_STATEMENT_EXPRESSION: {
+            print(ast->expression_statement);
+        } break;
+        case AST_STATEMENT_DECLARATION: {
+            print(ast->expression_statement);
+        } break;
+    }
+}
+
 
 struct Ast {
     AST_TYPE type;
@@ -296,6 +333,7 @@ internal Ast_expression *parse_term(Lexer *lexer, Ast_expression *result) {
         Ast_expression *operator_tree = (Ast_expression *)malloc(sizeof(Ast_expression));
         operator_tree->type = token_type_to_operation(token.type);
         operator_tree->left = result;
+        get_next_token(lexer);
         operator_tree->right = parse_factor(lexer, 0);
         result = operator_tree;
         
@@ -305,7 +343,7 @@ internal Ast_expression *parse_term(Lexer *lexer, Ast_expression *result) {
     return result;
 }
 
-internal Ast_expression *parse_expression(Lexer *lexer, Ast_expression *result) {
+internal Ast_expression *parse_expression(Lexer *lexer, Ast_expression *result=0) {
     result = parse_term(lexer, result);
 
     Token token = lexer->current_token;
@@ -314,6 +352,7 @@ internal Ast_expression *parse_expression(Lexer *lexer, Ast_expression *result) 
         Ast_expression *operator_tree = (Ast_expression *)malloc(sizeof(Ast_expression));
         operator_tree->type = token_type_to_operation(token.type);
         operator_tree->left = result;
+        get_next_token(lexer);
         operator_tree->right = parse_term(lexer, 0);
         result = operator_tree;
         token = lexer->current_token;
@@ -345,7 +384,7 @@ internal Ast_expression *parse_basic_token(Token token, Ast_expression *result) 
     return result;
 }
 
-internal Ast_expression *parse_declaration(Lexer *lexer, Ast_expression *result) {
+internal Ast_expression *parse_declaration(Lexer *lexer, Ast_expression *result=0) {
     if (!result) {
         result = (Ast_expression *)malloc(sizeof(Ast_expression));
     }
@@ -411,19 +450,21 @@ internal Ast_block_creation_iterator iterate(Ast_block *block, void *allocator) 
     return result;
 }
 
-internal Ast_expression *advance(Ast_block_creation_iterator *it) {
-    if (it->current->expression_count >= AST_EXPRESSIONS_PER_BLOCK_LINK) {
+internal Ast_statement *advance(Ast_block_creation_iterator *it) {
+    if (it->current->statement_count >= AST_EXPRESSIONS_PER_BLOCK_LINK) {
         Ast_block *t = it->current;
         t->next = new_ast_block(it->allocator);
         it->current = t->next;
     }
 
-    Ast_expression *result = it->current->expressions + it->current->expression_count++;
+    Ast_statement *result = it->current->statements + it->current->statement_count++;
 
     return result;
 }
 
-internal Ast_block *parse_block(Lexer *lexer, Ast_block *result) {
+internal Ast_statement *parse_statement(Lexer *lexer, Ast_statement *result);
+
+internal Ast_block *parse_block(Lexer *lexer, Ast_block *result=0) {
     if (!result) {
         result = new_ast_block(0);
     }
@@ -437,8 +478,8 @@ internal Ast_block *parse_block(Lexer *lexer, Ast_block *result) {
     Ast_block_creation_iterator it = iterate(result, 0);
 
     while (parsing_block(&parser)) {
-        Ast_expression *e = advance(&it);
-        parse_declaration(lexer, e);
+        Ast_statement *e = advance(&it);
+        parse_statement(lexer, e);
         update_block_parser(&parser);
     }
 
@@ -448,7 +489,7 @@ internal Ast_block *parse_block(Lexer *lexer, Ast_block *result) {
     return result;
 }
 
-internal Ast_if *parse_if(Lexer *lexer, Ast_if *result) {
+internal Ast_if *parse_if(Lexer *lexer, Ast_if *result=0) {
     if (!result) {
         result = new_ast_if(0);
     }
@@ -477,19 +518,54 @@ internal Ast_if *parse_if(Lexer *lexer, Ast_if *result) {
     return result;
 }
 
+internal AST_STATEMENT_TYPE get_statement_type(Lexer *lexer) {
+    AST_STATEMENT_TYPE result = AST_STATEMENT_NONE;
+
+    Lexer_savepoint savepoint = create_savepoint(lexer);
+    Token t = lexer->current_token;
+
+    switch (t.type) {
+        case TOKEN_OPEN_BRACE: {
+            result = AST_STATEMENT_BLOCK;
+        } break;
+        case TOKEN_IF: {
+            result = AST_STATEMENT_IF;
+        } break;
+        case TOKEN_U32: {
+            result = AST_STATEMENT_DECLARATION;
+        } break;
+        case TOKEN_VARIABLE: {
+            result = AST_STATEMENT_EXPRESSION;
+        } break;
+    }
+
+    rollback_lexer(savepoint);
+
+    return result;
+}
+
 internal Ast_statement *parse_statement(Lexer *lexer, Ast_statement *result) {
     if (!result) {
         result = new_ast_statement(0);
     }
 
     Token t = lexer->current_token;
+    AST_STATEMENT_TYPE type = get_statement_type(lexer);
+    result->type = type;
 
-    if (t.type == TOKEN_OPEN_BRACE) {
-        result->type = AST_STATEMENT_BLOCK;
-        result->block_statement = *parse_block(lexer, &result->block_statement);
-    } else if (t.type == TOKEN_IF) {
-        result->type = AST_STATEMENT_IF;
-        result->if_statement = *parse_if(lexer, &result->if_statement);
+    switch (result->type) {
+        case AST_STATEMENT_BLOCK: {
+            result->block_statement = parse_block(lexer);
+        } break;
+        case AST_STATEMENT_IF: {
+            result->if_statement = parse_if(lexer);
+        } break;
+        case AST_STATEMENT_EXPRESSION: {
+            result->expression_statement = parse_expression(lexer);
+        } break;
+        case AST_STATEMENT_DECLARATION: {
+            result->expression_statement = parse_declaration(lexer);
+        } break;
     }
 
     return result;
@@ -529,7 +605,7 @@ internal Ast *test_parser(Lexer *lexer) {
 
 
 s16 main(s16 arg_count, char **args) {
-    char *program_2 = R"PROGRAM(
+    char *program_block = R"PROGRAM(
     {
         u32 a = 1;
         u32 b = 2;
@@ -552,7 +628,7 @@ s16 main(s16 arg_count, char **args) {
     )PROGRAM";
 
     
-    Lexer lexer = create_lexer(program_if);
+    Lexer lexer = create_lexer(program_block);
     get_next_token(&lexer);
     Lexer_savepoint lexer_savepoint = create_savepoint(&lexer);
 
@@ -562,7 +638,7 @@ s16 main(s16 arg_count, char **args) {
 
     // Ast_block *ast = parse_block(&lexer, 0);
     Ast_statement *ast = parse_statement(&lexer, 0);
-    // print(ast);
+    print(ast);
     rollback_lexer(lexer_savepoint);
     test_parser(&lexer);
 

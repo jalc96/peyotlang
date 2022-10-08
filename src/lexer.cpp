@@ -109,6 +109,7 @@ struct Lexer {
     u32 current_line;
     Token current_token;
     void *allocator;
+    // TODO: i dont think the symbol table should be in the lexer, have it in a parser struct or somehing, this is nonesense
     Symbol_table *symbol_table;
 };
 
