@@ -148,6 +148,13 @@ struct Ast_block {
     Ast_block *next;
 };
 
+internal Ast_block *new_ast_block(void *allocator) {
+    Ast_block *result = (Ast_block *)malloc(sizeof(Ast_block));
+    result->expression_count = 0;
+    result->next = 0;
+    return result;
+}
+
 struct Ast_block_iterator {
     Ast_block *current;
     u32 i;
@@ -163,7 +170,7 @@ internal Ast_block_iterator iterate(Ast_block *block) {
 }
 
 internal bool valid(Ast_block_iterator it) {
-    return it.current;
+    return (it.current && (it.i < it.current->expression_count));
 }
 
 internal Ast_expression *advance(Ast_block_iterator *it) {
@@ -190,6 +197,47 @@ internal void print(Ast_block *block, u32 indent=0) {
     }
 }
 
+enum AST_STATEMENT_TYPE {
+    AST_STATEMENT_NONE,
+
+    AST_STATEMENT_BLOCK,
+    AST_STATEMENT_IF,
+
+    AST_STATEMENT_COUNT,
+};
+
+struct Ast_if {
+    Ast_expression condition;
+    Ast_block block;
+    // TODO: add else, else if
+};
+
+internal Ast_if *new_ast_if(void *allocator) {
+    Ast_if *result = (Ast_if *)malloc(sizeof(Ast_if));
+
+    *result = {};
+
+    return result;
+}
+
+struct Ast_statement {
+    AST_STATEMENT_TYPE type;
+
+    union {
+        Ast_block block_statement;
+        Ast_if if_statement;
+    };
+};
+
+internal Ast_statement *new_ast_statement(void *allocator) {
+    Ast_statement *result = (Ast_statement *)malloc(sizeof(Ast_statement));
+
+    *result = {};
+    result->type = AST_STATEMENT_NONE;
+
+    return result;
+}
+
 struct Ast {
     AST_TYPE type;
 
@@ -214,11 +262,11 @@ internal void leaf(Ast_expression *ast, AST_TYPE type) {
 }
 
 internal Ast_expression *parse_factor(Lexer *lexer, Ast_expression *result) {
-    Token token = get_next_token(lexer);
-
     if (!result) {
         result = (Ast_expression *)malloc(sizeof(Ast_expression));
     }
+
+    Token token = lexer->current_token;
 
     switch (token.type){
         case TOKEN_VARIABLE: {
@@ -303,20 +351,21 @@ internal Ast_expression *parse_declaration(Lexer *lexer, Ast_expression *result)
     }
 
     Token type = lexer->current_token;
-    Token variable = get_next_token(lexer);
+    Token name = get_next_token(lexer);
     Token next = get_next_token(lexer);
 
     // TODO: check if symbol already declared (track scope also) and log error
     Symbol *symbol = create_symbol(
         lexer->symbol_table,
-        variable.variable_name,
+        name.variable_name,
         token_type_to_peyot_type(type.type)
     );
     put(lexer->symbol_table, symbol);
 
     if (next.type == TOKEN_ASSIGNMENT) {
         result->type = AST_ASSIGNMENT;
-        result->left = parse_basic_token(variable, 0);
+        result->left = parse_basic_token(name, 0);
+        get_next_token(lexer);
         result->right = parse_expression(lexer, 0);
         Token semicolon = lexer->current_token;
         assert(semicolon.type == TOKEN_SEMICOLON, "now this is an assert next should be an error with check or something");
@@ -325,16 +374,9 @@ internal Ast_expression *parse_declaration(Lexer *lexer, Ast_expression *result)
     } else {
         // TODO: do this with the error reporter
         assert(next.type == TOKEN_SEMICOLON, "now this is an assert next should be an error with check or something");
-        result = parse_basic_token(variable, result);
+        result = parse_basic_token(name, result);
     }
 
-    return result;
-}
-
-internal Ast_block *new_ast_block(void *allocator) {
-    Ast_block *result = (Ast_block *)malloc(sizeof(Ast_block));
-    result->expression_count = 0;
-    result->next = 0;
     return result;
 }
 
@@ -348,9 +390,11 @@ internal bool parsing_block(Block_parser *parser) {
 }
 
 internal void update_block_parser(Block_parser *parser) {
-    // Token t = parser->lexer->current_token;
-    // if (t.type == TOKEN_CLOSE_BRACE)
-    parser->finished = lexer_finished(parser->lexer);
+    Token t = parser->lexer->current_token;
+    parser->finished = (
+           t.type == TOKEN_CLOSE_BRACE
+        || lexer_finished(parser->lexer)
+    );
 }
 
 struct Ast_block_creation_iterator {
@@ -379,8 +423,14 @@ internal Ast_expression *advance(Ast_block_creation_iterator *it) {
     return result;
 }
 
-internal Ast_block *parse_block(Lexer *lexer) {
-    Ast_block *result = new_ast_block(0);
+internal Ast_block *parse_block(Lexer *lexer, Ast_block *result) {
+    if (!result) {
+        result = new_ast_block(0);
+    }
+
+    assert(lexer->current_token.type == TOKEN_OPEN_BRACE, "when parsing a block, the current token must be an open brace '{'");
+    get_next_token(lexer);
+
     Block_parser parser;
     parser.lexer = lexer;
     parser.finished = false;
@@ -390,6 +440,56 @@ internal Ast_block *parse_block(Lexer *lexer) {
         Ast_expression *e = advance(&it);
         parse_declaration(lexer, e);
         update_block_parser(&parser);
+    }
+
+    assert(lexer->current_token.type == TOKEN_CLOSE_BRACE, "when parsing a block, the last current token must be a close brace '}'");
+    get_next_token(lexer);
+
+    return result;
+}
+
+internal Ast_if *parse_if(Lexer *lexer, Ast_if *result) {
+    if (!result) {
+        result = new_ast_if(0);
+    }
+
+    require_token(lexer, TOKEN_IF);
+    get_next_token(lexer);
+    require_token(lexer, TOKEN_OPEN_PARENTHESIS);
+    get_next_token(lexer);
+
+    if (parsing_errors(lexer)) {
+        // TODO: handle errors this way and have a buffer in the Lexer struct to store the error message
+        return 0;
+    }
+
+    result->condition = *parse_expression(lexer, &result->condition);
+    require_token(lexer, TOKEN_CLOSE_PARENTHESIS);
+    get_next_token(lexer);
+    require_token(lexer, TOKEN_OPEN_BRACE);
+
+    if (parsing_errors(lexer)) {
+        return 0;
+    }
+
+    result->block = *parse_block(lexer, &result->block);
+
+    return result;
+}
+
+internal Ast_statement *parse_statement(Lexer *lexer, Ast_statement *result) {
+    if (!result) {
+        result = new_ast_statement(0);
+    }
+
+    Token t = lexer->current_token;
+
+    if (t.type == TOKEN_OPEN_BRACE) {
+        result->type = AST_STATEMENT_BLOCK;
+        result->block_statement = *parse_block(lexer, &result->block_statement);
+    } else if (t.type == TOKEN_IF) {
+        result->type = AST_STATEMENT_IF;
+        result->if_statement = *parse_if(lexer, &result->if_statement);
     }
 
     return result;
@@ -429,40 +529,44 @@ internal Ast *test_parser(Lexer *lexer) {
 
 
 s16 main(s16 arg_count, char **args) {
-    char *program1 = R"PROGRAM(
+    char *program_2 = R"PROGRAM(
+    {
         u32 a = 1;
         u32 b = 2;
         u32 c = a + b;
+    }
     )PROGRAM";
 
-    char *program2 = R"PROGRAM(
+    char *program_1 = R"PROGRAM(
         u32 a = 1;
     )PROGRAM";
 
-    char *program = R"PROGRAM(
+    char *program_0 = R"PROGRAM(
         1+2+3*2+4*4;
     )PROGRAM";
 
     char *program_if = R"PROGRAM(
-        u32 a = 1;
-        if (a) {
-            a = 0;
+        if (1) {
+            u32 a = 0;
         }
     )PROGRAM";
 
     
     Lexer lexer = create_lexer(program_if);
     get_next_token(&lexer);
+    Lexer_savepoint lexer_savepoint = create_savepoint(&lexer);
 
     debug(lexer.source);
     debug(lexer.index);
     debug(lexer.current_line);
 
-    // Ast_block *ast = parse_block(&lexer);
+    // Ast_block *ast = parse_block(&lexer, 0);
+    Ast_statement *ast = parse_statement(&lexer, 0);
     // print(ast);
+    rollback_lexer(lexer_savepoint);
     test_parser(&lexer);
 
-    BOLD(ITALIC(UNDERLINE(GREEN("\nfinished correctly\n"))));
+    BOLD(ITALIC(UNDERLINE(GREEN("\n\n\nfinished correctly\n"))));
 
     return 0;
 }

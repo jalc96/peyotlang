@@ -112,7 +112,6 @@ struct Lexer {
     Symbol_table *symbol_table;
 };
 
-
 internal Lexer create_lexer(char *program) {
     Lexer result;
 
@@ -122,6 +121,30 @@ internal Lexer create_lexer(char *program) {
     result.symbol_table = create_symbol_table(0);
 
     return result;
+}
+
+struct Lexer_savepoint {
+    Lexer *lexer;
+    Lexer savepoint;
+    void *temp_memory_stuff_for_the_memory_arena;
+};
+
+#define TEMP_MEMORY(...) 0
+#define END_TEMP_MEMORY(...) 0
+
+internal Lexer_savepoint create_savepoint(Lexer *lexer) {
+    Lexer_savepoint result;
+
+    result.lexer = lexer;
+    result.savepoint = *lexer;
+    result.temp_memory_stuff_for_the_memory_arena = TEMP_MEMORY(lexer->allocator);
+
+    return result;
+}
+
+internal void rollback_lexer(Lexer_savepoint lexer_savepoint) {
+    END_TEMP_MEMORY(lexer_savepoint.temp_memory_stuff_for_the_memory_arena);
+    *lexer_savepoint.lexer = lexer_savepoint.savepoint;
 }
 
 internal bool lexer_finished(Lexer *lexer) {
@@ -252,4 +275,12 @@ internal Token get_next_token(Lexer *lexer) {
     result.cf = lexer->index;
     lexer->current_token = result;
     return result;
+}
+
+internal void require_token(Lexer *lexer, TOKEN_TYPE type) {
+    // TODO: handle here some parsing errors
+}
+
+internal bool parsing_errors(Lexer *lexer) {
+    return false;
 }
