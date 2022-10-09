@@ -4,10 +4,11 @@ struct Ast_expression;
 struct Ast_statement;
 
 internal void print(Ast_statement *ast, u32 indent=0);
+internal void print(Ast_block *block, u32 indent=0);
 
-// 
+//
 // EXPRESSIONS
-// 
+//
 
 enum AST_TYPE {
     AST_NULL,
@@ -72,9 +73,9 @@ internal void print(Ast_expression *ast, u32 indent=0, bool is_declaration=false
     }
 }
 
-// 
+//
 // DECLARATIONS
-// 
+//
 
 enum AST_DECLARATION_TYPE {
     AST_DECLARATION_NONE,
@@ -130,15 +131,44 @@ internal void print(Ast_declaration *ast, u32 indent=0) {
     print(ast->variable, indent, true);
 }
 
-// 
+//
+// LOOPS
+//
+
+struct Ast_loop {
+    Ast_declaration *pre;
+    Ast_expression *condition;
+    Ast_expression *post;
+    Ast_block *block;
+};
+
+internal Ast_loop *new_ast_loop(void *allocator) {
+    Ast_loop *result = (Ast_loop *)malloc(sizeof(Ast_loop));
+
+    *result = {};
+
+    return result;
+}
+
+internal void print(Ast_loop *ast, u32 indent=0) {
+    printf("%*sloop:\n", indent, "");
+    printf("%*s", indent, "");
+    if (ast->pre) print(ast->pre, indent);
+    print(ast->condition, indent+4);
+    if (ast->post) print(ast->post, indent+4);
+    print(ast->block, indent+4);
+}
+
+//
 // STATEMENTS
-// 
+//
 
 enum AST_STATEMENT_TYPE {
     AST_STATEMENT_NONE,
 
     AST_STATEMENT_BLOCK,
     AST_STATEMENT_IF,
+    AST_STATEMENT_LOOP,
     AST_STATEMENT_EXPRESSION,
     AST_STATEMENT_DECLARATION,
 
@@ -153,6 +183,7 @@ struct Ast_statement {
         Ast_if *if_statement;
         Ast_expression *expression_statement;
         Ast_declaration *declaration_statement;
+        Ast_loop *loop_statement;
     };
 };
 
@@ -165,9 +196,9 @@ internal Ast_statement *new_ast_statement(void *allocator) {
     return result;
 }
 
-// 
+//
 // BLOCKS
-// 
+//
 
 #define AST_STATEMENTS_PER_BLOCK_LINK 32
 
@@ -217,7 +248,7 @@ internal Ast_statement *advance(Ast_block_iterator *it) {
     return result;
 }
 
-internal void print(Ast_block *block, u32 indent=0) {
+internal void print(Ast_block *block, u32 indent) {
     Ast_block_iterator it = iterate(block);
 
     while (valid(it)) {
@@ -226,9 +257,9 @@ internal void print(Ast_block *block, u32 indent=0) {
     }
 }
 
-// 
+//
 // IF
-// 
+//
 
 struct Ast_if {
     Ast_expression condition;
@@ -265,6 +296,9 @@ internal void print(Ast_statement *ast, u32 indent) {
         } break;
         case AST_STATEMENT_DECLARATION: {
             print(ast->declaration_statement, indent);
+        } break;
+        case AST_STATEMENT_LOOP: {
+            print(ast->loop_statement, indent);
         } break;
     }
 }

@@ -1,4 +1,6 @@
-
+//
+// EXPRESSIONS
+//
 /*
 expression ::= term ([+-] term)*
 term ::= unary_expression ([/*%] unary_expression)
@@ -76,6 +78,10 @@ internal Ast_expression *parse_expression(Lexer *lexer, Ast_expression *result=0
 }
 
 internal Ast_expression *parse_binary_expression(Lexer *lexer, Ast_expression *result=0) {
+    if (!result) {
+        result = (Ast_expression *)malloc(sizeof(Ast_expression));
+    }
+
     result = parse_expression(lexer, result);
 
     Token token = lexer->current_token;
@@ -115,6 +121,10 @@ internal Ast_expression *DEPRECATED_parse_basic_token(Token token, Ast_expressio
     return result;
 }
 
+//
+// DECLARATIONS
+//
+
 internal AST_DECLARATION_TYPE get_declaration_type(Lexer *lexer) {
     AST_DECLARATION_TYPE result = AST_DECLARATION_NONE;
     Lexer_savepoint savepoint = create_savepoint(lexer);
@@ -148,6 +158,9 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
     return result;
 }
 
+//
+// BLOCKS
+//
 
 struct Block_parser {
     Lexer *lexer;
@@ -219,14 +232,18 @@ internal Ast_block *parse_block(Lexer *lexer, Ast_block *result=0) {
     return result;
 }
 
+//
+// IF
+//
+
 internal Ast_if *parse_if(Lexer *lexer, Ast_if *result=0) {
     if (!result) {
         result = new_ast_if(0);
     }
 
-    require_token(lexer, TOKEN_IF);
+    require_token(lexer, TOKEN_IF, "parse_if");
     get_next_token(lexer);
-    require_token(lexer, TOKEN_OPEN_PARENTHESIS);
+    require_token(lexer, TOKEN_OPEN_PARENTHESIS, "parse_if");
     get_next_token(lexer);
 
     if (parsing_errors(lexer)) {
@@ -235,9 +252,9 @@ internal Ast_if *parse_if(Lexer *lexer, Ast_if *result=0) {
     }
 
     result->condition = *parse_binary_expression(lexer, &result->condition);
-    require_token(lexer, TOKEN_CLOSE_PARENTHESIS);
+    require_token(lexer, TOKEN_CLOSE_PARENTHESIS, "parse_if");
     get_next_token(lexer);
-    require_token(lexer, TOKEN_OPEN_BRACE);
+    require_token(lexer, TOKEN_OPEN_BRACE, "parse_if");
 
     if (parsing_errors(lexer)) {
         return 0;
@@ -247,6 +264,43 @@ internal Ast_if *parse_if(Lexer *lexer, Ast_if *result=0) {
 
     return result;
 }
+
+//
+// LOOPS
+//
+
+internal Ast_loop *parse_loop(Lexer *lexer, Ast_loop *result=0) {
+    if (!result) {
+        result = new_ast_loop(0);
+    }
+
+    Token loop = lexer->current_token;
+    get_next_token(lexer);
+    require_token(lexer, TOKEN_OPEN_PARENTHESIS, "parse_loop");
+
+    if (loop.type == TOKEN_FOR) {
+        result->pre = parse_declaration(lexer);
+        result->condition = parse_binary_expression(lexer);
+        require_token(lexer, TOKEN_SEMICOLON, "parse_loop");
+        result->post = parse_binary_expression(lexer);
+
+        require_token(lexer, TOKEN_CLOSE_PARENTHESIS, "parse_loop");
+        result->block = parse_block(lexer);
+    } else if (loop.type == TOKEN_WHILE) {
+        result->pre = 0;
+        result->condition = parse_binary_expression(lexer);
+        result->post = 0;
+
+        require_token(lexer, TOKEN_CLOSE_PARENTHESIS, "parse_loop");
+        result->block = parse_block(lexer);
+    }
+
+    return result;
+}
+
+//
+// STATEMENTS
+//
 
 internal AST_STATEMENT_TYPE get_statement_type(Lexer *lexer) {
     AST_STATEMENT_TYPE result = AST_STATEMENT_NONE;
@@ -269,6 +323,10 @@ internal AST_STATEMENT_TYPE get_statement_type(Lexer *lexer) {
         } break;
         case TOKEN_VARIABLE: {
             result = AST_STATEMENT_EXPRESSION;
+        } break;
+        case TOKEN_WHILE:
+        case TOKEN_FOR: {
+            result = AST_STATEMENT_LOOP;
         } break;
         invalid_default_case_msg("get_statement_type unhandled type");
     }
@@ -302,6 +360,9 @@ internal Ast_statement *parse_statement(Lexer *lexer, Ast_statement *result) {
         } break;
         case AST_STATEMENT_DECLARATION: {
             result->declaration_statement = parse_declaration(lexer);
+        } break;
+        case AST_STATEMENT_LOOP: {
+            result->loop_statement = parse_loop(lexer);
         } break;
     }
 

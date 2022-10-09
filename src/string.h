@@ -132,6 +132,16 @@ internal bool match(str origin, str pattern) {
     return true;
 }
 
+internal bool equals (str a, str b) {
+    if (a.count != b.count) return false;
+
+    str_for(a) {
+        if (it != b.buffer[i]) return false;
+    }
+
+    return true;
+}
+
 internal str create_str(char *buffer) {
     str result;
     result.buffer = buffer;

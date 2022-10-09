@@ -6,6 +6,8 @@ enum TOKEN_TYPE {
     TOKEN_VARIABLE,
 
     TOKEN_IF,
+    TOKEN_FOR,
+    TOKEN_WHILE,
     TOKEN_EQUALS,
     TOKEN_ASSIGNMENT,
     TOKEN_SEMICOLON,
@@ -15,6 +17,8 @@ enum TOKEN_TYPE {
     TOKEN_BINARY_MUL,
     TOKEN_BINARY_DIV,
     TOKEN_BINARY_MOD,
+    TOKEN_BINARY_LESS_THAN,
+    TOKEN_BINARY_GREATER_THAN,
 
     TOKEN_OPEN_BRACE = '{',
     TOKEN_CLOSE_BRACE = '}',
@@ -56,36 +60,37 @@ internal char *to_string(TOKEN_TYPE type) {
 
         case TOKEN_VARIABLE: {return "TOKEN_VARIABLE";} break;
 
-        case TOKEN_EQUALS: {return "TOKEN_EQUALS";} break;
-
-        case TOKEN_ASSIGNMENT: {return "TOKEN_ASSIGNMENT";} break;
-
         case TOKEN_LITERAL_U32: {return "TOKEN_LITERAL_U32";} break;
 
         case TOKEN_SEMICOLON: {return "TOKEN_SEMICOLON";} break;
 
         case TOKEN_EOL: {return "TOKEN_EOL";} break;
+        case TOKEN_EOF: {return "TOKEN_EOF";} break;
+
+        case TOKEN_EQUALS: {return "TOKEN_EQUALS";} break;
+
+        case TOKEN_ASSIGNMENT: {return "TOKEN_ASSIGNMENT";} break;
 
         case TOKEN_BINARY_ADD: {return "TOKEN_BINARY_ADD";} break;
-
         case TOKEN_BINARY_SUB: {return "TOKEN_BINARY_SUB";} break;
-
         case TOKEN_BINARY_MUL: {return "TOKEN_BINARY_MUL";} break;
-
         case TOKEN_BINARY_DIV: {return "TOKEN_BINARY_DIV";} break;
+        case TOKEN_BINARY_LESS_THAN: {return "TOKEN_BINARY_LESS_THAN";} break;
+        case TOKEN_BINARY_GREATER_THAN: {return "TOKEN_BINARY_GREATER_THAN";} break;
 
-        case TOKEN_EOF: {return "TOKEN_EOF";} break;
 
         case TOKEN_COUNT: {return "TOKEN_COUNT";} break;
 
         case TOKEN_IF: {return "TOKEN_IF";} break;
+        case TOKEN_FOR: {return "TOKEN_FOR";} break;
+        case TOKEN_WHILE: {return "TOKEN_WHILE";} break;
 
         case TOKEN_OPEN_BRACE: {return "TOKEN_OPEN_BRACE";} break;
         case TOKEN_CLOSE_BRACE: {return "TOKEN_CLOSE_BRACE";} break;
         case TOKEN_OPEN_PARENTHESIS: {return "TOKEN_OPEN_PARENTHESIS";} break;
         case TOKEN_CLOSE_PARENTHESIS: {return "TOKEN_CLOSE_PARENTHESIS";} break;
 
-        invalid_default_case_msg("missing TOKEN_TYPE");
+        invalid_default_case_msg("missing TOKEN_TYPE in to_string");
     }
 }
 
@@ -109,8 +114,6 @@ struct Lexer {
     u32 current_line;
     Token current_token;
     void *allocator;
-    // TODO: i dont think the symbol table should be in the lexer, have it in a parser struct or somehing, this is nonesense
-    Symbol_table *symbol_table;
 };
 
 internal Lexer create_lexer(char *program) {
@@ -119,7 +122,6 @@ internal Lexer create_lexer(char *program) {
     result.source = create_str(program);
     result.index = 0;
     result.current_line = 1;
-    result.symbol_table = create_symbol_table(0);
 
     return result;
 }
@@ -230,6 +232,12 @@ internal Token get_next_token(Lexer *lexer) {
     } else if (c == '/') {
         result.type = TOKEN_BINARY_DIV;
         advance(lexer);
+    } else if (c == '<') {
+        result.type = TOKEN_BINARY_LESS_THAN;
+        advance(lexer);
+    } else if (c == '>') {
+        result.type = TOKEN_BINARY_GREATER_THAN;
+        advance(lexer);
     } else if (c == '(') {
         result.type = TOKEN_OPEN_PARENTHESIS;
         advance(lexer);
@@ -258,11 +266,13 @@ internal Token get_next_token(Lexer *lexer) {
 
         Keyword_match keywords[] = {
             {STATIC_STR("u32"), TOKEN_U32},
-            {STATIC_STR("if"), TOKEN_IF}
+            {STATIC_STR("if"), TOKEN_IF},
+            {STATIC_STR("for"), TOKEN_FOR},
+            {STATIC_STR("while"), TOKEN_WHILE},
         };
 
         sfor (keywords) {
-            if (match(result.variable_name, it->pattern)) {
+            if (equals(result.variable_name, it->pattern)) {
                 result.type = it->type;
             }
         }
@@ -278,8 +288,13 @@ internal Token get_next_token(Lexer *lexer) {
     return result;
 }
 
-internal void require_token(Lexer *lexer, TOKEN_TYPE type) {
+internal void require_token(Lexer *lexer, TOKEN_TYPE type, const char message[64]) {
     // TODO: handle here some parsing errors
+    Token t = lexer->current_token;
+    char m[128];
+    sprintf(m, "error in %s, <%s> expected, <%s> found", message, to_string(type), to_string(t.type));
+    assert(t.type == type, m);
+    get_next_token(lexer);
 }
 
 internal bool parsing_errors(Lexer *lexer) {

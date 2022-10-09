@@ -82,6 +82,29 @@ internal char *to_string(PEYOT_TYPE type) {
 
 
 s16 main(s16 arg_count, char **args) {
+    char *program_for = R"PROGRAM(
+    {
+        u32 a = 0;
+
+        for (u32 i=0; 1; i = i + 1) {
+            a = a + 1;
+            a = a + 1;
+            u32 c = 2;
+        }
+    }
+    )PROGRAM";
+    char *program_while = R"PROGRAM(
+    {
+        u32 a = 0;
+
+        while (1) {
+            a = a + 1;
+            a = a + 1;
+            u32 c = 2;
+        }
+    }
+    )PROGRAM";
+
     char *program_block = R"PROGRAM(
     {
         u32 a = 1;
@@ -108,7 +131,7 @@ s16 main(s16 arg_count, char **args) {
     )PROGRAM";
 
     
-    Lexer lexer = create_lexer(program_block);
+    Lexer lexer = create_lexer(program_while);
     get_next_token(&lexer);
     Lexer_savepoint lexer_savepoint = create_savepoint(&lexer);
 
