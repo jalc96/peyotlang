@@ -127,6 +127,7 @@ struct Ast_expression {
 
 internal void print(Ast_expression *ast, u32 indent=0) {
     printf("%*s", indent, "");
+    // printf("<%d>", indent);
 
     switch (ast->type) {
         case AST_LITERAL_U32: {printf("%lld\n", ast->u64_value);} break;
@@ -225,7 +226,6 @@ internal Ast_statement *advance(Ast_block_iterator *it) {
 internal void print(Ast_statement *ast, u32 indent=0);
 
 internal void print(Ast_block *block, u32 indent=0) {
-    printf("%*s", indent, "");
     Ast_block_iterator it = iterate(block);
 
     while (valid(it)) {
@@ -250,26 +250,25 @@ internal Ast_if *new_ast_if(void *allocator) {
 
 internal void print(Ast_if *ast, u32 indent=0) {
     printf("%*s", indent, "");
+    // printf("<%d>", indent);
     printf("if ");
     print(&ast->condition);
     print(&ast->block, indent);
 }
 
 internal void print(Ast_statement *ast, u32 indent) {
-    printf("%*s", indent, "");
-
     switch (ast->type) {
         case AST_STATEMENT_BLOCK: {
-            print(ast->block_statement);
+            print(ast->block_statement, indent);
         } break;
         case AST_STATEMENT_IF: {
-            print(ast->if_statement);
+            print(ast->if_statement, indent);
         } break;
         case AST_STATEMENT_EXPRESSION: {
-            print(ast->expression_statement);
+            print(ast->expression_statement, indent);
         } break;
         case AST_STATEMENT_DECLARATION: {
-            print(ast->expression_statement);
+            print(ast->expression_statement, indent);
         } break;
     }
 }
@@ -609,7 +608,9 @@ s16 main(s16 arg_count, char **args) {
     {
         u32 a = 1;
         u32 b = 2;
-        u32 c = a + b;
+        {
+            u32 c = a + b;
+        }
     }
     )PROGRAM";
 
