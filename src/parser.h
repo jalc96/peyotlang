@@ -10,31 +10,30 @@ internal void print(Ast_block *block, u32 indent=0);
 // EXPRESSIONS
 //
 
-enum AST_TYPE {
+enum AST_EXPRESSION_TYPE {
     AST_NULL,
 
-    AST_LITERAL_U32,
-    AST_VARIABLE,
-    AST_BLOCK,
+    AST_EXPRESSION_LITERAL_U32,
+    AST_EXPRESSION_NAME,
 
-    AST_BINARY_ADD,
-    AST_BINARY_SUB,
-    AST_BINARY_MUL,
-    AST_BINARY_DIV,
-    AST_BINARY_MOD,
-    AST_BINARY_ASSIGNMENT,
+    AST_EXPRESSION_BINARY_ADD,
+    AST_EXPRESSION_BINARY_SUB,
+    AST_EXPRESSION_BINARY_MUL,
+    AST_EXPRESSION_BINARY_DIV,
+    AST_EXPRESSION_BINARY_MOD,
+    AST_EXPRESSION_BINARY_ASSIGNMENT,
 
     AST_COUNT,
 };
 
-internal AST_TYPE token_type_to_operation(TOKEN_TYPE token_type) {
+internal AST_EXPRESSION_TYPE token_type_to_operation(TOKEN_TYPE token_type) {
     switch (token_type) {
-        case TOKEN_BINARY_ADD: return AST_BINARY_ADD;
-        case TOKEN_BINARY_SUB: return AST_BINARY_SUB;
-        case TOKEN_BINARY_MUL: return AST_BINARY_MUL;
-        case TOKEN_BINARY_DIV: return AST_BINARY_DIV;
-        case TOKEN_BINARY_MOD: return AST_BINARY_MOD;
-        case TOKEN_ASSIGNMENT: return AST_BINARY_ASSIGNMENT;
+        case TOKEN_BINARY_ADD: return AST_EXPRESSION_BINARY_ADD;
+        case TOKEN_BINARY_SUB: return AST_EXPRESSION_BINARY_SUB;
+        case TOKEN_BINARY_MUL: return AST_EXPRESSION_BINARY_MUL;
+        case TOKEN_BINARY_DIV: return AST_EXPRESSION_BINARY_DIV;
+        case TOKEN_BINARY_MOD: return AST_EXPRESSION_BINARY_MOD;
+        case TOKEN_ASSIGNMENT: return AST_EXPRESSION_BINARY_ASSIGNMENT;
         invalid_default_case_msg("impossible to translate TOKEN_TYPE to PEYOT_TYPE");
     }
 
@@ -42,14 +41,14 @@ internal AST_TYPE token_type_to_operation(TOKEN_TYPE token_type) {
 }
 
 struct Ast_expression {
-    AST_TYPE type;
+    AST_EXPRESSION_TYPE type;
 
     union {
         u64 u64_value;
         s64 s64_value;
         f64 f64_value;
         str str_value;
-        str variable_name;
+        str name;
     };
 
     Symbol *symbol;
@@ -62,14 +61,14 @@ internal void print(Ast_expression *ast, u32 indent=0, bool is_declaration=false
     // printf("<%d>", indent);
 
     switch (ast->type) {
-        case AST_LITERAL_U32: {printf("%lld\n", ast->u64_value);} break;
-        case AST_BINARY_ADD:  {printf("+:\n"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
-        case AST_BINARY_SUB:  {printf("-:\n"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
-        case AST_BINARY_MUL:  {printf("*:\n"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
-        case AST_BINARY_DIV:  {printf("/:\n"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
-        case AST_BINARY_MOD:  {printf("%:\n"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
-        case AST_VARIABLE:    {printf("%.*s\n", ast->variable_name.count, ast->variable_name.buffer);} break;
-        case AST_BINARY_ASSIGNMENT:  {printf("=:\n"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
+        case AST_EXPRESSION_LITERAL_U32: {printf("%lld\n", ast->u64_value);} break;
+        case AST_EXPRESSION_BINARY_ADD:  {printf("+:\n"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
+        case AST_EXPRESSION_BINARY_SUB:  {printf("-:\n"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
+        case AST_EXPRESSION_BINARY_MUL:  {printf("*:\n"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
+        case AST_EXPRESSION_BINARY_DIV:  {printf("/:\n"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
+        case AST_EXPRESSION_BINARY_MOD:  {printf("%:\n"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
+        case AST_EXPRESSION_NAME:    {printf("%.*s\n", ast->name.count, ast->name.buffer);} break;
+        case AST_EXPRESSION_BINARY_ASSIGNMENT:  {printf("=:\n"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
     }
 }
 
@@ -81,6 +80,7 @@ enum AST_DECLARATION_TYPE {
     AST_DECLARATION_NONE,
 
     AST_DECLARATION_VARIABLE,
+    AST_DECLARATION_FUNCTION,
 
     AST_DECLARATION_COUNT,
 };
@@ -121,14 +121,43 @@ internal void print(Type_spec *type) {
     printf("<%.*s>", type_name.count, type_name.buffer);
 }
 
+struct Parameter {
+    Type_spec type;
+    str name;
+};
+
 struct Ast_declaration {
     AST_DECLARATION_TYPE type;
-    Type_spec *variable_type;
-    Ast_expression *variable;
+    union {
+        struct {
+            Type_spec *variable_type;
+            Ast_expression *variable;
+        }; // VARIABLE
+        struct {
+            Ast_expression function_name;
+            u32 param_count;
+            Parameter *params;
+            Type_spec return_type;
+            Ast_block *block;
+        }; // FUNCTION
+    };
 };
 
 internal void print(Ast_declaration *ast, u32 indent=0) {
-    print(ast->variable, indent, true);
+    switch (ast->type) {
+        case AST_DECLARATION_VARIABLE: {print(ast->variable, indent, true);} break;
+        case AST_DECLARATION_FUNCTION: {
+            print(&ast->function_name);
+            printf("%*s", indent, "");
+
+            sfor_count(ast->params, ast->param_count) {
+                // weird bug with the param names, the pointer to the params is changed
+                // printf("%.*s, ", it->name.count, it->name.buffer);
+            }
+
+            print(ast->block);
+        } break;
+    }
 }
 
 //
@@ -308,7 +337,7 @@ internal void print(Ast_statement *ast, u32 indent) {
 // UNUSED
 
 struct Ast {
-    AST_TYPE type;
+    AST_EXPRESSION_TYPE type;
 
     union {
         Ast_block block;

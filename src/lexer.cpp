@@ -3,14 +3,17 @@ enum TOKEN_TYPE {
 
     TOKEN_U32,
     TOKEN_LITERAL_U32,
-    TOKEN_VARIABLE,
+    TOKEN_NAME,
 
     TOKEN_IF,
     TOKEN_FOR,
     TOKEN_WHILE,
     TOKEN_EQUALS,
     TOKEN_ASSIGNMENT,
+    TOKEN_COLON,
     TOKEN_SEMICOLON,
+    TOKEN_COMMA,
+    TOKEN_DOT,
 
     TOKEN_BINARY_ADD,
     TOKEN_BINARY_SUB,
@@ -24,6 +27,8 @@ enum TOKEN_TYPE {
     TOKEN_CLOSE_BRACE = '}',
     TOKEN_OPEN_PARENTHESIS = '(',
     TOKEN_CLOSE_PARENTHESIS = ')',
+
+    TOKEN_RETURN_ARROW,
 
 
 
@@ -58,11 +63,14 @@ internal char *to_string(TOKEN_TYPE type) {
 
         case TOKEN_U32: {return "TOKEN_U32";} break;
 
-        case TOKEN_VARIABLE: {return "TOKEN_VARIABLE";} break;
+        case TOKEN_NAME: {return "TOKEN_NAME";} break;
 
         case TOKEN_LITERAL_U32: {return "TOKEN_LITERAL_U32";} break;
 
+        case TOKEN_COLON: {return "TOKEN_COLON";} break;
         case TOKEN_SEMICOLON: {return "TOKEN_SEMICOLON";} break;
+        case TOKEN_COMMA: {return "TOKEN_COMMA";} break;
+        case TOKEN_DOT: {return "TOKEN_DOT";} break;
 
         case TOKEN_EOL: {return "TOKEN_EOL";} break;
         case TOKEN_EOF: {return "TOKEN_EOF";} break;
@@ -77,6 +85,8 @@ internal char *to_string(TOKEN_TYPE type) {
         case TOKEN_BINARY_DIV: {return "TOKEN_BINARY_DIV";} break;
         case TOKEN_BINARY_LESS_THAN: {return "TOKEN_BINARY_LESS_THAN";} break;
         case TOKEN_BINARY_GREATER_THAN: {return "TOKEN_BINARY_GREATER_THAN";} break;
+
+        case TOKEN_RETURN_ARROW: {return "TOKEN_RETURN_ARROW";} break;
 
 
         case TOKEN_COUNT: {return "TOKEN_COUNT";} break;
@@ -104,7 +114,7 @@ struct Token {
         s64 s64_value;
         f64 f64_value;
         str str_value;
-        str variable_name;
+        str name;
     };
 };
 
@@ -163,7 +173,7 @@ internal void advance(Lexer *lexer, u32 c=1) {
     lexer->index += c;
 }
 
-internal str get_variable_name(Lexer *lexer) {
+internal str get_name(Lexer *lexer) {
     str result;
     result.buffer = lexer->source.buffer + lexer->index;
     result.count = 0;
@@ -217,8 +227,17 @@ internal Token get_next_token(Lexer *lexer) {
         result.type = TOKEN_EOL;
         lexer->current_line++;
         advance(lexer);
+    } else if (c == ':') {
+        result.type = TOKEN_COLON;
+        advance(lexer);
     } else if (c == ';') {
         result.type = TOKEN_SEMICOLON;
+        advance(lexer);
+    } else if (c == ',') {
+        result.type = TOKEN_COMMA;
+        advance(lexer);
+    } else if (c == '.') {
+        result.type = TOKEN_DOT;
         advance(lexer);
     } else if (c == '+') {
         result.type = TOKEN_BINARY_ADD;
@@ -226,6 +245,12 @@ internal Token get_next_token(Lexer *lexer) {
     } else if (c == '-') {
         result.type = TOKEN_BINARY_SUB;
         advance(lexer);
+        c = get_char(lexer);
+
+        if (c == '>') {
+            result.type = TOKEN_RETURN_ARROW;
+            advance(lexer);
+        }
     } else if (c == '*') {
         result.type = TOKEN_BINARY_MUL;
         advance(lexer);
@@ -261,8 +286,8 @@ internal Token get_next_token(Lexer *lexer) {
             advance(lexer);
         }
     } else if (is_alpha(c)) {
-        result.type = TOKEN_VARIABLE;
-        result.variable_name = get_variable_name(lexer);
+        result.type = TOKEN_NAME;
+        result.name = get_name(lexer);
 
         Keyword_match keywords[] = {
             {STATIC_STR("u32"), TOKEN_U32},
@@ -272,7 +297,7 @@ internal Token get_next_token(Lexer *lexer) {
         };
 
         sfor (keywords) {
-            if (equals(result.variable_name, it->pattern)) {
+            if (equals(result.name, it->pattern)) {
                 result.type = it->type;
             }
         }

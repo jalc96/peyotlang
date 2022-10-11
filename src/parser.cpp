@@ -8,7 +8,7 @@ unary_expression ::= [+-]* factor
 factor ::= (expression) | var_name | function_call | basic_type
 */
 
-internal void leaf(Ast_expression *ast, AST_TYPE type) {
+internal void leaf(Ast_expression *ast, AST_EXPRESSION_TYPE type) {
     ast->type = type;
     ast->left = 0;
     ast->right = 0;
@@ -22,13 +22,13 @@ internal Ast_expression *parse_factor(Lexer *lexer, Ast_expression *result) {
     Token token = lexer->current_token;
 
     switch (token.type){
-        case TOKEN_VARIABLE: {
-            leaf(result, AST_VARIABLE);
-            result->variable_name = token.variable_name;
+        case TOKEN_NAME: {
+            leaf(result, AST_EXPRESSION_NAME);
+            result->name = token.name;
         } break;
 
         case TOKEN_LITERAL_U32: {
-            leaf(result, AST_LITERAL_U32);
+            leaf(result, AST_EXPRESSION_LITERAL_U32);
             result->u64_value = token.u64_value;
         } break;
 
@@ -105,13 +105,13 @@ internal Ast_expression *DEPRECATED_parse_basic_token(Token token, Ast_expressio
     }
 
     switch (token.type) {
-        case TOKEN_VARIABLE: {
-            result->type = AST_VARIABLE;
-            result->variable_name = token.variable_name;
+        case TOKEN_NAME: {
+            result->type = AST_EXPRESSION_NAME;
+            result->name = token.name;
         } break;
 
         case TOKEN_LITERAL_U32: {
-            result->type = AST_LITERAL_U32;
+            result->type = AST_EXPRESSION_LITERAL_U32;
             result->u64_value = token.u64_value;
         } break;
 
@@ -125,16 +125,65 @@ internal Ast_expression *DEPRECATED_parse_basic_token(Token token, Ast_expressio
 // DECLARATIONS
 //
 
+internal bool is_type(TOKEN_TYPE type) {
+    switch (type) {
+        // TODO: how to handle custom types here??, maybe do a query to the hash table of types??
+        case TOKEN_U32: {
+            return true;
+        }
+
+        default: {
+            return false;
+        }
+    }
+}
+
 internal AST_DECLARATION_TYPE get_declaration_type(Lexer *lexer) {
     AST_DECLARATION_TYPE result = AST_DECLARATION_NONE;
     Lexer_savepoint savepoint = create_savepoint(lexer);
 
     Token first = lexer->current_token;
-    result = AST_DECLARATION_VARIABLE;
+    Token second = get_next_token(lexer);
+    Token third = get_next_token(lexer);
+    Token fourth = get_next_token(lexer);
+    bool is_function = (
+           first.type == TOKEN_NAME
+        && second.type == TOKEN_COLON
+        && third.type == TOKEN_COLON
+        && fourth.type == TOKEN_OPEN_PARENTHESIS
+    );
+
+    if (is_type(first.type)) {
+        result = AST_DECLARATION_VARIABLE;
+    } else if (is_function) {
+        result = AST_DECLARATION_FUNCTION;
+    }
 
     rollback_lexer(savepoint);
     return result;
 }
+
+internal u32 get_param_count(Lexer *lexer) {
+    u32 result = 0;
+
+    Lexer_savepoint savepoint = create_savepoint(lexer);
+
+    Token t = lexer->current_token;
+
+    while ((t.type != TOKEN_CLOSE_PARENTHESIS) && (t.type != TOKEN_EOF)) {
+        if (is_type(t.type)) {
+            result++;
+        }
+
+        t = get_next_token(lexer);
+    }
+
+    rollback_lexer(savepoint);
+
+    return result;
+}
+
+internal Ast_block *parse_block(Lexer *lexer, Ast_block *result);
 
 internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *result=0) {
     if (!result) {
@@ -151,6 +200,35 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
         assert(semicolon.type == TOKEN_SEMICOLON, "now this is an assert next should be an error with check or something");
         // Consume the semicolon to start fresh
         get_next_token(lexer);
+    } else if (declaration_type == AST_DECLARATION_FUNCTION) {
+        Ast_expression *name = &result->function_name;
+        leaf(name, AST_EXPRESSION_NAME);
+        name->name = lexer->current_token.name;
+        get_next_token(lexer);
+        require_token(lexer, TOKEN_COLON, "in parse_declaration");
+        require_token(lexer, TOKEN_COLON, "in parse_declaration");
+
+        require_token(lexer, TOKEN_OPEN_PARENTHESIS, "in parse_declaration");
+            result->param_count = get_param_count(lexer);
+            result->params = (Parameter *)malloc(sizeof(Parameter) * result->param_count);
+
+            sfor_count(result->params, result->param_count) {
+                Token t = lexer->current_token;
+                // it->type = 
+                t = get_next_token(lexer);
+                it->name = t.name;
+                get_next_token(lexer);
+
+                // +1 because arrays start at 0
+                if ((i + 1) < result->param_count) {
+                    require_token(lexer, TOKEN_COMMA, "in parse_declaration");
+                }
+            }
+        require_token(lexer, TOKEN_CLOSE_PARENTHESIS, "in parse_declaration");
+        require_token(lexer, TOKEN_RETURN_ARROW, "in parse_declaration");
+        get_next_token(lexer);
+
+        result->block = parse_block(lexer, 0);
     } else {
         invalid_code_path;
     }
@@ -207,7 +285,7 @@ internal Ast_statement *advance(Ast_block_creation_iterator *it) {
 
 internal Ast_statement *parse_statement(Lexer *lexer, Ast_statement *result);
 
-internal Ast_block *parse_block(Lexer *lexer, Ast_block *result=0) {
+internal Ast_block *parse_block(Lexer *lexer, Ast_block *result) {
     if (!result) {
         result = new_ast_block(0);
     }
@@ -285,14 +363,14 @@ internal Ast_loop *parse_loop(Lexer *lexer, Ast_loop *result=0) {
         result->post = parse_binary_expression(lexer);
 
         require_token(lexer, TOKEN_CLOSE_PARENTHESIS, "parse_loop");
-        result->block = parse_block(lexer);
+        result->block = parse_block(lexer, 0);
     } else if (loop.type == TOKEN_WHILE) {
         result->pre = 0;
         result->condition = parse_binary_expression(lexer);
         result->post = 0;
 
         require_token(lexer, TOKEN_CLOSE_PARENTHESIS, "parse_loop");
-        result->block = parse_block(lexer);
+        result->block = parse_block(lexer, 0);
     }
 
     return result;
@@ -321,7 +399,7 @@ internal AST_STATEMENT_TYPE get_statement_type(Lexer *lexer) {
         case TOKEN_LITERAL_U32: {
             result = AST_STATEMENT_EXPRESSION;
         } break;
-        case TOKEN_VARIABLE: {
+        case TOKEN_NAME: {
             result = AST_STATEMENT_EXPRESSION;
         } break;
         case TOKEN_WHILE:
@@ -347,7 +425,7 @@ internal Ast_statement *parse_statement(Lexer *lexer, Ast_statement *result) {
 
     switch (result->type) {
         case AST_STATEMENT_BLOCK: {
-            result->block_statement = parse_block(lexer);
+            result->block_statement = parse_block(lexer, 0);
         } break;
         case AST_STATEMENT_IF: {
             result->if_statement = parse_if(lexer);
@@ -383,9 +461,9 @@ internal Ast *test_parser(Lexer *lexer) {
         printf("%d[%d:%d]: %s", token.line, token.c0, token.cf, to_string(token.type));
 
         switch (token.type) {
-            case TOKEN_VARIABLE: {
-                printf("<%.*s>", token.variable_name.count, token.variable_name.buffer);
-                assert(token.variable_name.count == (token.cf - token.c0), "the char offset selection in get_next_token is wrong");
+            case TOKEN_NAME: {
+                printf("<%.*s>", token.name.count, token.name.buffer);
+                assert(token.name.count == (token.cf - token.c0), "the char offset selection in get_next_token is wrong");
             } break;
 
             case TOKEN_LITERAL_U32: {
