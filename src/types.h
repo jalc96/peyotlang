@@ -18,7 +18,8 @@ typedef double f64;
 
 typedef uintptr_t umm;
 typedef intptr_t  smm;
-
+typedef size_t address;
+typedef size_t memory_size;
 
 #define U8_MIN  0
 #define U8_MAX  255

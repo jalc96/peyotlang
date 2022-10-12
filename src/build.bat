@@ -12,6 +12,9 @@ del *.obj > NUL 2> NUL
 @echo -------------------------------------------------
 @echo off
 
-cl -diagnostics:column -Od /Zi -DDEVELOPMENT=1 ../src/peyot.cpp -Fepeyot_debug.exe | msvc_color_release.exe
+set params=-DWIN32=1 -DDEVELOPMENT=1
+set windows_libs=kernel32.lib
+
+cl -diagnostics:column -Od /Zi %params% ../src/peyot.cpp -Fepeyot_debug.exe /link %windows_libs%| msvc_color_release.exe
 
 popd

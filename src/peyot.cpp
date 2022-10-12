@@ -33,15 +33,19 @@
     -grammar check with a function require_token(lexer, TOKEN_OPEN_BRACE); and maybe have an error bool in the lexer or something to check stuff??
     -try Casey's idea for integers: dont have signed/unsigned types, have only integers and when type is important in an operation (multiply/divide/shift/etc) show an error and ask the user to specify someway (figure out this) which type is going to be used
 */
-
 #include"types.h"
 #include"utils.h"
-
 #include<stdio.h>
+#include"debug.h"
+#include"memory.h"
+
+#include"platform.h"
+#include"memory_pool.h"
+
+#include"string.h"
+
 #include<stdlib.h>
 
-#include"debug.h"
-#include"string.h"
 
 enum PEYOT_TYPE {
     TYPE_NULL,

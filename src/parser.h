@@ -26,7 +26,7 @@ enum AST_EXPRESSION_TYPE {
     AST_COUNT,
 };
 
-internal AST_EXPRESSION_TYPE token_type_to_operation(TOKEN_TYPE token_type) {
+internal AST_EXPRESSION_TYPE token_type_to_operation(PEYOT_TOKEN_TYPE token_type) {
     switch (token_type) {
         case TOKEN_BINARY_ADD: return AST_EXPRESSION_BINARY_ADD;
         case TOKEN_BINARY_SUB: return AST_EXPRESSION_BINARY_SUB;
@@ -34,7 +34,7 @@ internal AST_EXPRESSION_TYPE token_type_to_operation(TOKEN_TYPE token_type) {
         case TOKEN_BINARY_DIV: return AST_EXPRESSION_BINARY_DIV;
         case TOKEN_BINARY_MOD: return AST_EXPRESSION_BINARY_MOD;
         case TOKEN_ASSIGNMENT: return AST_EXPRESSION_BINARY_ASSIGNMENT;
-        invalid_default_case_msg("impossible to translate TOKEN_TYPE to PEYOT_TYPE");
+        invalid_default_case_msg("impossible to translate PEYOT_TOKEN_TYPE to PEYOT_TYPE");
     }
 
     return AST_NULL;
@@ -152,7 +152,7 @@ internal void print(Ast_declaration *ast, u32 indent=0) {
 
             sfor_count(ast->params, ast->param_count) {
                 // weird bug with the param names, the pointer to the params is changed
-                // printf("%.*s, ", it->name.count, it->name.buffer);
+                printf("%.*s, ", it->name.count, it->name.buffer);
             }
 
             print(ast->block);

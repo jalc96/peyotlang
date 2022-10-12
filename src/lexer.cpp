@@ -1,4 +1,4 @@
-enum TOKEN_TYPE {
+enum PEYOT_TOKEN_TYPE {
     TOKEN_NULL,
 
     TOKEN_U32,
@@ -41,23 +41,23 @@ enum TOKEN_TYPE {
     TOKEN_COUNT,
 };
 
-internal bool is_add_operator(TOKEN_TYPE type) {
+internal bool is_add_operator(PEYOT_TOKEN_TYPE type) {
     return ((type == TOKEN_BINARY_ADD) || (type == TOKEN_BINARY_SUB));
 }
 
-internal bool is_mul_operator(TOKEN_TYPE type) {
+internal bool is_mul_operator(PEYOT_TOKEN_TYPE type) {
     return ((type == TOKEN_BINARY_MUL) || (type == TOKEN_BINARY_DIV) || (type == TOKEN_BINARY_MOD));
 }
 
-internal PEYOT_TYPE token_type_to_peyot_type(TOKEN_TYPE token_type) {
+internal PEYOT_TYPE token_type_to_peyot_type(PEYOT_TOKEN_TYPE token_type) {
     switch (token_type) {
         case TOKEN_U32: return TYPE_U32;
         // handle the struct declaration
-        invalid_default_case_msg("impossible to translate TOKEN_TYPE to PEYOT_TYPE");
+        invalid_default_case_msg("impossible to translate PEYOT_TOKEN_TYPE to PEYOT_TYPE");
     }
 }
 
-internal char *to_string(TOKEN_TYPE type) {
+internal char *to_string(PEYOT_TOKEN_TYPE type) {
     switch (type){
         case TOKEN_NULL: {return "TOKEN_NULL";} break;
 
@@ -100,12 +100,12 @@ internal char *to_string(TOKEN_TYPE type) {
         case TOKEN_OPEN_PARENTHESIS: {return "TOKEN_OPEN_PARENTHESIS";} break;
         case TOKEN_CLOSE_PARENTHESIS: {return "TOKEN_CLOSE_PARENTHESIS";} break;
 
-        invalid_default_case_msg("missing TOKEN_TYPE in to_string");
+        invalid_default_case_msg("missing PEYOT_TOKEN_TYPE in to_string");
     }
 }
 
 struct Token {
-    TOKEN_TYPE type;
+    PEYOT_TOKEN_TYPE type;
     u32 line;
     u32 c0, cf;
 
@@ -205,7 +205,7 @@ internal void get_numeric_token(Lexer *lexer, Token *result) {
 
 struct Keyword_match {
     str pattern;
-    TOKEN_TYPE type;
+    PEYOT_TOKEN_TYPE type;
 };
 
 internal Token get_next_token(Lexer *lexer) {
@@ -313,7 +313,7 @@ internal Token get_next_token(Lexer *lexer) {
     return result;
 }
 
-internal void require_token(Lexer *lexer, TOKEN_TYPE type, const char message[64]) {
+internal void require_token(Lexer *lexer, PEYOT_TOKEN_TYPE type, const char message[64]) {
     // TODO: handle here some parsing errors
     Token t = lexer->current_token;
     char m[128];

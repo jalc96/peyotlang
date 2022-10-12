@@ -125,7 +125,7 @@ internal Ast_expression *DEPRECATED_parse_basic_token(Token token, Ast_expressio
 // DECLARATIONS
 //
 
-internal bool is_type(TOKEN_TYPE type) {
+internal bool is_type(PEYOT_TOKEN_TYPE type) {
     switch (type) {
         // TODO: how to handle custom types here??, maybe do a query to the hash table of types??
         case TOKEN_U32: {
@@ -185,7 +185,7 @@ internal u32 get_param_count(Lexer *lexer) {
 
 internal Ast_block *parse_block(Lexer *lexer, Ast_block *result);
 
-internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *result=0) {
+internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *result) {
     if (!result) {
         result = (Ast_declaration *)malloc(sizeof(Ast_expression));
     }
@@ -214,7 +214,7 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
 
             sfor_count(result->params, result->param_count) {
                 Token t = lexer->current_token;
-                // it->type = 
+                it->type = {};
                 t = get_next_token(lexer);
                 it->name = t.name;
                 get_next_token(lexer);
@@ -228,6 +228,13 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
         require_token(lexer, TOKEN_RETURN_ARROW, "in parse_declaration");
         get_next_token(lexer);
 
+// fix the pointer fuckup, the params pointer gets corrupted when enterin here
+// READ 
+// READ 
+// READ 
+// READ 
+// READ 
+// in the debugger copy the result address into the cast expression and follow the path, maybe just do the allocator and fuck it
         result->block = parse_block(lexer, 0);
     } else {
         invalid_code_path;
@@ -300,6 +307,7 @@ internal Ast_block *parse_block(Lexer *lexer, Ast_block *result) {
 
     while (parsing_block(&parser)) {
         Ast_statement *e = advance(&it);
+        // the weird bug is in parse statement
         parse_statement(lexer, e);
         update_block_parser(&parser);
     }
@@ -357,7 +365,8 @@ internal Ast_loop *parse_loop(Lexer *lexer, Ast_loop *result=0) {
     require_token(lexer, TOKEN_OPEN_PARENTHESIS, "parse_loop");
 
     if (loop.type == TOKEN_FOR) {
-        result->pre = parse_declaration(lexer);
+        // the weird bug seems to be here
+        result->pre = parse_declaration(lexer, 0);
         result->condition = parse_binary_expression(lexer);
         require_token(lexer, TOKEN_SEMICOLON, "parse_loop");
         result->post = parse_binary_expression(lexer);
@@ -437,7 +446,7 @@ internal Ast_statement *parse_statement(Lexer *lexer, Ast_statement *result) {
             get_next_token(lexer);
         } break;
         case AST_STATEMENT_DECLARATION: {
-            result->declaration_statement = parse_declaration(lexer);
+            result->declaration_statement = parse_declaration(lexer, 0);
         } break;
         case AST_STATEMENT_LOOP: {
             result->loop_statement = parse_loop(lexer);
