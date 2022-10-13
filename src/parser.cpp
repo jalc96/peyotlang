@@ -16,7 +16,7 @@ internal void leaf(Ast_expression *ast, AST_EXPRESSION_TYPE type) {
 
 internal Ast_expression *parse_factor(Lexer *lexer, Ast_expression *result) {
     if (!result) {
-        result = (Ast_expression *)malloc(sizeof(Ast_expression));
+        result = push_struct(&lexer->allocator, Ast_expression);
     }
 
     Token token = lexer->current_token;
@@ -46,7 +46,7 @@ internal Ast_expression *parse_term(Lexer *lexer, Ast_expression *result) {
     Token token = lexer->current_token;
 
     while (is_mul_operator(lexer->current_token.type)) {
-        Ast_expression *operator_tree = (Ast_expression *)malloc(sizeof(Ast_expression));
+        Ast_expression *operator_tree = new_ast_expression(&lexer->allocator);
         operator_tree->type = token_type_to_operation(token.type);
         operator_tree->left = result;
         get_next_token(lexer);
@@ -65,7 +65,7 @@ internal Ast_expression *parse_expression(Lexer *lexer, Ast_expression *result=0
     Token token = lexer->current_token;
 
     while (is_add_operator(token.type)) {
-        Ast_expression *operator_tree = (Ast_expression *)malloc(sizeof(Ast_expression));
+        Ast_expression *operator_tree = new_ast_expression(&lexer->allocator);
         operator_tree->type = token_type_to_operation(token.type);
         operator_tree->left = result;
         get_next_token(lexer);
@@ -79,7 +79,7 @@ internal Ast_expression *parse_expression(Lexer *lexer, Ast_expression *result=0
 
 internal Ast_expression *parse_binary_expression(Lexer *lexer, Ast_expression *result=0) {
     if (!result) {
-        result = (Ast_expression *)malloc(sizeof(Ast_expression));
+        result = new_ast_expression(&lexer->allocator);
     }
 
     result = parse_expression(lexer, result);
@@ -87,7 +87,7 @@ internal Ast_expression *parse_binary_expression(Lexer *lexer, Ast_expression *r
     Token token = lexer->current_token;
 
     if (token.type == TOKEN_ASSIGNMENT) {
-        Ast_expression *operator_tree = (Ast_expression *)malloc(sizeof(Ast_expression));
+        Ast_expression *operator_tree = new_ast_expression(&lexer->allocator);
         operator_tree->type = token_type_to_operation(token.type);
         operator_tree->left = result;
         get_next_token(lexer);
@@ -101,7 +101,7 @@ internal Ast_expression *parse_binary_expression(Lexer *lexer, Ast_expression *r
 
 internal Ast_expression *DEPRECATED_parse_basic_token(Token token, Ast_expression *result) {
     if (!result) {
-        result = (Ast_expression *)malloc(sizeof(Ast_expression));
+        // result = new_ast_expression(&lexer->allocator);
     }
 
     switch (token.type) {
@@ -187,7 +187,7 @@ internal Ast_block *parse_block(Lexer *lexer, Ast_block *result);
 
 internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *result) {
     if (!result) {
-        result = (Ast_declaration *)malloc(sizeof(Ast_expression));
+        result = push_struct(&lexer->allocator, Ast_declaration);
     }
 
     AST_DECLARATION_TYPE declaration_type = get_declaration_type(lexer);
@@ -228,13 +228,6 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
         require_token(lexer, TOKEN_RETURN_ARROW, "in parse_declaration");
         get_next_token(lexer);
 
-// fix the pointer fuckup, the params pointer gets corrupted when enterin here
-// READ 
-// READ 
-// READ 
-// READ 
-// READ 
-// in the debugger copy the result address into the cast expression and follow the path, maybe just do the allocator and fuck it
         result->block = parse_block(lexer, 0);
     } else {
         invalid_code_path;
@@ -265,11 +258,11 @@ internal void update_block_parser(Block_parser *parser) {
 }
 
 struct Ast_block_creation_iterator {
-    void *allocator;
+    Memory_pool *allocator;
     Ast_block *current;
 };
 
-internal Ast_block_creation_iterator iterate(Ast_block *block, void *allocator) {
+internal Ast_block_creation_iterator iterate(Ast_block *block, Memory_pool *allocator) {
     Ast_block_creation_iterator result;
 
     result.current = block;
@@ -294,7 +287,7 @@ internal Ast_statement *parse_statement(Lexer *lexer, Ast_statement *result);
 
 internal Ast_block *parse_block(Lexer *lexer, Ast_block *result) {
     if (!result) {
-        result = new_ast_block(0);
+        result = new_ast_block(&lexer->allocator);
     }
 
     assert(lexer->current_token.type == TOKEN_OPEN_BRACE, "when parsing a block, the current token must be an open brace '{'");
@@ -303,7 +296,7 @@ internal Ast_block *parse_block(Lexer *lexer, Ast_block *result) {
     Block_parser parser;
     parser.lexer = lexer;
     parser.finished = false;
-    Ast_block_creation_iterator it = iterate(result, 0);
+    Ast_block_creation_iterator it = iterate(result, &lexer->allocator);
 
     while (parsing_block(&parser)) {
         Ast_statement *e = advance(&it);
@@ -324,7 +317,7 @@ internal Ast_block *parse_block(Lexer *lexer, Ast_block *result) {
 
 internal Ast_if *parse_if(Lexer *lexer, Ast_if *result=0) {
     if (!result) {
-        result = new_ast_if(0);
+        result = new_ast_if(&lexer->allocator);
     }
 
     require_token(lexer, TOKEN_IF, "parse_if");
@@ -357,7 +350,7 @@ internal Ast_if *parse_if(Lexer *lexer, Ast_if *result=0) {
 
 internal Ast_loop *parse_loop(Lexer *lexer, Ast_loop *result=0) {
     if (!result) {
-        result = new_ast_loop(0);
+        result = new_ast_loop(&lexer->allocator);
     }
 
     Token loop = lexer->current_token;
@@ -425,7 +418,7 @@ internal AST_STATEMENT_TYPE get_statement_type(Lexer *lexer) {
 
 internal Ast_statement *parse_statement(Lexer *lexer, Ast_statement *result) {
     if (!result) {
-        result = new_ast_statement(0);
+        result = new_ast_statement(&lexer->allocator);
     }
 
     Token t = lexer->current_token;

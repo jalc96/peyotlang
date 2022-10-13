@@ -56,6 +56,11 @@ struct Ast_expression {
     Ast_expression *right;
 };
 
+internal Ast_expression *new_ast_expression(Memory_pool *allocator) {
+    Ast_expression *result = push_struct(allocator, Ast_expression);
+    return result;
+}
+
 internal void print(Ast_expression *ast, u32 indent=0, bool is_declaration=false) {
     printf("%*s", indent, "");
     // printf("<%d>", indent);
@@ -171,8 +176,8 @@ struct Ast_loop {
     Ast_block *block;
 };
 
-internal Ast_loop *new_ast_loop(void *allocator) {
-    Ast_loop *result = (Ast_loop *)malloc(sizeof(Ast_loop));
+internal Ast_loop *new_ast_loop(Memory_pool *allocator) {
+    Ast_loop *result = push_struct(allocator, Ast_loop);
 
     *result = {};
 
@@ -216,8 +221,8 @@ struct Ast_statement {
     };
 };
 
-internal Ast_statement *new_ast_statement(void *allocator) {
-    Ast_statement *result = (Ast_statement *)malloc(sizeof(Ast_statement));
+internal Ast_statement *new_ast_statement(Memory_pool *allocator) {
+    Ast_statement *result = push_struct(allocator, Ast_statement);
 
     *result = {};
     result->type = AST_STATEMENT_NONE;
@@ -237,8 +242,8 @@ struct Ast_block {
     Ast_block *next;
 };
 
-internal Ast_block *new_ast_block(void *allocator) {
-    Ast_block *result = (Ast_block *)malloc(sizeof(Ast_block));
+internal Ast_block *new_ast_block(Memory_pool *allocator) {
+    Ast_block *result = push_struct(allocator, Ast_block);
     result->statement_count = 0;
     result->next = 0;
     return result;
@@ -296,8 +301,8 @@ struct Ast_if {
     // TODO: add else, else if
 };
 
-internal Ast_if *new_ast_if(void *allocator) {
-    Ast_if *result = (Ast_if *)malloc(sizeof(Ast_if));
+internal Ast_if *new_ast_if(Memory_pool *allocator) {
+    Ast_if *result = push_struct(allocator, Ast_if);
 
     *result = {};
 

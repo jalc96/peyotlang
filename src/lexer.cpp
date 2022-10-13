@@ -123,7 +123,7 @@ struct Lexer {
     u32 index;
     u32 current_line;
     Token current_token;
-    void *allocator;
+    Memory_pool allocator;
 };
 
 internal Lexer create_lexer(char *program) {
@@ -132,6 +132,7 @@ internal Lexer create_lexer(char *program) {
     result.source = create_str(program);
     result.index = 0;
     result.current_line = 1;
+    result.allocator = {};
 
     return result;
 }
@@ -139,24 +140,21 @@ internal Lexer create_lexer(char *program) {
 struct Lexer_savepoint {
     Lexer *lexer;
     Lexer savepoint;
-    void *temp_memory_stuff_for_the_memory_arena;
+    Temporary_memory temp_memory_stuff_for_the_memory_arena;
 };
-
-#define TEMP_MEMORY(...) 0
-#define END_TEMP_MEMORY(...) 0
 
 internal Lexer_savepoint create_savepoint(Lexer *lexer) {
     Lexer_savepoint result;
 
     result.lexer = lexer;
     result.savepoint = *lexer;
-    result.temp_memory_stuff_for_the_memory_arena = TEMP_MEMORY(lexer->allocator);
+    result.temp_memory_stuff_for_the_memory_arena = begin_temporary_memory(&lexer->allocator);
 
     return result;
 }
 
 internal void rollback_lexer(Lexer_savepoint lexer_savepoint) {
-    END_TEMP_MEMORY(lexer_savepoint.temp_memory_stuff_for_the_memory_arena);
+    end_temporary_memory(lexer_savepoint.temp_memory_stuff_for_the_memory_arena);
     *lexer_savepoint.lexer = lexer_savepoint.savepoint;
 }
 
