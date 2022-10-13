@@ -32,6 +32,11 @@
     -interface with the OS to get memory/open_files/etc
     -grammar check with a function require_token(lexer, TOKEN_OPEN_BRACE); and maybe have an error bool in the lexer or something to check stuff??
     -try Casey's idea for integers: dont have signed/unsigned types, have only integers and when type is important in an operation (multiply/divide/shift/etc) show an error and ask the user to specify someway (figure out this) which type is going to be used
+    -show an error like c when a case in a switch statement is already used
+        switch(thing){
+            case A: do_stuf();break;
+            case A: <---this throws an error
+        }
 */
 #include"types.h"
 #include"utils.h"
@@ -98,6 +103,12 @@ s16 main(s16 arg_count, char **args) {
     }
     )PROGRAM";
 
+    char *program_function_simple = R"PROGRAM(
+    main :: (u32 x, u32 y) -> u32 {
+        u32 a = 3+4*2 == 3%2 && 3 != 3-3-3;
+    }
+    )PROGRAM";
+
     char *program_for = R"PROGRAM(
     {
         u32 a = 0;
@@ -150,7 +161,7 @@ s16 main(s16 arg_count, char **args) {
     )PROGRAM";
 
     
-    Lexer lexer = create_lexer(program_function);
+    Lexer lexer = create_lexer(program_function_simple);
     get_next_token(&lexer);
     Lexer_savepoint lexer_savepoint = create_savepoint(&lexer);
 

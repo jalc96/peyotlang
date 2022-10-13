@@ -21,6 +21,23 @@ enum AST_EXPRESSION_TYPE {
     AST_EXPRESSION_BINARY_MUL,
     AST_EXPRESSION_BINARY_DIV,
     AST_EXPRESSION_BINARY_MOD,
+
+    AST_EXPRESSION_BINARY_EQUALS,
+    AST_EXPRESSION_BINARY_NOT_EQUALS,
+
+    AST_EXPRESSION_BINARY_GREATER_THAN,
+    AST_EXPRESSION_BINARY_GREATER_THAN_OR_EQUALS,
+    AST_EXPRESSION_BINARY_LESS_THAN,
+    AST_EXPRESSION_BINARY_LESS_THAN_OR_EQUALS,
+
+    AST_EXPRESSION_UNARY_LOGICAL_NOT,
+    AST_EXPRESSION_BINARY_LOGICAL_OR,
+    AST_EXPRESSION_BINARY_LOGICAL_AND,
+
+    AST_EXPRESSION_UNARY_BITWISE_NOT,
+    AST_EXPRESSION_BINARY_BITWISE_OR,
+    AST_EXPRESSION_BINARY_BITWISE_AND,
+
     AST_EXPRESSION_BINARY_ASSIGNMENT,
 
     AST_COUNT,
@@ -29,10 +46,27 @@ enum AST_EXPRESSION_TYPE {
 internal AST_EXPRESSION_TYPE token_type_to_operation(PEYOT_TOKEN_TYPE token_type) {
     switch (token_type) {
         case TOKEN_BINARY_ADD: return AST_EXPRESSION_BINARY_ADD;
-        case TOKEN_BINARY_SUB: return AST_EXPRESSION_BINARY_SUB;
+        case TOKEN_SUB: return AST_EXPRESSION_BINARY_SUB;
         case TOKEN_BINARY_MUL: return AST_EXPRESSION_BINARY_MUL;
         case TOKEN_BINARY_DIV: return AST_EXPRESSION_BINARY_DIV;
         case TOKEN_BINARY_MOD: return AST_EXPRESSION_BINARY_MOD;
+
+        case TOKEN_BINARY_EQUALS: return AST_EXPRESSION_BINARY_EQUALS;
+        case TOKEN_BINARY_NOT_EQUALS: return AST_EXPRESSION_BINARY_NOT_EQUALS;
+
+        case TOKEN_BINARY_GREATER_THAN: return AST_EXPRESSION_BINARY_GREATER_THAN;
+        case TOKEN_BINARY_GREATER_THAN_OR_EQUALS: return AST_EXPRESSION_BINARY_GREATER_THAN_OR_EQUALS;
+        case TOKEN_BINARY_LESS_THAN: return AST_EXPRESSION_BINARY_LESS_THAN;
+        case TOKEN_BINARY_LESS_THAN_OR_EQUALS: return AST_EXPRESSION_BINARY_LESS_THAN_OR_EQUALS;
+
+        case TOKEN_UNARY_LOGICAL_NOT: return AST_EXPRESSION_UNARY_LOGICAL_NOT;
+        case TOKEN_BINARY_LOGICAL_AND: return AST_EXPRESSION_BINARY_LOGICAL_AND;
+        case TOKEN_BINARY_LOGICAL_OR: return AST_EXPRESSION_BINARY_LOGICAL_OR;
+
+        case TOKEN_UNARY_BITWISE_NOT: return AST_EXPRESSION_UNARY_BITWISE_NOT;
+        case TOKEN_BINARY_BITWISE_AND: return AST_EXPRESSION_BINARY_BITWISE_AND;
+        case TOKEN_BINARY_BITWISE_OR: return AST_EXPRESSION_BINARY_BITWISE_OR;
+
         case TOKEN_ASSIGNMENT: return AST_EXPRESSION_BINARY_ASSIGNMENT;
         invalid_default_case_msg("impossible to translate PEYOT_TOKEN_TYPE to PEYOT_TYPE");
     }
@@ -66,13 +100,31 @@ internal void print(Ast_expression *ast, u32 indent=0, bool is_declaration=false
     // printf("<%d>", indent);
 
     switch (ast->type) {
+        case AST_EXPRESSION_NAME:    {printf("%.*s\n", ast->name.count, ast->name.buffer);} break;
         case AST_EXPRESSION_LITERAL_U32: {printf("%lld\n", ast->u64_value);} break;
+
         case AST_EXPRESSION_BINARY_ADD:  {printf("+:\n"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
         case AST_EXPRESSION_BINARY_SUB:  {printf("-:\n"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
         case AST_EXPRESSION_BINARY_MUL:  {printf("*:\n"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
         case AST_EXPRESSION_BINARY_DIV:  {printf("/:\n"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
         case AST_EXPRESSION_BINARY_MOD:  {printf("%:\n"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
-        case AST_EXPRESSION_NAME:    {printf("%.*s\n", ast->name.count, ast->name.buffer);} break;
+
+        case AST_EXPRESSION_BINARY_EQUALS: {printf("==:\n"); print(ast->left, indent+4); print(ast->right, indent +4);} break;
+        case AST_EXPRESSION_BINARY_NOT_EQUALS: {printf("!=:\n"); print(ast->left, indent+4); print(ast->right, indent +4);} break;
+
+        case AST_EXPRESSION_BINARY_GREATER_THAN: {printf(">:\n"); print(ast->left, indent+4); print(ast->right, indent +4);} break;
+        case AST_EXPRESSION_BINARY_GREATER_THAN_OR_EQUALS: {printf(">=:\n"); print(ast->left, indent+4); print(ast->right, indent +4);} break;
+        case AST_EXPRESSION_BINARY_LESS_THAN: {printf("<:\n"); print(ast->left, indent+4); print(ast->right, indent +4);} break;
+        case AST_EXPRESSION_BINARY_LESS_THAN_OR_EQUALS: {printf("<=:\n"); print(ast->left, indent+4); print(ast->right, indent +4);} break;
+
+        case AST_EXPRESSION_UNARY_LOGICAL_NOT: {printf("!:\n"); print(ast->right, indent +4);} break;
+        case AST_EXPRESSION_BINARY_LOGICAL_OR: {printf("||:\n"); print(ast->left, indent+4); print(ast->right, indent +4);} break;
+        case AST_EXPRESSION_BINARY_LOGICAL_AND: {printf("&&:\n"); print(ast->left, indent+4); print(ast->right, indent +4);} break;
+
+        case AST_EXPRESSION_UNARY_BITWISE_NOT: {printf("~:\n"); print(ast->right, indent +4);} break;
+        case AST_EXPRESSION_BINARY_BITWISE_OR: {printf("|:\n"); print(ast->left, indent+4); print(ast->right, indent +4);} break;
+        case AST_EXPRESSION_BINARY_BITWISE_AND: {printf("&:\n"); print(ast->left, indent+4); print(ast->right, indent +4);} break;
+
         case AST_EXPRESSION_BINARY_ASSIGNMENT:  {printf("=:\n"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
     }
 }

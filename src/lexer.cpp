@@ -8,7 +8,6 @@ enum PEYOT_TOKEN_TYPE {
     TOKEN_IF,
     TOKEN_FOR,
     TOKEN_WHILE,
-    TOKEN_EQUALS,
     TOKEN_ASSIGNMENT,
     TOKEN_COLON,
     TOKEN_SEMICOLON,
@@ -16,12 +15,25 @@ enum PEYOT_TOKEN_TYPE {
     TOKEN_DOT,
 
     TOKEN_BINARY_ADD,
-    TOKEN_BINARY_SUB,
+    TOKEN_SUB,
     TOKEN_BINARY_MUL,
     TOKEN_BINARY_DIV,
     TOKEN_BINARY_MOD,
-    TOKEN_BINARY_LESS_THAN,
+
+    TOKEN_BINARY_EQUALS,
+    TOKEN_BINARY_NOT_EQUALS,
     TOKEN_BINARY_GREATER_THAN,
+    TOKEN_BINARY_GREATER_THAN_OR_EQUALS,
+    TOKEN_BINARY_LESS_THAN,
+    TOKEN_BINARY_LESS_THAN_OR_EQUALS,
+
+    TOKEN_UNARY_BITWISE_NOT,
+    TOKEN_BINARY_BITWISE_AND,
+    TOKEN_BINARY_BITWISE_OR,
+
+    TOKEN_UNARY_LOGICAL_NOT,
+    TOKEN_BINARY_LOGICAL_AND,
+    TOKEN_BINARY_LOGICAL_OR,
 
     TOKEN_OPEN_BRACE = '{',
     TOKEN_CLOSE_BRACE = '}',
@@ -42,7 +54,7 @@ enum PEYOT_TOKEN_TYPE {
 };
 
 internal bool is_add_operator(PEYOT_TOKEN_TYPE type) {
-    return ((type == TOKEN_BINARY_ADD) || (type == TOKEN_BINARY_SUB));
+    return ((type == TOKEN_BINARY_ADD) || (type == TOKEN_SUB));
 }
 
 internal bool is_mul_operator(PEYOT_TOKEN_TYPE type) {
@@ -75,16 +87,28 @@ internal char *to_string(PEYOT_TOKEN_TYPE type) {
         case TOKEN_EOL: {return "TOKEN_EOL";} break;
         case TOKEN_EOF: {return "TOKEN_EOF";} break;
 
-        case TOKEN_EQUALS: {return "TOKEN_EQUALS";} break;
-
         case TOKEN_ASSIGNMENT: {return "TOKEN_ASSIGNMENT";} break;
 
         case TOKEN_BINARY_ADD: {return "TOKEN_BINARY_ADD";} break;
-        case TOKEN_BINARY_SUB: {return "TOKEN_BINARY_SUB";} break;
+        case TOKEN_SUB: {return "TOKEN_SUB";} break;
         case TOKEN_BINARY_MUL: {return "TOKEN_BINARY_MUL";} break;
         case TOKEN_BINARY_DIV: {return "TOKEN_BINARY_DIV";} break;
-        case TOKEN_BINARY_LESS_THAN: {return "TOKEN_BINARY_LESS_THAN";} break;
+        case TOKEN_BINARY_MOD: {return "TOKEN_BINARY_MOD";} break;
+
+        case TOKEN_BINARY_EQUALS: {return "TOKEN_BINARY_EQUALS";} break;
+        case TOKEN_BINARY_NOT_EQUALS: {return "TOKEN_BINARY_NOT_EQUALS";} break;
         case TOKEN_BINARY_GREATER_THAN: {return "TOKEN_BINARY_GREATER_THAN";} break;
+        case TOKEN_BINARY_GREATER_THAN_OR_EQUALS: {return "TOKEN_BINARY_GREATER_THAN_OR_EQUALS";} break;
+        case TOKEN_BINARY_LESS_THAN: {return "TOKEN_BINARY_LESS_THAN";} break;
+        case TOKEN_BINARY_LESS_THAN_OR_EQUALS: {return "TOKEN_BINARY_LESS_THAN_OR_EQUALS";} break;
+
+        case TOKEN_UNARY_BITWISE_NOT: {return "TOKEN_UNARY_BITWISE_NOT";} break;
+        case TOKEN_BINARY_BITWISE_AND: {return "TOKEN_BINARY_BITWISE_AND";} break;
+        case TOKEN_BINARY_BITWISE_OR: {return "TOKEN_BINARY_BITWISE_OR";} break;
+
+        case TOKEN_UNARY_LOGICAL_NOT: {return "TOKEN_UNARY_LOGICAL_NOT";} break;
+        case TOKEN_BINARY_LOGICAL_AND: {return "TOKEN_BINARY_LOGICAL_AND";} break;
+        case TOKEN_BINARY_LOGICAL_OR: {return "TOKEN_BINARY_LOGICAL_OR";} break;
 
         case TOKEN_RETURN_ARROW: {return "TOKEN_RETURN_ARROW";} break;
 
@@ -241,12 +265,45 @@ internal Token get_next_token(Lexer *lexer) {
         result.type = TOKEN_BINARY_ADD;
         advance(lexer);
     } else if (c == '-') {
-        result.type = TOKEN_BINARY_SUB;
+        result.type = TOKEN_SUB;
         advance(lexer);
         c = get_char(lexer);
 
         if (c == '>') {
             result.type = TOKEN_RETURN_ARROW;
+            advance(lexer);
+        }
+    } else if (c == '~') {
+        result.type = TOKEN_UNARY_BITWISE_NOT;
+        advance(lexer);
+    } else if (c == '!') {
+        result.type = TOKEN_UNARY_LOGICAL_NOT;
+
+        advance(lexer);
+        c = get_char(lexer);
+
+        if (c == '=') {
+            result.type = TOKEN_BINARY_NOT_EQUALS;
+            advance(lexer);
+        }
+    } else if (c == '&') {
+        result.type = TOKEN_BINARY_BITWISE_AND;
+
+        advance(lexer);
+        c = get_char(lexer);
+
+        if (c == '&') {
+            result.type = TOKEN_BINARY_LOGICAL_AND;
+            advance(lexer);
+        }
+    } else if (c == '|') {
+        result.type = TOKEN_BINARY_BITWISE_OR;
+
+        advance(lexer);
+        c = get_char(lexer);
+
+        if (c == '|') {
+            result.type = TOKEN_BINARY_LOGICAL_OR;
             advance(lexer);
         }
     } else if (c == '*') {
@@ -255,12 +312,29 @@ internal Token get_next_token(Lexer *lexer) {
     } else if (c == '/') {
         result.type = TOKEN_BINARY_DIV;
         advance(lexer);
+    } else if (c == '%') {
+        result.type = TOKEN_BINARY_MOD;
+        advance(lexer);
     } else if (c == '<') {
         result.type = TOKEN_BINARY_LESS_THAN;
+
         advance(lexer);
+        c = get_char(lexer);
+
+        if (c == '=') {
+            result.type = TOKEN_BINARY_LESS_THAN_OR_EQUALS;
+            advance(lexer);
+        }
     } else if (c == '>') {
         result.type = TOKEN_BINARY_GREATER_THAN;
+
         advance(lexer);
+        c = get_char(lexer);
+
+        if (c == '=') {
+            result.type = TOKEN_BINARY_GREATER_THAN_OR_EQUALS;
+            advance(lexer);
+        }
     } else if (c == '(') {
         result.type = TOKEN_OPEN_PARENTHESIS;
         advance(lexer);
@@ -280,7 +354,7 @@ internal Token get_next_token(Lexer *lexer) {
         c = get_char(lexer);
 
         if (c == '=') {
-            result.type = TOKEN_EQUALS;
+            result.type = TOKEN_BINARY_EQUALS;
             advance(lexer);
         }
     } else if (is_alpha(c)) {
