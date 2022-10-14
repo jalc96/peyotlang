@@ -40,8 +40,34 @@ internal Ast_expression *parse_factor(Lexer *lexer, Ast_expression *result) {
     return result;
 }
 
+internal Ast_expression *parse_unary_expression(Lexer *lexer, Ast_expression *result) {
+    if (!result) {
+        result = push_struct(&lexer->allocator, Ast_expression);
+    }
+
+    Token token = lexer->current_token;
+    s32 sign = 1;
+
+    while (is_add_operator(token.type)) {
+        if (token.type == TOKEN_SUB) {
+            sign *= -1;
+        }
+
+        token = get_next_token(lexer);
+    }
+
+    if (sign < 0) {
+        result->type = AST_EXPRESSION_UNARY_SUB;
+        result->right = parse_factor(lexer, 0);
+    } else {
+        result = parse_factor(lexer, result);
+    }
+
+    return result;
+}
+
 internal Ast_expression *parse_term(Lexer *lexer, Ast_expression *result) {
-    result = parse_factor(lexer, result);
+    result = parse_unary_expression(lexer, result);
 
     Token token = lexer->current_token;
 
@@ -50,7 +76,7 @@ internal Ast_expression *parse_term(Lexer *lexer, Ast_expression *result) {
         operator_tree->type = token_type_to_operation(token.type);
         operator_tree->left = result;
         get_next_token(lexer);
-        operator_tree->right = parse_factor(lexer, 0);
+        operator_tree->right = parse_unary_expression(lexer, 0);
         result = operator_tree;
         
         token = lexer->current_token;

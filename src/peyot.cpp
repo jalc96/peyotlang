@@ -105,7 +105,7 @@ s16 main(s16 arg_count, char **args) {
 
     char *program_function_simple = R"PROGRAM(
     main :: (u32 x, u32 y) -> u32 {
-        u32 a = 3+4*2 == 3%2 && 3 != 3-3-3;
+        u32 a = 3+4*2 == 3%2 && 3 != 3-3-------++++3;
     }
     )PROGRAM";
 

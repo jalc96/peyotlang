@@ -16,6 +16,7 @@ enum AST_EXPRESSION_TYPE {
     AST_EXPRESSION_LITERAL_U32,
     AST_EXPRESSION_NAME,
 
+    AST_EXPRESSION_UNARY_SUB,
     AST_EXPRESSION_BINARY_ADD,
     AST_EXPRESSION_BINARY_SUB,
     AST_EXPRESSION_BINARY_MUL,
@@ -103,6 +104,7 @@ internal void print(Ast_expression *ast, u32 indent=0, bool is_declaration=false
         case AST_EXPRESSION_NAME:    {printf("%.*s\n", ast->name.count, ast->name.buffer);} break;
         case AST_EXPRESSION_LITERAL_U32: {printf("%lld\n", ast->u64_value);} break;
 
+        case AST_EXPRESSION_UNARY_SUB:  {printf("-:\n"); print(ast->right, indent+4); } break;
         case AST_EXPRESSION_BINARY_ADD:  {printf("+:\n"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
         case AST_EXPRESSION_BINARY_SUB:  {printf("-:\n"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
         case AST_EXPRESSION_BINARY_MUL:  {printf("*:\n"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
