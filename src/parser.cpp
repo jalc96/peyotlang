@@ -105,10 +105,10 @@ internal Ast_expression *parse_expression(Lexer *lexer, Ast_expression *result) 
 
 internal bool is_inequality_operator(PEYOT_TOKEN_TYPE type) {
     bool result = (
-           type == TOKEN_BINARY_GREATER_THAN
-        || type == TOKEN_BINARY_GREATER_THAN_OR_EQUALS
-        || type == TOKEN_BINARY_LESS_THAN
-        || type == TOKEN_BINARY_LESS_THAN_OR_EQUALS
+           type == TOKEN_GREATER_THAN
+        || type == TOKEN_GREATER_THAN_OR_EQUALS
+        || type == TOKEN_LESS_THAN
+        || type == TOKEN_LESS_THAN_OR_EQUALS
     );
     return result;
 }
@@ -136,8 +136,8 @@ internal Ast_expression *parse_relational_inequality_expression(Lexer *lexer, As
 
 internal bool is_equality_operator(PEYOT_TOKEN_TYPE type) {
     bool result = (
-           type == TOKEN_BINARY_EQUALS
-        || type == TOKEN_BINARY_NOT_EQUALS
+           type == TOKEN_EQUALS
+        || type == TOKEN_NOT_EQUALS
     );
     return result;
 }
@@ -171,7 +171,7 @@ internal Ast_expression *parse_and_expression(Lexer *lexer, Ast_expression *resu
     result = parse_relational_equality_expression(lexer, result);
     Token token = lexer->current_token;
 
-    while (token.type == TOKEN_BINARY_LOGICAL_AND) {
+    while (token.type == TOKEN_LOGICAL_AND) {
         Ast_expression *operator_tree = new_ast_expression(&lexer->allocator);
         operator_tree->type = token_type_to_operation(token.type);
         operator_tree->left = result;
@@ -192,7 +192,7 @@ internal Ast_expression *parse_or_expression(Lexer *lexer, Ast_expression *resul
     result = parse_and_expression(lexer, result);
     Token token = lexer->current_token;
 
-    while (token.type == TOKEN_BINARY_LOGICAL_OR) {
+    while (token.type == TOKEN_LOGICAL_OR) {
         Ast_expression *operator_tree = new_ast_expression(&lexer->allocator);
         operator_tree->type = token_type_to_operation(token.type);
         operator_tree->left = result;
