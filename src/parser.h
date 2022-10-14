@@ -1,3 +1,13 @@
+struct Parser {
+    Type_spec_table *type_table;
+};
+
+internal Parser new_parser(Type_spec_table *type_table) {
+    Parser result;
+    result.type_table = type_table;
+    return result;
+}
+
 struct Ast_block;
 struct Ast_if;
 struct Ast_expression;
@@ -86,7 +96,7 @@ struct Ast_expression {
         str name;
     };
 
-    Symbol *symbol;
+    // Symbol *symbol;
     Ast_expression *left;
     Ast_expression *right;
 };
@@ -140,6 +150,7 @@ enum AST_DECLARATION_TYPE {
 
     AST_DECLARATION_VARIABLE,
     AST_DECLARATION_FUNCTION,
+    AST_DECLARATION_STRUCT,
 
     AST_DECLARATION_COUNT,
 };
@@ -151,37 +162,8 @@ internal char *to_string(AST_DECLARATION_TYPE type) {
     }
 }
 
-enum TYPE_SPEC_TYPE {
-    TYPE_SPEC_NONE,
-
-    TYPE_SPEC_NAME,
-    TYPE_SPEC_FUNCTION,
-
-    TYPE_SPEC_COUNT,
-};
-
-internal char *to_string(TYPE_SPEC_TYPE type) {
-    switch (type) {
-        case TYPE_SPEC_NAME: {return "NAME";}
-        case TYPE_SPEC_FUNCTION: {return "FUNCTION";}
-        default: return "ERROR";
-    }
-}
-
-struct Type_spec {
-    TYPE_SPEC_TYPE type;
-    u32 id;
-};
-
-#define get_type_name(...) STATIC_STR("u32 prueba")
-
-internal void print(Type_spec *type) {
-    str type_name = get_type_name(type_name_table, type->id);
-    printf("<%.*s>", type_name.count, type_name.buffer);
-}
-
 struct Parameter {
-    Type_spec type;
+    Type_spec *type;
     str name;
 };
 
@@ -196,7 +178,7 @@ struct Ast_declaration {
             Ast_expression function_name;
             u32 param_count;
             Parameter *params;
-            Type_spec return_type;
+            Type_spec *return_type;
             Ast_block *block;
         }; // FUNCTION
     };

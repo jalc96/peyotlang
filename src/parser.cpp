@@ -16,7 +16,7 @@ internal void leaf(Ast_expression *ast, AST_EXPRESSION_TYPE type) {
 
 internal Ast_expression *parse_factor(Lexer *lexer, Ast_expression *result) {
     if (!result) {
-        result = push_struct(&lexer->allocator, Ast_expression);
+        result = push_struct(lexer->allocator, Ast_expression);
     }
 
     Token token = lexer->current_token;
@@ -42,7 +42,7 @@ internal Ast_expression *parse_factor(Lexer *lexer, Ast_expression *result) {
 
 internal Ast_expression *parse_unary_expression(Lexer *lexer, Ast_expression *result) {
     if (!result) {
-        result = push_struct(&lexer->allocator, Ast_expression);
+        result = push_struct(lexer->allocator, Ast_expression);
     }
 
     Token token = lexer->current_token;
@@ -72,7 +72,7 @@ internal Ast_expression *parse_term(Lexer *lexer, Ast_expression *result) {
     Token token = lexer->current_token;
 
     while (is_mul_operator(lexer->current_token.type)) {
-        Ast_expression *operator_tree = new_ast_expression(&lexer->allocator);
+        Ast_expression *operator_tree = new_ast_expression(lexer->allocator);
         operator_tree->type = token_type_to_operation(token.type);
         operator_tree->left = result;
         get_next_token(lexer);
@@ -91,7 +91,7 @@ internal Ast_expression *parse_expression(Lexer *lexer, Ast_expression *result) 
     Token token = lexer->current_token;
 
     while (is_add_operator(token.type)) {
-        Ast_expression *operator_tree = new_ast_expression(&lexer->allocator);
+        Ast_expression *operator_tree = new_ast_expression(lexer->allocator);
         operator_tree->type = token_type_to_operation(token.type);
         operator_tree->left = result;
         get_next_token(lexer);
@@ -115,14 +115,14 @@ internal bool is_inequality_operator(PEYOT_TOKEN_TYPE type) {
 
 internal Ast_expression *parse_relational_inequality_expression(Lexer *lexer, Ast_expression *result) {
     if (!result) {
-        result = new_ast_expression(&lexer->allocator);
+        result = new_ast_expression(lexer->allocator);
     }
 
     result = parse_expression(lexer, result);
     Token token = lexer->current_token;
 
     while (is_inequality_operator(token.type)) {
-        Ast_expression *operator_tree = new_ast_expression(&lexer->allocator);
+        Ast_expression *operator_tree = new_ast_expression(lexer->allocator);
         operator_tree->type = token_type_to_operation(token.type);
         operator_tree->left = result;
         get_next_token(lexer);
@@ -144,14 +144,14 @@ internal bool is_equality_operator(PEYOT_TOKEN_TYPE type) {
 
 internal Ast_expression *parse_relational_equality_expression(Lexer *lexer, Ast_expression *result) {
     if (!result) {
-        result = new_ast_expression(&lexer->allocator);
+        result = new_ast_expression(lexer->allocator);
     }
 
     result = parse_relational_inequality_expression(lexer, result);
     Token token = lexer->current_token;
 
     while (is_equality_operator(token.type)) {
-        Ast_expression *operator_tree = new_ast_expression(&lexer->allocator);
+        Ast_expression *operator_tree = new_ast_expression(lexer->allocator);
         operator_tree->type = token_type_to_operation(token.type);
         operator_tree->left = result;
         get_next_token(lexer);
@@ -165,14 +165,14 @@ internal Ast_expression *parse_relational_equality_expression(Lexer *lexer, Ast_
 
 internal Ast_expression *parse_and_expression(Lexer *lexer, Ast_expression *result) {
     if (!result) {
-        result = new_ast_expression(&lexer->allocator);
+        result = new_ast_expression(lexer->allocator);
     }
 
     result = parse_relational_equality_expression(lexer, result);
     Token token = lexer->current_token;
 
     while (token.type == TOKEN_LOGICAL_AND) {
-        Ast_expression *operator_tree = new_ast_expression(&lexer->allocator);
+        Ast_expression *operator_tree = new_ast_expression(lexer->allocator);
         operator_tree->type = token_type_to_operation(token.type);
         operator_tree->left = result;
         get_next_token(lexer);
@@ -186,14 +186,14 @@ internal Ast_expression *parse_and_expression(Lexer *lexer, Ast_expression *resu
 
 internal Ast_expression *parse_or_expression(Lexer *lexer, Ast_expression *result) {
     if (!result) {
-        result = new_ast_expression(&lexer->allocator);
+        result = new_ast_expression(lexer->allocator);
     }
 
     result = parse_and_expression(lexer, result);
     Token token = lexer->current_token;
 
     while (token.type == TOKEN_LOGICAL_OR) {
-        Ast_expression *operator_tree = new_ast_expression(&lexer->allocator);
+        Ast_expression *operator_tree = new_ast_expression(lexer->allocator);
         operator_tree->type = token_type_to_operation(token.type);
         operator_tree->left = result;
         get_next_token(lexer);
@@ -207,7 +207,7 @@ internal Ast_expression *parse_or_expression(Lexer *lexer, Ast_expression *resul
 
 internal Ast_expression *parse_binary_expression(Lexer *lexer, Ast_expression *result) {
     if (!result) {
-        result = new_ast_expression(&lexer->allocator);
+        result = new_ast_expression(lexer->allocator);
     }
 
     result = parse_or_expression(lexer, result);
@@ -215,7 +215,7 @@ internal Ast_expression *parse_binary_expression(Lexer *lexer, Ast_expression *r
     Token token = lexer->current_token;
 
     if (token.type == TOKEN_ASSIGNMENT) {
-        Ast_expression *operator_tree = new_ast_expression(&lexer->allocator);
+        Ast_expression *operator_tree = new_ast_expression(lexer->allocator);
         operator_tree->type = token_type_to_operation(token.type);
         operator_tree->left = result;
         get_next_token(lexer);
@@ -229,7 +229,7 @@ internal Ast_expression *parse_binary_expression(Lexer *lexer, Ast_expression *r
 
 internal Ast_expression *DEPRECATED_parse_basic_token(Token token, Ast_expression *result) {
     if (!result) {
-        // result = new_ast_expression(&lexer->allocator);
+        // result = new_ast_expression(lexer->allocator);
     }
 
     switch (token.type) {
@@ -253,19 +253,6 @@ internal Ast_expression *DEPRECATED_parse_basic_token(Token token, Ast_expressio
 // DECLARATIONS
 //
 
-internal bool is_type(PEYOT_TOKEN_TYPE type) {
-    switch (type) {
-        // TODO: how to handle custom types here??, maybe do a query to the hash table of types??
-        case TOKEN_U32: {
-            return true;
-        }
-
-        default: {
-            return false;
-        }
-    }
-}
-
 internal AST_DECLARATION_TYPE get_declaration_type(Lexer *lexer) {
     AST_DECLARATION_TYPE result = AST_DECLARATION_NONE;
     Lexer_savepoint savepoint = create_savepoint(lexer);
@@ -281,7 +268,7 @@ internal AST_DECLARATION_TYPE get_declaration_type(Lexer *lexer) {
         && fourth.type == TOKEN_OPEN_PARENTHESIS
     );
 
-    if (is_type(first.type)) {
+    if (is_type(first)) {
         result = AST_DECLARATION_VARIABLE;
     } else if (is_function) {
         result = AST_DECLARATION_FUNCTION;
@@ -299,7 +286,7 @@ internal u32 get_param_count(Lexer *lexer) {
     Token t = lexer->current_token;
 
     while ((t.type != TOKEN_CLOSE_PARENTHESIS) && (t.type != TOKEN_EOF)) {
-        if (is_type(t.type)) {
+        if (is_type(t)) {
             result++;
         }
 
@@ -315,13 +302,19 @@ internal Ast_block *parse_block(Lexer *lexer, Ast_block *result);
 
 internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *result) {
     if (!result) {
-        result = push_struct(&lexer->allocator, Ast_declaration);
+        result = push_struct(lexer->allocator, Ast_declaration);
     }
 
     AST_DECLARATION_TYPE declaration_type = get_declaration_type(lexer);
     result->type = declaration_type;
 
     if (declaration_type == AST_DECLARATION_VARIABLE) {
+        result->variable_type = get_type(lexer->parser->type_table, lexer->current_token.name);
+
+        if (!result->variable_type) {
+            // TODO: handle out of order declaration
+        }
+
         get_next_token(lexer);
         result->variable = parse_binary_expression(lexer, 0);
         Token semicolon = lexer->current_token;
@@ -354,6 +347,12 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
             }
         require_token(lexer, TOKEN_CLOSE_PARENTHESIS, "in parse_declaration");
         require_token(lexer, TOKEN_RETURN_ARROW, "in parse_declaration");
+        result->return_type = get_type(lexer->parser->type_table, lexer->current_token.name);
+
+        if (!result->variable_type) {
+            // TODO: handle out of order declaration
+        }
+
         get_next_token(lexer);
 
         result->block = parse_block(lexer, 0);
@@ -415,7 +414,7 @@ internal Ast_statement *parse_statement(Lexer *lexer, Ast_statement *result);
 
 internal Ast_block *parse_block(Lexer *lexer, Ast_block *result) {
     if (!result) {
-        result = new_ast_block(&lexer->allocator);
+        result = new_ast_block(lexer->allocator);
     }
 
     assert(lexer->current_token.type == TOKEN_OPEN_BRACE, "when parsing a block, the current token must be an open brace '{'");
@@ -424,7 +423,7 @@ internal Ast_block *parse_block(Lexer *lexer, Ast_block *result) {
     Block_parser parser;
     parser.lexer = lexer;
     parser.finished = false;
-    Ast_block_creation_iterator it = iterate(result, &lexer->allocator);
+    Ast_block_creation_iterator it = iterate(result, lexer->allocator);
 
     while (parsing_block(&parser)) {
         Ast_statement *e = advance(&it);
@@ -445,7 +444,7 @@ internal Ast_block *parse_block(Lexer *lexer, Ast_block *result) {
 
 internal Ast_if *parse_if(Lexer *lexer, Ast_if *result) {
     if (!result) {
-        result = new_ast_if(&lexer->allocator);
+        result = new_ast_if(lexer->allocator);
     }
 
     require_token(lexer, TOKEN_IF, "parse_if");
@@ -478,7 +477,7 @@ internal Ast_if *parse_if(Lexer *lexer, Ast_if *result) {
 
 internal Ast_loop *parse_loop(Lexer *lexer, Ast_loop *result=0) {
     if (!result) {
-        result = new_ast_loop(&lexer->allocator);
+        result = new_ast_loop(lexer->allocator);
     }
 
     Token loop = lexer->current_token;
@@ -530,6 +529,7 @@ internal AST_STATEMENT_TYPE get_statement_type(Lexer *lexer) {
             result = AST_STATEMENT_EXPRESSION;
         } break;
         case TOKEN_NAME: {
+            // TODO: do something with the custom types here, the token will be TOKEN_NAME have an if (is_type(token)) that checks in the types hash table if that type exists
             result = AST_STATEMENT_EXPRESSION;
         } break;
         case TOKEN_WHILE:
@@ -546,7 +546,7 @@ internal AST_STATEMENT_TYPE get_statement_type(Lexer *lexer) {
 
 internal Ast_statement *parse_statement(Lexer *lexer, Ast_statement *result) {
     if (!result) {
-        result = new_ast_statement(&lexer->allocator);
+        result = new_ast_statement(lexer->allocator);
     }
 
     Token t = lexer->current_token;

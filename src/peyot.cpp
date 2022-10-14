@@ -41,6 +41,7 @@
 #include"types.h"
 #include"utils.h"
 #include<stdio.h>
+#include<stdlib.h>
 #include"debug.h"
 #include"memory.h"
 
@@ -48,40 +49,11 @@
 #include"memory_pool.h"
 
 #include"string.h"
-
-#include<stdlib.h>
-
-
-enum PEYOT_TYPE {
-    TYPE_NULL,
-
-    TYPE_U32,
-    TYPE_CUSTOM,
+#include"lexer.h"
+#include"peyot_types.h"
 
 
-
-    TYPE_COUNT,
-};
-
-internal char *to_string(PEYOT_TYPE type) {
-    switch(type) {
-        case TYPE_NULL: {
-            return "NULL";
-        } break;
-        case TYPE_U32: {
-            return "U32";
-        } break;
-        case TYPE_CUSTOM: {
-            return "CUSTOM";
-        } break;
-        case TYPE_COUNT: {
-            return "COUNT";
-        } break;
-    }
-}
-
-
-#include"symbol_table.h"
+// #include"symbol_table.h"
 #include"lexer.cpp"
 #include"parser.h"
 #include"parser.cpp"
@@ -160,8 +132,23 @@ s16 main(s16 arg_count, char **args) {
         }
     )PROGRAM";
 
-    
-    Lexer lexer = create_lexer(program_function_simple);
+    char *program_struct = R"PROGRAM(
+        struct name :: {
+            u32 a;
+            u32 b;
+        };
+    )PROGRAM";
+
+
+    Memory_pool allocator = {};
+
+    Type_spec_table *type_table = new_type_spec_table(&allocator);
+    initialize_native_types(type_table);
+
+    Parser parser = new_parser(type_table);
+    Lexer lexer = create_lexer(program_function, &parser, &allocator);
+
+
     get_next_token(&lexer);
     Lexer_savepoint lexer_savepoint = create_savepoint(&lexer);
 
