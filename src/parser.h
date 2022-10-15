@@ -150,7 +150,7 @@ enum AST_DECLARATION_TYPE {
 
     AST_DECLARATION_VARIABLE,
     AST_DECLARATION_FUNCTION,
-    AST_DECLARATION_STRUCT,
+    AST_DECLARATION_COMPOUND,
 
     AST_DECLARATION_COUNT,
 };
@@ -179,6 +179,36 @@ internal void print(Struct_member *member, u32 indent=0) {
     print(member->type);
 }
 
+enum COMPOUND_TYPE {
+    COMPOUND_NONE,
+
+    COMPOUND_STRUCT,
+    COMPOUND_UNION,
+
+    COMPOUND_COUNT,
+};
+
+internal char *to_string(COMPOUND_TYPE type) {
+    switch (type) {
+        case COMPOUND_NONE:  {return "none";} break;
+        case COMPOUND_STRUCT: {return "struc";} break;
+        case COMPOUND_UNION: {return "union";} break;
+        invalid_default_case_msg("COMPOUND_TYPE unrecognized");
+    };
+}
+
+internal COMPOUND_TYPE token_type_to_compound_type(PEYOT_TOKEN_TYPE token_type) {
+    if (token_type == TOKEN_STRUCT) {
+        return COMPOUND_STRUCT;
+    }
+
+    if (token_type == TOKEN_UNION) {
+        return COMPOUND_UNION;
+    }
+
+    return COMPOUND_NONE;
+}
+
 struct Ast_declaration {
     AST_DECLARATION_TYPE type;
     union {
@@ -194,6 +224,7 @@ struct Ast_declaration {
             Ast_block *block;
         }; // FUNCTION
         struct {
+            COMPOUND_TYPE compound_type;
             Ast_expression struct_name;
             u32 member_count;
             Struct_member *members;
@@ -214,8 +245,9 @@ internal void print(Ast_declaration *ast, u32 indent=0) {
 
             print(ast->block);
         } break;
-        case AST_DECLARATION_STRUCT: {
+        case AST_DECLARATION_COMPOUND: {
             print_indent(indent);
+            printf("%s :: ", to_string(ast->compound_type));
             print(&ast->struct_name);
             print_indent(indent);
             putchar('{');

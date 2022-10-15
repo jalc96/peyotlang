@@ -10,6 +10,7 @@ enum PEYOT_TOKEN_TYPE {
     TOKEN_FOR,
     TOKEN_WHILE,
     TOKEN_STRUCT,
+    TOKEN_UNION,
 
     TOKEN_ASSIGNMENT,
     TOKEN_COLON,
@@ -107,18 +108,21 @@ internal char *to_string(PEYOT_TOKEN_TYPE type) {
 
         case TOKEN_RETURN_ARROW: {return "TOKEN_RETURN_ARROW";} break;
 
-
-        case TOKEN_COUNT: {return "TOKEN_COUNT";} break;
-
         case TOKEN_IF: {return "TOKEN_IF";} break;
         case TOKEN_FOR: {return "TOKEN_FOR";} break;
         case TOKEN_WHILE: {return "TOKEN_WHILE";} break;
         case TOKEN_STRUCT: {return "TOKEN_STRUCT";} break;
+        case TOKEN_UNION: {return "TOKEN_UNION";} break;
 
         case TOKEN_OPEN_BRACE: {return "TOKEN_OPEN_BRACE";} break;
         case TOKEN_CLOSE_BRACE: {return "TOKEN_CLOSE_BRACE";} break;
         case TOKEN_OPEN_PARENTHESIS: {return "TOKEN_OPEN_PARENTHESIS";} break;
         case TOKEN_CLOSE_PARENTHESIS: {return "TOKEN_CLOSE_PARENTHESIS";} break;
+
+
+
+
+        case TOKEN_COUNT: {return "TOKEN_COUNT";} break;
 
         invalid_default_case_msg("missing PEYOT_TOKEN_TYPE in to_string");
     }

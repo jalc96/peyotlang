@@ -173,29 +173,35 @@ internal Token get_next_token(Lexer *lexer) {
             [_] float
             [_] unsigned
             [_] signed
+            [_] void
+
             [_] auto
             [_] const
             [_] volatile
             [_] static
             [_] extern
-            [_] void
+
             [_] register
+
             [X] struct
-            [_] union
+            [X] union
             [_] enum
             [_] typedef
+
             [X] if
             [_] else
             [_] switch
             [_] case
             [_] default
+
             [X] for
             [X] while
             [_] do
+            [_] goto
             [_] break
             [_] continue
+
             [_] return
-            [_] goto
             [_] sizeof
         */
         Keyword_match keywords[] = {
@@ -204,6 +210,7 @@ internal Token get_next_token(Lexer *lexer) {
             {STATIC_STR("for"), TOKEN_FOR},
             {STATIC_STR("while"), TOKEN_WHILE},
             {STATIC_STR("struct"), TOKEN_STRUCT},
+            {STATIC_STR("union"), TOKEN_UNION},
         };
 
         sfor (keywords) {

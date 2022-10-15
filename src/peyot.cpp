@@ -141,6 +141,26 @@ s16 main(s16 arg_count, char **args) {
         };
     )PROGRAM";
 
+    char *program_union = R"PROGRAM(
+        union stuff :: {
+            u32 a;
+            u32 b;
+        };
+    )PROGRAM";
+
+    char *program_union_struct = R"PROGRAM(
+        union V2u :: {
+            struct {
+                u32 x;
+                u32 y;
+            };
+            struct {
+                u32 u;
+                u32 v;
+            };
+        };
+    )PROGRAM";
+
 
     Memory_pool allocator = {};
 

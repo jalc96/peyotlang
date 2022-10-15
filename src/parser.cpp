@@ -257,6 +257,14 @@ internal Type_spec_table *type_table(Lexer *lexer) {
     return lexer->parser->type_table;
 }
 
+internal bool is_compound(PEYOT_TOKEN_TYPE type) {
+    bool result = (
+           type == TOKEN_STRUCT
+        || type == TOKEN_UNION
+    );
+    return result;
+}
+
 internal AST_DECLARATION_TYPE get_declaration_type(Lexer *lexer) {
     AST_DECLARATION_TYPE result = AST_DECLARATION_NONE;
     Lexer_savepoint savepoint = create_savepoint(lexer);
@@ -275,8 +283,8 @@ internal AST_DECLARATION_TYPE get_declaration_type(Lexer *lexer) {
 
     if (is_type(type_table(lexer), t1)) {
         result = AST_DECLARATION_VARIABLE;
-    } else if (t1.type == TOKEN_STRUCT) {
-        result = AST_DECLARATION_STRUCT;
+    } else if (is_compound(t1.type)) {
+        result = AST_DECLARATION_COMPOUND;
     } else if (is_function) {
         result = AST_DECLARATION_FUNCTION;
     }
@@ -383,12 +391,16 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
         get_next_token(lexer);
 
         result->block = parse_block(lexer, 0);
-    } else if (declaration_type == AST_DECLARATION_STRUCT) {
-        require_token(lexer, TOKEN_STRUCT, "in parse_declaration");
-        push_type(type_table(lexer), lexer->current_token.name, TYPE_SPEC_NAME);
-        Ast_expression *name = &result->struct_name;
-        leaf(name, AST_EXPRESSION_NAME);
-        name->name = lexer->current_token.name;
+    } else if (declaration_type == AST_DECLARATION_COMPOUND) {
+        assert(is_compound(lexer->current_token.type), "in declaration parsing the first keyword must be struct or union");
+        result->compound_type = token_type_to_compound_type(lexer->current_token.type);
+
+        get_next_token(lexer);
+
+        Ast_expression *type_name = &result->struct_name;
+        leaf(type_name, AST_EXPRESSION_NAME);
+        type_name->name = lexer->current_token.name;
+        push_type(type_table(lexer), type_name->name, TYPE_SPEC_NAME);
 
         get_next_token(lexer);
         require_token(lexer, TOKEN_COLON, "in parse_declaration");
@@ -407,15 +419,6 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
             }
         require_token(lexer, TOKEN_CLOSE_BRACE, "in parse_declaration");
         require_token(lexer, TOKEN_SEMICOLON, "in parse_declaration");
-
-struct Struct_member {
-    Type_spec *type;
-    str name;
-};
-
-            Ast_expression struct_name;
-            u32 member_count;
-            Struct_member *members;
     } else {
         invalid_code_path;
     }
