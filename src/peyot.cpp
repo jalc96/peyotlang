@@ -38,6 +38,8 @@
             case A: <---this throws an error
         }
 */
+#define print_indent(indent) printf("%*s", (indent), "")
+
 #include"types.h"
 #include"utils.h"
 #include<stdio.h>
@@ -133,7 +135,7 @@ s16 main(s16 arg_count, char **args) {
     )PROGRAM";
 
     char *program_struct = R"PROGRAM(
-        struct name :: {
+        struct V2u :: {
             u32 a;
             u32 b;
         };
@@ -146,7 +148,7 @@ s16 main(s16 arg_count, char **args) {
     initialize_native_types(type_table);
 
     Parser parser = new_parser(type_table);
-    Lexer lexer = create_lexer(program_function, &parser, &allocator);
+    Lexer lexer = create_lexer(program_struct, &parser, &allocator);
 
 
     get_next_token(&lexer);
@@ -162,6 +164,7 @@ s16 main(s16 arg_count, char **args) {
     print(ast);
     rollback_lexer(lexer_savepoint);
     test_parser(&lexer);
+    print(type_table);
 
     BOLD(ITALIC(UNDERLINE(GREEN("\n\n\nfinished correctly\n"))));
 

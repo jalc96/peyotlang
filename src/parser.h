@@ -107,7 +107,7 @@ internal Ast_expression *new_ast_expression(Memory_pool *allocator) {
 }
 
 internal void print(Ast_expression *ast, u32 indent=0, bool is_declaration=false) {
-    printf("%*s", indent, "");
+    print_indent(indent);
     // printf("<%d>", indent);
 
     switch (ast->type) {
@@ -162,10 +162,22 @@ internal char *to_string(AST_DECLARATION_TYPE type) {
     }
 }
 
+// NOTE: Paramater and Struct_member will probably be different
 struct Parameter {
     Type_spec *type;
     str name;
 };
+
+struct Struct_member {
+    Type_spec *type;
+    str name;
+};
+
+internal void print(Struct_member *member, u32 indent=0) {
+    print_indent(indent);
+    printf("%.*s ", member->name.count, member->name.buffer);
+    print(member->type);
+}
 
 struct Ast_declaration {
     AST_DECLARATION_TYPE type;
@@ -181,6 +193,11 @@ struct Ast_declaration {
             Type_spec *return_type;
             Ast_block *block;
         }; // FUNCTION
+        struct {
+            Ast_expression struct_name;
+            u32 member_count;
+            Struct_member *members;
+        }; // STRUCT
     };
 };
 
@@ -189,14 +206,28 @@ internal void print(Ast_declaration *ast, u32 indent=0) {
         case AST_DECLARATION_VARIABLE: {print(ast->variable, indent, true);} break;
         case AST_DECLARATION_FUNCTION: {
             print(&ast->function_name);
-            printf("%*s", indent, "");
+            print_indent(indent);;
 
             sfor_count(ast->params, ast->param_count) {
-                // weird bug with the param names, the pointer to the params is changed
                 printf("%.*s, ", it->name.count, it->name.buffer);
             }
 
             print(ast->block);
+        } break;
+        case AST_DECLARATION_STRUCT: {
+            print_indent(indent);
+            print(&ast->struct_name);
+            print_indent(indent);
+            putchar('{');
+            putchar('\n');
+
+            sfor_count(ast->members, ast->member_count) {
+                print(it, indent+4);
+            }
+
+            print_indent(indent);
+            putchar('}');
+            putchar('\n');
         } break;
     }
 }
@@ -222,7 +253,7 @@ internal Ast_loop *new_ast_loop(Memory_pool *allocator) {
 
 internal void print(Ast_loop *ast, u32 indent=0) {
     printf("%*sloop:\n", indent, "");
-    printf("%*s", indent, "");
+    print_indent(indent);
     if (ast->pre) print(ast->pre, indent);
     print(ast->condition, indent+4);
     if (ast->post) print(ast->post, indent+4);
@@ -346,7 +377,7 @@ internal Ast_if *new_ast_if(Memory_pool *allocator) {
 }
 
 internal void print(Ast_if *ast, u32 indent=0) {
-    printf("%*s", indent, "");
+    print_indent(indent);
     // printf("<%d>", indent);
     printf("if ");
     print(&ast->condition);

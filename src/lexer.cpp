@@ -164,11 +164,46 @@ internal Token get_next_token(Lexer *lexer) {
         result.type = TOKEN_NAME;
         result.name = get_name(lexer);
 
+        /* C keywords
+            [_] auto
+            [_] double
+            [_] int
+            [X] struct
+            [_] break
+            [_] else
+            [_] long
+            [_] switch
+            [_] case
+            [_] enum
+            [_] register
+            [_] typedef
+            [_] char
+            [_] extern
+            [_] return
+            [_] union
+            [_] const
+            [_] float
+            [_] short
+            [_] unsigned
+            [_] continue
+            [X] for
+            [_] signed
+            [_] void
+            [_] default
+            [_] goto
+            [_] sizeof
+            [_] volatile
+            [_] do
+            [X] if
+            [_] static
+            [X] while
+        */
         Keyword_match keywords[] = {
             {STATIC_STR("u32"), TOKEN_U32},
             {STATIC_STR("if"), TOKEN_IF},
             {STATIC_STR("for"), TOKEN_FOR},
             {STATIC_STR("while"), TOKEN_WHILE},
+            {STATIC_STR("struct"), TOKEN_STRUCT},
         };
 
         sfor (keywords) {

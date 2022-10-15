@@ -253,23 +253,30 @@ internal Ast_expression *DEPRECATED_parse_basic_token(Token token, Ast_expressio
 // DECLARATIONS
 //
 
+internal Type_spec_table *type_table(Lexer *lexer) {
+    return lexer->parser->type_table;
+}
+
 internal AST_DECLARATION_TYPE get_declaration_type(Lexer *lexer) {
     AST_DECLARATION_TYPE result = AST_DECLARATION_NONE;
     Lexer_savepoint savepoint = create_savepoint(lexer);
 
-    Token first = lexer->current_token;
-    Token second = get_next_token(lexer);
-    Token third = get_next_token(lexer);
-    Token fourth = get_next_token(lexer);
+    Token t1 = lexer->current_token;
+    Token t2 = get_next_token(lexer);
+    Token t3 = get_next_token(lexer);
+    Token t4 = get_next_token(lexer);
+
     bool is_function = (
-           first.type == TOKEN_NAME
-        && second.type == TOKEN_COLON
-        && third.type == TOKEN_COLON
-        && fourth.type == TOKEN_OPEN_PARENTHESIS
+           t1.type == TOKEN_NAME
+        && t2.type == TOKEN_COLON
+        && t3.type == TOKEN_COLON
+        && t4.type == TOKEN_OPEN_PARENTHESIS
     );
 
-    if (is_type(first)) {
+    if (is_type(type_table(lexer), t1)) {
         result = AST_DECLARATION_VARIABLE;
+    } else if (t1.type == TOKEN_STRUCT) {
+        result = AST_DECLARATION_STRUCT;
     } else if (is_function) {
         result = AST_DECLARATION_FUNCTION;
     }
@@ -286,7 +293,27 @@ internal u32 get_param_count(Lexer *lexer) {
     Token t = lexer->current_token;
 
     while ((t.type != TOKEN_CLOSE_PARENTHESIS) && (t.type != TOKEN_EOF)) {
-        if (is_type(t)) {
+        if (is_type(type_table(lexer), t)) {
+            result++;
+        }
+
+        t = get_next_token(lexer);
+    }
+
+    rollback_lexer(savepoint);
+
+    return result;
+}
+
+internal u32 get_member_count(Lexer *lexer) {
+    u32 result = 0;
+
+    Lexer_savepoint savepoint = create_savepoint(lexer);
+
+    Token t = lexer->current_token;
+
+    while ((t.type != TOKEN_CLOSE_BRACE) && (t.type != TOKEN_EOF)) {
+        if (is_type(type_table(lexer), t)) {
             result++;
         }
 
@@ -331,16 +358,16 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
 
         require_token(lexer, TOKEN_OPEN_PARENTHESIS, "in parse_declaration");
             result->param_count = get_param_count(lexer);
-            result->params = (Parameter *)malloc(sizeof(Parameter) * result->param_count);
+            result->params = push_array(lexer->allocator, result->param_count, Parameter);
 
             sfor_count(result->params, result->param_count) {
                 Token t = lexer->current_token;
-                it->type = {};
+                it->type = get_type(type_table(lexer), t.name);
                 t = get_next_token(lexer);
                 it->name = t.name;
                 get_next_token(lexer);
 
-                // +1 because arrays start at 0
+                // +1 because arrays start at 0 and there are (param_count - 1) number of commas so we have to check (param_count - 1) times
                 if ((i + 1) < result->param_count) {
                     require_token(lexer, TOKEN_COMMA, "in parse_declaration");
                 }
@@ -356,6 +383,39 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
         get_next_token(lexer);
 
         result->block = parse_block(lexer, 0);
+    } else if (declaration_type == AST_DECLARATION_STRUCT) {
+        require_token(lexer, TOKEN_STRUCT, "in parse_declaration");
+        push_type(type_table(lexer), lexer->current_token.name, TYPE_SPEC_NAME);
+        Ast_expression *name = &result->struct_name;
+        leaf(name, AST_EXPRESSION_NAME);
+        name->name = lexer->current_token.name;
+
+        get_next_token(lexer);
+        require_token(lexer, TOKEN_COLON, "in parse_declaration");
+        require_token(lexer, TOKEN_COLON, "in parse_declaration");
+        require_token(lexer, TOKEN_OPEN_BRACE, "in parse_declaration");
+            result->member_count = get_member_count(lexer);
+            result->members = push_array(lexer->allocator, result->member_count, Struct_member);
+
+            sfor_count(result->members, result->member_count) {
+                Token t = lexer->current_token;
+                it->type = get_type(type_table(lexer), t.name);
+                t = get_next_token(lexer);
+                it->name = t.name;
+                get_next_token(lexer);
+                require_token(lexer, TOKEN_SEMICOLON, "in parse_declaration");
+            }
+        require_token(lexer, TOKEN_CLOSE_BRACE, "in parse_declaration");
+        require_token(lexer, TOKEN_SEMICOLON, "in parse_declaration");
+
+struct Struct_member {
+    Type_spec *type;
+    str name;
+};
+
+            Ast_expression struct_name;
+            u32 member_count;
+            Struct_member *members;
     } else {
         invalid_code_path;
     }

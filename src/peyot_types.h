@@ -31,6 +31,18 @@ internal Type_spec *new_type_spec(u32 id, TYPE_SPEC_TYPE type, str name, Memory_
     return result;
 }
 
+internal void print(Type_spec *type, u32 indent=0) {
+    printf("%.*s<%d>\n", type->name.count, type->name.buffer, type->id);
+}
+
+internal void print_entire_list(Type_spec *type, u32 indent=0) {
+    lfor(type) {
+        print_indent(indent);
+        printf("%.*s<%d>\n", it->name.count, it->name.buffer, it->id);
+        indent += 2;
+    }
+}
+
 #define TYPE_SPEC_HASH_TABLE_SIZE 1024
 
 struct Type_spec_table {
@@ -45,6 +57,14 @@ internal Type_spec_table *new_type_spec_table(Memory_pool *allocator) {
     result->allocator = allocator;
 
     return result;
+}
+
+internal void print(Type_spec_table *table) {
+    printf("---TYPE TABLE---\n");
+
+    sfor(table->table) {
+        print_entire_list(*it, 4);
+    }
 }
 
 internal u32 get_type_spec_index(str name) {
@@ -77,12 +97,7 @@ internal Type_spec *get_type(Type_spec_table *table, str name) {
     return result;
 }
 
-internal void print(Type_spec *type) {
-    str type_name = type->name;
-    printf("<%.*s>", type_name.count, type_name.buffer);
-}
-
-internal bool is_type(Token token) {
+internal bool is_type(Type_spec_table *table, Token token) {
     switch (token.type) {
         // TODO: how to handle custom types here??, maybe do a query to the hash table of types??
         case TOKEN_U32: {

@@ -9,6 +9,8 @@ enum PEYOT_TOKEN_TYPE {
     TOKEN_IF,
     TOKEN_FOR,
     TOKEN_WHILE,
+    TOKEN_STRUCT,
+
     TOKEN_ASSIGNMENT,
     TOKEN_COLON,
     TOKEN_SEMICOLON,
@@ -111,6 +113,7 @@ internal char *to_string(PEYOT_TOKEN_TYPE type) {
         case TOKEN_IF: {return "TOKEN_IF";} break;
         case TOKEN_FOR: {return "TOKEN_FOR";} break;
         case TOKEN_WHILE: {return "TOKEN_WHILE";} break;
+        case TOKEN_STRUCT: {return "TOKEN_STRUCT";} break;
 
         case TOKEN_OPEN_BRACE: {return "TOKEN_OPEN_BRACE";} break;
         case TOKEN_CLOSE_BRACE: {return "TOKEN_CLOSE_BRACE";} break;
