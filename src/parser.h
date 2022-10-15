@@ -162,21 +162,46 @@ internal char *to_string(AST_DECLARATION_TYPE type) {
     }
 }
 
-// NOTE: Paramater and Struct_member will probably be different
+// NOTE: Paramater and Member will probably be different
 struct Parameter {
     Type_spec *type;
     str name;
 };
 
-struct Struct_member {
-    Type_spec *type;
-    str name;
+enum MEMBER_TYPE {
+    MEMBER_NONE,
+
+    MEMBER_SIMPLE,
+    MEMBER_COMPOUND,
+
+    MEMBER_COUNT,
 };
 
-internal void print(Struct_member *member, u32 indent=0) {
-    print_indent(indent);
-    printf("%.*s ", member->name.count, member->name.buffer);
-    print(member->type);
+struct Compound;
+internal void print(Compound *compound, u32 indent=0);
+
+struct Member {
+    MEMBER_TYPE member_type;
+
+    union {
+        struct {
+            Type_spec *type;
+            str name;
+        };
+        Compound *sub_compound;
+    };
+
+    Member *next;
+};
+
+internal void print(Member *member, u32 indent=0) {
+    if (member->member_type == MEMBER_SIMPLE) {
+        print_indent(indent);
+        printf("%.*s ", member->name.count, member->name.buffer);
+        print(member->type);
+    } else {
+        print(member->sub_compound, indent+4);
+    }
 }
 
 enum COMPOUND_TYPE {
@@ -188,13 +213,36 @@ enum COMPOUND_TYPE {
     COMPOUND_COUNT,
 };
 
+struct Compound {
+    COMPOUND_TYPE compound_type;
+    u32 member_count;
+    Member *members;
+};
+
+internal Compound *new_compound(Memory_pool *allocator) {
+    Compound *result = push_struct(allocator, Compound);
+    return result;
+}
+
 internal char *to_string(COMPOUND_TYPE type) {
     switch (type) {
         case COMPOUND_NONE:  {return "none";} break;
-        case COMPOUND_STRUCT: {return "struc";} break;
+        case COMPOUND_STRUCT: {return "struct";} break;
         case COMPOUND_UNION: {return "union";} break;
         invalid_default_case_msg("COMPOUND_TYPE unrecognized");
     };
+}
+
+internal void print(Compound *compound, u32 indent) {
+    print_indent(indent);
+    printf("<members: %d> {\n", compound->member_count);
+
+    lfor(compound->members) {
+        print(it, indent+4);
+    }
+
+    print_indent(indent);
+    printf("}\n");
 }
 
 internal COMPOUND_TYPE token_type_to_compound_type(PEYOT_TOKEN_TYPE token_type) {
@@ -211,33 +259,32 @@ internal COMPOUND_TYPE token_type_to_compound_type(PEYOT_TOKEN_TYPE token_type) 
 
 struct Ast_declaration {
     AST_DECLARATION_TYPE type;
+    str name;
+
     union {
         struct {
             Type_spec *variable_type;
-            Ast_expression *variable;
+            Ast_expression *expression;
         }; // VARIABLE
         struct {
-            Ast_expression function_name;
             u32 param_count;
             Parameter *params;
             Type_spec *return_type;
             Ast_block *block;
         }; // FUNCTION
-        struct {
-            COMPOUND_TYPE compound_type;
-            Ast_expression struct_name;
-            u32 member_count;
-            Struct_member *members;
-        }; // STRUCT
+        Compound *compound;
     };
 };
 
 internal void print(Ast_declaration *ast, u32 indent=0) {
     switch (ast->type) {
-        case AST_DECLARATION_VARIABLE: {print(ast->variable, indent, true);} break;
+        case AST_DECLARATION_VARIABLE: {
+            printf(ast->name);
+            print(ast->expression, indent, true);
+        } break;
         case AST_DECLARATION_FUNCTION: {
-            print(&ast->function_name);
-            print_indent(indent);;
+            printf(ast->name);
+            print_indent(indent);
 
             sfor_count(ast->params, ast->param_count) {
                 printf("%.*s, ", it->name.count, it->name.buffer);
@@ -246,19 +293,15 @@ internal void print(Ast_declaration *ast, u32 indent=0) {
             print(ast->block);
         } break;
         case AST_DECLARATION_COMPOUND: {
+            Compound *c = ast->compound;
             print_indent(indent);
-            printf("%s :: ", to_string(ast->compound_type));
-            print(&ast->struct_name);
-            print_indent(indent);
-            putchar('{');
+            printf("%s :: ", to_string(c->compound_type));
+            printf(ast->name, false);
             putchar('\n');
 
-            sfor_count(ast->members, ast->member_count) {
-                print(it, indent+4);
-            }
+            print(c);
 
             print_indent(indent);
-            putchar('}');
             putchar('\n');
         } break;
     }

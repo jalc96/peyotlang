@@ -313,6 +313,62 @@ internal u32 get_param_count(Lexer *lexer) {
     return result;
 }
 
+struct Compound_parsing_result {
+    str name;
+    Compound *compound;
+};
+
+internal Compound_parsing_result parse_compound(Lexer *lexer, bool annonymous=false) {
+    Compound_parsing_result result;
+    result.compound = new_compound(lexer->allocator);
+    result.compound->member_count = 0;
+
+    Token t = lexer->current_token;
+    assert(is_compound(t.type), "missing keyword for compound definition");
+    result.compound->compound_type = token_type_to_compound_type(lexer->current_token.type);
+    get_next_token(lexer);
+
+    if (!annonymous) {
+        result.name = lexer->current_token.name;
+        get_next_token(lexer);
+    }
+
+    require_token(lexer, TOKEN_COLON, "in parse_compound");
+    require_token(lexer, TOKEN_COLON, "in parse_compound");
+    require_token(lexer, TOKEN_OPEN_BRACE, "in parse_compound");
+        t = lexer->current_token;
+        Member **last = &result.compound->members;
+
+        while ((t.type != TOKEN_CLOSE_BRACE) && (t.type != TOKEN_EOF)) {
+            Member *new_member = push_struct(lexer->allocator, Member);
+            result.compound->member_count++;
+
+            if (is_compound(t.type)) {
+                new_member->member_type = MEMBER_COMPOUND;
+                Compound_parsing_result sub = parse_compound(lexer, true);
+                new_member->sub_compound = sub.compound;
+            } else {
+                new_member->member_type = MEMBER_SIMPLE;
+                new_member->type = get_type(type_table(lexer), t.name);
+                t = get_next_token(lexer);
+                new_member->name = t.name;
+                get_next_token(lexer);
+                require_token(lexer, TOKEN_SEMICOLON, "in parse_declaration");
+            }
+
+            new_member->next = 0;
+
+            *last = new_member;
+            last = &new_member->next;
+
+            t = lexer->current_token;
+        }
+    require_token(lexer, TOKEN_CLOSE_BRACE, "in parse_compound");
+    require_token(lexer, TOKEN_SEMICOLON, "in parse_compound");
+
+    return result;
+}
+
 internal u32 get_member_count(Lexer *lexer) {
     u32 result = 0;
 
@@ -351,15 +407,13 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
         }
 
         get_next_token(lexer);
-        result->variable = parse_binary_expression(lexer, 0);
+        result->expression = parse_binary_expression(lexer, 0);
         Token semicolon = lexer->current_token;
         assert(semicolon.type == TOKEN_SEMICOLON, "now this is an assert next should be an error with check or something");
         // Consume the semicolon to start fresh
         get_next_token(lexer);
     } else if (declaration_type == AST_DECLARATION_FUNCTION) {
-        Ast_expression *name = &result->function_name;
-        leaf(name, AST_EXPRESSION_NAME);
-        name->name = lexer->current_token.name;
+        result->name = lexer->current_token.name;
         get_next_token(lexer);
         require_token(lexer, TOKEN_COLON, "in parse_declaration");
         require_token(lexer, TOKEN_COLON, "in parse_declaration");
@@ -393,32 +447,10 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
         result->block = parse_block(lexer, 0);
     } else if (declaration_type == AST_DECLARATION_COMPOUND) {
         assert(is_compound(lexer->current_token.type), "in declaration parsing the first keyword must be struct or union");
-        result->compound_type = token_type_to_compound_type(lexer->current_token.type);
-
-        get_next_token(lexer);
-
-        Ast_expression *type_name = &result->struct_name;
-        leaf(type_name, AST_EXPRESSION_NAME);
-        type_name->name = lexer->current_token.name;
-        push_type(type_table(lexer), type_name->name, TYPE_SPEC_NAME);
-
-        get_next_token(lexer);
-        require_token(lexer, TOKEN_COLON, "in parse_declaration");
-        require_token(lexer, TOKEN_COLON, "in parse_declaration");
-        require_token(lexer, TOKEN_OPEN_BRACE, "in parse_declaration");
-            result->member_count = get_member_count(lexer);
-            result->members = push_array(lexer->allocator, result->member_count, Struct_member);
-
-            sfor_count(result->members, result->member_count) {
-                Token t = lexer->current_token;
-                it->type = get_type(type_table(lexer), t.name);
-                t = get_next_token(lexer);
-                it->name = t.name;
-                get_next_token(lexer);
-                require_token(lexer, TOKEN_SEMICOLON, "in parse_declaration");
-            }
-        require_token(lexer, TOKEN_CLOSE_BRACE, "in parse_declaration");
-        require_token(lexer, TOKEN_SEMICOLON, "in parse_declaration");
+        Compound_parsing_result cpr = parse_compound(lexer);
+        result->compound = cpr.compound;
+        result->name = cpr.name;
+        push_type(type_table(lexer), result->name, TYPE_SPEC_NAME);
     } else {
         invalid_code_path;
     }

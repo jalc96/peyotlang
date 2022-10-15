@@ -150,11 +150,11 @@ s16 main(s16 arg_count, char **args) {
 
     char *program_union_struct = R"PROGRAM(
         union V2u :: {
-            struct {
+            struct :: {
                 u32 x;
                 u32 y;
             };
-            struct {
+            struct :: {
                 u32 u;
                 u32 v;
             };
@@ -168,7 +168,7 @@ s16 main(s16 arg_count, char **args) {
     initialize_native_types(type_table);
 
     Parser parser = new_parser(type_table);
-    Lexer lexer = create_lexer(program_struct, &parser, &allocator);
+    Lexer lexer = create_lexer(program_union_struct, &parser, &allocator);
 
 
     get_next_token(&lexer);

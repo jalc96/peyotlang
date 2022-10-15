@@ -3,9 +3,13 @@ struct str {
     char *buffer;
 };
 
-void printf(str s) {
+void printf(str s, bool print_count=true) {
     // this is for the debug() macro
-    printf("(%d)%.*s", s.count, s.count, s.buffer);
+    if (print_count) {
+        printf("(%d)%.*s", s.count, s.count, s.buffer);
+    } else {
+        printf("%.*s", s.count, s.buffer);
+    }
 }
 
 #if !defined(static_length)

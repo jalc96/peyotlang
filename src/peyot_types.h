@@ -32,7 +32,7 @@ internal Type_spec *new_type_spec(u32 id, TYPE_SPEC_TYPE type, str name, Memory_
 }
 
 internal void print(Type_spec *type, u32 indent=0) {
-    printf("%.*s<%d>\n", type->name.count, type->name.buffer, type->id);
+    printf("%.*s<id: %d>\n", type->name.count, type->name.buffer, type->id);
 }
 
 internal void print_entire_list(Type_spec *type, u32 indent=0) {
