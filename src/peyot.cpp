@@ -116,6 +116,9 @@ s16 main(s16 arg_count, char **args) {
             a = a + 1;
             a = a + 1;
             u32 c = 2;
+            continue;
+            break;
+            return;
         }
     }
     )PROGRAM";
@@ -222,7 +225,7 @@ s16 main(s16 arg_count, char **args) {
     initialize_native_types(type_table);
 
     Parser parser = new_parser(type_table);
-    Lexer lexer = create_lexer(program_complex, &parser, &allocator);
+    Lexer lexer = create_lexer(program_for, &parser, &allocator);
 
 
     get_next_token(&lexer);
@@ -233,8 +236,8 @@ s16 main(s16 arg_count, char **args) {
     debug(lexer.current_line);
 
     // Ast_block *ast = parse_block(&lexer, 0);
-    // Ast_statement *ast = parse_statement(&lexer, 0);
-    Ast_declaration *ast = parse_declaration(&lexer, 0);
+    Ast_statement *ast = parse_statement(&lexer, 0);
+    // Ast_declaration *ast = parse_declaration(&lexer, 0);
     print(ast);
     rollback_lexer(lexer_savepoint);
     test_parser(&lexer);

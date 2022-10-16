@@ -14,6 +14,10 @@ enum PEYOT_TOKEN_TYPE {
     TOKEN_UNION,
     TOKEN_ENUM,
 
+    TOKEN_BREAK,
+    TOKEN_CONTINUE,
+    TOKEN_RETURN,
+
     TOKEN_ASSIGNMENT,
     TOKEN_COLON,
     TOKEN_SEMICOLON,
@@ -122,6 +126,10 @@ internal char *to_string(PEYOT_TOKEN_TYPE type) {
         case TOKEN_CLOSE_BRACE: {return "TOKEN_CLOSE_BRACE";} break;
         case TOKEN_OPEN_PARENTHESIS: {return "TOKEN_OPEN_PARENTHESIS";} break;
         case TOKEN_CLOSE_PARENTHESIS: {return "TOKEN_CLOSE_PARENTHESIS";} break;
+
+        case TOKEN_BREAK: {return "TOKEN_BREAK";} break;
+        case TOKEN_CONTINUE: {return "TOKEN_CONTINUE";} break;
+        case TOKEN_RETURN: {return "TOKEN_RETURN";} break;
 
 
 

@@ -391,6 +391,9 @@ enum AST_STATEMENT_TYPE {
     AST_STATEMENT_LOOP,
     AST_STATEMENT_EXPRESSION,
     AST_STATEMENT_DECLARATION,
+    AST_STATEMENT_BREAK,
+    AST_STATEMENT_CONTINUE,
+    AST_STATEMENT_RETURN,
 
     AST_STATEMENT_COUNT,
 };
@@ -533,6 +536,18 @@ internal void print(Ast_statement *ast, u32 indent) {
         } break;
         case AST_STATEMENT_LOOP: {
             print(ast->loop_statement, indent);
+        } break;
+        case AST_STATEMENT_BREAK: {
+            print_indent(indent);
+            printf("break\n");
+        } break;
+        case AST_STATEMENT_CONTINUE: {
+            print_indent(indent);
+            printf("continue\n");
+        } break;
+        case AST_STATEMENT_RETURN: {
+            print_indent(indent);
+            printf("return\n");
         } break;
     }
 }

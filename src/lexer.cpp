@@ -198,10 +198,10 @@ internal Token get_next_token(Lexer *lexer) {
             [X] while
             [_] do
             [_] goto
-            [_] break
-            [_] continue
+            [X] break
+            [X] continue
+            [X] return
 
-            [_] return
             [_] sizeof
         */
         Keyword_match keywords[] = {
@@ -213,6 +213,9 @@ internal Token get_next_token(Lexer *lexer) {
             {STATIC_STR("struct"), TOKEN_STRUCT},
             {STATIC_STR("union"), TOKEN_UNION},
             {STATIC_STR("enum"), TOKEN_ENUM},
+            {STATIC_STR("break"), TOKEN_BREAK},
+            {STATIC_STR("continue"), TOKEN_CONTINUE},
+            {STATIC_STR("return"), TOKEN_RETURN},
         };
 
         sfor (keywords) {

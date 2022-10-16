@@ -721,6 +721,15 @@ internal AST_STATEMENT_TYPE get_statement_type(Lexer *lexer) {
         case TOKEN_FOR: {
             result = AST_STATEMENT_LOOP;
         } break;
+        case TOKEN_BREAK: {
+            result = AST_STATEMENT_BREAK;
+        } break;
+        case TOKEN_CONTINUE: {
+            result = AST_STATEMENT_CONTINUE;
+        } break;
+        case TOKEN_RETURN: {
+            result = AST_STATEMENT_RETURN;
+        } break;
         invalid_default_case_msg("get_statement_type unhandled type");
     }
 
@@ -756,6 +765,18 @@ internal Ast_statement *parse_statement(Lexer *lexer, Ast_statement *result) {
         } break;
         case AST_STATEMENT_LOOP: {
             result->loop_statement = parse_loop(lexer);
+        } break;
+        case AST_STATEMENT_BREAK:{
+            require_token(lexer, TOKEN_BREAK, "parsing break statement");
+            require_token(lexer, TOKEN_SEMICOLON, "parsing break statement");
+        } break;
+        case AST_STATEMENT_CONTINUE: {
+            require_token(lexer, TOKEN_CONTINUE, "parsing continue statement");
+            require_token(lexer, TOKEN_SEMICOLON, "parsing continue statement");
+        } break;
+        case AST_STATEMENT_RETURN: {
+            require_token(lexer, TOKEN_RETURN, "parsing return statement");
+            require_token(lexer, TOKEN_SEMICOLON, "parsing return statement");
         } break;
     }
 
