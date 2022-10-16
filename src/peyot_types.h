@@ -75,6 +75,7 @@ internal u32 get_type_spec_index(str name) {
 
 internal Type_spec *push_type(Type_spec_table *table, str name, TYPE_SPEC_TYPE type) {
     u32 index = get_type_spec_index(name);
+    // When creating types in several threads maybe assign id ranges to each thread so they dont stall in the same lock all the time
     Type_spec *result = new_type_spec(table->current_id++, type, name, table->allocator);
     result->next = table->table[index];
     table->table[index] = result;

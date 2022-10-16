@@ -161,6 +161,15 @@ s16 main(s16 arg_count, char **args) {
         };
     )PROGRAM";
 
+    char *program_enum = R"PROGRAM(
+        enum THING_TYPE :: {
+            THING_NONE,
+
+            THING_SMALL,
+            THING_BIG=2,
+        };
+    )PROGRAM";
+
 
     Memory_pool allocator = {};
 
@@ -168,7 +177,7 @@ s16 main(s16 arg_count, char **args) {
     initialize_native_types(type_table);
 
     Parser parser = new_parser(type_table);
-    Lexer lexer = create_lexer(program_union_struct, &parser, &allocator);
+    Lexer lexer = create_lexer(program_enum, &parser, &allocator);
 
 
     get_next_token(&lexer);

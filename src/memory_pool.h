@@ -108,7 +108,7 @@ inline address get_alignment_offset(Memory_pool *pool, address alignment) {
 }
 
 #define push_struct(pool, type, ...) (type *) _push_size(pool, sizeof(type), ##__VA_ARGS__)
-#define push_array(pool, count, type, ...) (type *) _push_size(pool, (count) * sizeof(type), ##__VA_ARGS__)
+#define push_array(pool, type, count, ...) (type *) _push_size(pool, (count) * sizeof(type), ##__VA_ARGS__)
 #define push_size(pool, size, ...) _push_size(pool, size, ## __VA_ARGS__)
 #define push_copy(pool, size, source, ...) copy(size, source, _push_size(pool, size, ##__VA_ARGS__))
 

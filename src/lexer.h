@@ -11,6 +11,7 @@ enum PEYOT_TOKEN_TYPE {
     TOKEN_WHILE,
     TOKEN_STRUCT,
     TOKEN_UNION,
+    TOKEN_ENUM,
 
     TOKEN_ASSIGNMENT,
     TOKEN_COLON,
@@ -24,7 +25,7 @@ enum PEYOT_TOKEN_TYPE {
     TOKEN_DIV,
     TOKEN_MOD,
 
-    TOKEN_EQUALS,
+    TOKEN_BINARY_EQUALS,
     TOKEN_NOT_EQUALS,
     TOKEN_GREATER_THAN,
     TOKEN_GREATER_THAN_OR_EQUALS,
@@ -91,7 +92,7 @@ internal char *to_string(PEYOT_TOKEN_TYPE type) {
         case TOKEN_DIV: {return "TOKEN_DIV";} break;
         case TOKEN_MOD: {return "TOKEN_MOD";} break;
 
-        case TOKEN_EQUALS: {return "TOKEN_EQUALS";} break;
+        case TOKEN_BINARY_EQUALS: {return "TOKEN_BINARY_EQUALS";} break;
         case TOKEN_NOT_EQUALS: {return "TOKEN_NOT_EQUALS";} break;
         case TOKEN_GREATER_THAN: {return "TOKEN_GREATER_THAN";} break;
         case TOKEN_GREATER_THAN_OR_EQUALS: {return "TOKEN_GREATER_THAN_OR_EQUALS";} break;
@@ -113,6 +114,7 @@ internal char *to_string(PEYOT_TOKEN_TYPE type) {
         case TOKEN_WHILE: {return "TOKEN_WHILE";} break;
         case TOKEN_STRUCT: {return "TOKEN_STRUCT";} break;
         case TOKEN_UNION: {return "TOKEN_UNION";} break;
+        case TOKEN_ENUM: {return "TOKEN_ENUM";} break;
 
         case TOKEN_OPEN_BRACE: {return "TOKEN_OPEN_BRACE";} break;
         case TOKEN_CLOSE_BRACE: {return "TOKEN_CLOSE_BRACE";} break;

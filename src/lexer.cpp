@@ -4,7 +4,7 @@ internal str get_name(Lexer *lexer) {
     result.count = 0;
     char c = get_char(lexer);
 
-    while (is_alpha_numeric(c)) {
+    while (is_alpha_numeric(c) || c == '_') {
         result.count++;
         advance(lexer);
         c = get_char(lexer);
@@ -157,7 +157,7 @@ internal Token get_next_token(Lexer *lexer) {
         c = get_char(lexer);
 
         if (c == '=') {
-            result.type = TOKEN_EQUALS;
+            result.type = TOKEN_BINARY_EQUALS;
             advance(lexer);
         }
     } else if (is_alpha(c)) {
@@ -185,7 +185,7 @@ internal Token get_next_token(Lexer *lexer) {
 
             [X] struct
             [X] union
-            [_] enum
+            [X] enum
             [_] typedef
 
             [X] if
@@ -211,6 +211,7 @@ internal Token get_next_token(Lexer *lexer) {
             {STATIC_STR("while"), TOKEN_WHILE},
             {STATIC_STR("struct"), TOKEN_STRUCT},
             {STATIC_STR("union"), TOKEN_UNION},
+            {STATIC_STR("enum"), TOKEN_ENUM},
         };
 
         sfor (keywords) {

@@ -136,7 +136,7 @@ internal Ast_expression *parse_relational_inequality_expression(Lexer *lexer, As
 
 internal bool is_equality_operator(PEYOT_TOKEN_TYPE type) {
     bool result = (
-           type == TOKEN_EQUALS
+           type == TOKEN_BINARY_EQUALS
         || type == TOKEN_NOT_EQUALS
     );
     return result;
@@ -285,6 +285,8 @@ internal AST_DECLARATION_TYPE get_declaration_type(Lexer *lexer) {
         result = AST_DECLARATION_VARIABLE;
     } else if (is_compound(t1.type)) {
         result = AST_DECLARATION_COMPOUND;
+    } else if (t1.type == TOKEN_ENUM) {
+        result = AST_DECLARATION_ENUM;
     } else if (is_function) {
         result = AST_DECLARATION_FUNCTION;
     }
@@ -369,7 +371,7 @@ internal Compound_parsing_result parse_compound(Lexer *lexer, bool annonymous=fa
     return result;
 }
 
-internal u32 get_member_count(Lexer *lexer) {
+internal u32 get_enum_items_count(Lexer *lexer) {
     u32 result = 0;
 
     Lexer_savepoint savepoint = create_savepoint(lexer);
@@ -377,7 +379,7 @@ internal u32 get_member_count(Lexer *lexer) {
     Token t = lexer->current_token;
 
     while ((t.type != TOKEN_CLOSE_BRACE) && (t.type != TOKEN_EOF)) {
-        if (is_type(type_table(lexer), t)) {
+        if (t.type == TOKEN_COMMA) {
             result++;
         }
 
@@ -415,12 +417,13 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
     } else if (declaration_type == AST_DECLARATION_FUNCTION) {
         result->name = lexer->current_token.name;
         get_next_token(lexer);
+
         require_token(lexer, TOKEN_COLON, "in parse_declaration");
         require_token(lexer, TOKEN_COLON, "in parse_declaration");
 
         require_token(lexer, TOKEN_OPEN_PARENTHESIS, "in parse_declaration");
             result->param_count = get_param_count(lexer);
-            result->params = push_array(lexer->allocator, result->param_count, Parameter);
+            result->params = push_array(lexer->allocator, Parameter, result->param_count);
 
             sfor_count(result->params, result->param_count) {
                 Token t = lexer->current_token;
@@ -435,7 +438,9 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
                 }
             }
         require_token(lexer, TOKEN_CLOSE_PARENTHESIS, "in parse_declaration");
+
         require_token(lexer, TOKEN_RETURN_ARROW, "in parse_declaration");
+
         result->return_type = get_type(lexer->parser->type_table, lexer->current_token.name);
 
         if (!result->variable_type) {
@@ -451,6 +456,35 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
         result->compound = cpr.compound;
         result->name = cpr.name;
         push_type(type_table(lexer), result->name, TYPE_SPEC_NAME);
+    } else if (declaration_type == AST_DECLARATION_ENUM) {
+        require_token(lexer, TOKEN_ENUM, "in parse_declaration");
+        result->name = lexer->current_token.name;
+        result->enum_type = push_type(type_table(lexer), result->name, TYPE_SPEC_NAME);
+        get_next_token(lexer);
+
+        require_token(lexer, TOKEN_COLON, "in parse_declaration");
+        require_token(lexer, TOKEN_COLON, "in parse_declaration");
+
+        require_token(lexer, TOKEN_OPEN_BRACE, "in parse_declaration");
+            result->item_count = get_enum_items_count(lexer);
+            result->items = push_array(lexer->allocator, Enum_item, result->item_count);
+            Token t;
+
+            sfor_count(result->items, result->item_count) {
+                t = lexer->current_token;
+                it->name = t.name;
+                t = get_next_token(lexer);
+
+                if (t.type == TOKEN_ASSIGNMENT) {
+                    get_next_token(lexer);
+                    it->value = parse_expression(lexer, 0);
+                }
+
+                require_token(lexer, TOKEN_COMMA, "in parse_declaration");
+            }
+
+        require_token(lexer, TOKEN_CLOSE_BRACE, "in parse_declaration");
+        require_token(lexer, TOKEN_SEMICOLON, "in parse_declaration");
     } else {
         invalid_code_path;
     }
