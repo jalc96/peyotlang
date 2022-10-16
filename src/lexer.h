@@ -7,6 +7,7 @@ enum PEYOT_TOKEN_TYPE {
     TOKEN_NAME,
 
     TOKEN_IF,
+    TOKEN_ELSE,
     TOKEN_FOR,
     TOKEN_WHILE,
     TOKEN_STRUCT,
@@ -110,6 +111,7 @@ internal char *to_string(PEYOT_TOKEN_TYPE type) {
         case TOKEN_RETURN_ARROW: {return "TOKEN_RETURN_ARROW";} break;
 
         case TOKEN_IF: {return "TOKEN_IF";} break;
+        case TOKEN_ELSE: {return "TOKEN_ELSE";} break;
         case TOKEN_FOR: {return "TOKEN_FOR";} break;
         case TOKEN_WHILE: {return "TOKEN_WHILE";} break;
         case TOKEN_STRUCT: {return "TOKEN_STRUCT";} break;
@@ -146,6 +148,11 @@ struct Token {
 
 struct Parser;
 
+struct Token_stack {
+    Token token;
+    Token_stack *next;
+};
+
 struct Lexer {
     str source;
     u32 index;
@@ -153,6 +160,11 @@ struct Lexer {
     Token current_token;
     Parser *parser;
     Memory_pool *allocator;
+
+
+
+    Token_stack *debug_token_stack;
+    Memory_pool debug_allocator;
 };
 
 internal Lexer create_lexer(char *program, Parser *parser, Memory_pool *allocator) {
@@ -163,6 +175,10 @@ internal Lexer create_lexer(char *program, Parser *parser, Memory_pool *allocato
     result.current_line = 1;
     result.parser = parser;
     result.allocator = allocator;
+
+
+    result.debug_token_stack = 0;
+    result.debug_allocator = {};
 
     return result;
 }

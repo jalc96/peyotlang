@@ -189,7 +189,7 @@ internal Token get_next_token(Lexer *lexer) {
             [_] typedef
 
             [X] if
-            [_] else
+            [X] else
             [_] switch
             [_] case
             [_] default
@@ -207,6 +207,7 @@ internal Token get_next_token(Lexer *lexer) {
         Keyword_match keywords[] = {
             {STATIC_STR("u32"), TOKEN_U32},
             {STATIC_STR("if"), TOKEN_IF},
+            {STATIC_STR("else"), TOKEN_ELSE},
             {STATIC_STR("for"), TOKEN_FOR},
             {STATIC_STR("while"), TOKEN_WHILE},
             {STATIC_STR("struct"), TOKEN_STRUCT},
@@ -228,6 +229,14 @@ internal Token get_next_token(Lexer *lexer) {
 
     result.cf = lexer->index;
     lexer->current_token = result;
+
+
+    Token_stack *debug = push_struct(&lexer->debug_allocator, Token_stack);
+    debug->token = result;
+    debug->next = lexer->debug_token_stack;
+    lexer->debug_token_stack = debug;
+
+
     return result;
 }
 

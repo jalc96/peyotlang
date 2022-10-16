@@ -65,6 +65,31 @@
 
 
 s16 main(s16 arg_count, char **args) {
+    char *program_complex = R"PROGRAM(
+    main :: (u32 x, u32 y) -> u32 {
+        u32 a = 0;
+
+        for (u32 i=0; 1; i = i + 1) {
+            a = a + 1;
+            a = a + 1;
+            u32 c = 2;
+
+            if (1) {
+                u32 a = 0;
+                if (22) {
+                    a = 22;
+                }
+            } else if (2) {
+                u32 a = 321;
+            } else if (3) {
+                u32 a = 567;
+            } else {
+                u32 a = 34562;
+            }
+        }
+    }
+    )PROGRAM";
+
     char *program_function = R"PROGRAM(
     main :: (u32 x, u32 y) -> u32 {
         u32 a = 0;
@@ -134,6 +159,26 @@ s16 main(s16 arg_count, char **args) {
         }
     )PROGRAM";
 
+    char *program_if_else = R"PROGRAM(
+        if (1) {
+            u32 a = 0;
+        } else {
+            u32 a = 12;
+        }
+    )PROGRAM";
+
+    char *program_if_else_if = R"PROGRAM(
+        if (1) {
+            u32 a = 0;
+        } else if (2) {
+            u32 a = 321;
+        } else if (3) {
+            u32 a = 567;
+        } else {
+            u32 a = 34562;
+        }
+    )PROGRAM";
+
     char *program_struct = R"PROGRAM(
         struct V2u :: {
             u32 a;
@@ -177,7 +222,7 @@ s16 main(s16 arg_count, char **args) {
     initialize_native_types(type_table);
 
     Parser parser = new_parser(type_table);
-    Lexer lexer = create_lexer(program_enum, &parser, &allocator);
+    Lexer lexer = create_lexer(program_complex, &parser, &allocator);
 
 
     get_next_token(&lexer);

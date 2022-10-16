@@ -480,27 +480,41 @@ internal void print(Ast_block *block, u32 indent) {
 //
 // IF
 //
-
-struct Ast_if {
+struct If {
     Ast_expression condition;
     Ast_block block;
-    // TODO: add else, else if
+    If *next;
 };
 
-internal Ast_if *new_ast_if(Memory_pool *allocator) {
-    Ast_if *result = push_struct(allocator, Ast_if);
+struct Ast_if {
+    u32 if_count;
+    If *ifs;
 
-    *result = {};
-
-    return result;
-}
+    Ast_block *else_block;
+};
 
 internal void print(Ast_if *ast, u32 indent=0) {
     print_indent(indent);
-    // printf("<%d>", indent);
-    printf("if ");
-    print(&ast->condition);
-    print(&ast->block, indent);
+    bool first = true;
+
+    lfor (ast->ifs) {
+        print_indent(indent);
+
+        if (first) {
+            printf("if ");
+        } else {
+            printf("if else");
+        }
+
+        print(&it->condition);
+        print(&it->block, indent);
+    }
+
+    if (ast->else_block) {
+        print_indent(indent);
+        printf("else\n");
+        print(ast->else_block, indent);
+    }
 }
 
 internal void print(Ast_statement *ast, u32 indent) {

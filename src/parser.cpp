@@ -411,7 +411,7 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
         get_next_token(lexer);
         result->expression = parse_binary_expression(lexer, 0);
         Token semicolon = lexer->current_token;
-        assert(semicolon.type == TOKEN_SEMICOLON, "now this is an assert next should be an error with check or something");
+        assert(semicolon.type == TOKEN_SEMICOLON, "MISSING A SEMICOLON IN EXPRESSION DECLARATION now this is an assert next should be an error with check or something");
         // Consume the semicolon to start fresh
         get_next_token(lexer);
     } else if (declaration_type == AST_DECLARATION_FUNCTION) {
@@ -571,31 +571,87 @@ internal Ast_block *parse_block(Lexer *lexer, Ast_block *result) {
 // IF
 //
 
+struct If_creation_iterator {
+    Lexer *lexer;
+    Ast_if *result;
+    If **last;
+    bool last_block;
+    bool first_if;
+};
+
+internal If_creation_iterator iterate(Lexer *lexer, Ast_if *_result) {
+    If_creation_iterator result;
+
+    result.lexer = lexer;
+    result.result = _result;
+    result.last = &_result->ifs;
+    result.last_block = false;
+    result.first_if = true;
+
+    return result;
+}
+
+internal bool parsing_if(If_creation_iterator it) {
+    return !it.last_block;
+}
+
+internal void parse_if_else(If_creation_iterator *it) {
+    Lexer *lexer = it->lexer;
+
+    if (it->first_if) {
+        If *new_if = push_struct(lexer->allocator, If);
+
+        require_token(lexer, TOKEN_IF, "parse_if");
+        it->first_if = false;
+
+        require_token(lexer, TOKEN_OPEN_PARENTHESIS, "parse_if");
+            parse_binary_expression(lexer, &new_if->condition);
+        require_token(lexer, TOKEN_CLOSE_PARENTHESIS, "parse_if");
+
+        parse_block(lexer, &new_if->block);
+
+        *it->last = new_if;
+        it->last = &new_if->next;
+    } else {
+        Token t = lexer->current_token;
+
+        if (t.type == TOKEN_ELSE) {
+
+            t = get_next_token(lexer);
+
+            if (t.type == TOKEN_IF) {
+                If *new_if = push_struct(lexer->allocator, If);
+
+                get_next_token(lexer);
+
+                require_token(lexer, TOKEN_OPEN_PARENTHESIS, "parse_if");
+                    parse_binary_expression(lexer, &new_if->condition);
+                require_token(lexer, TOKEN_CLOSE_PARENTHESIS, "parse_if");
+
+                parse_block(lexer, &new_if->block);
+
+                *it->last = new_if;
+                it->last = &new_if->next;
+            } else {
+                it->last_block = true;
+                it->result->else_block = parse_block(lexer, 0);
+            }
+        } else {
+            it->last_block = true;
+        }
+    }
+}
+
 internal Ast_if *parse_if(Lexer *lexer, Ast_if *result) {
     if (!result) {
-        result = new_ast_if(lexer->allocator);
+        result = push_struct(lexer->allocator, Ast_if);
     }
 
-    require_token(lexer, TOKEN_IF, "parse_if");
-    get_next_token(lexer);
-    require_token(lexer, TOKEN_OPEN_PARENTHESIS, "parse_if");
-    get_next_token(lexer);
+    If_creation_iterator it = iterate(lexer, result);
 
-    if (parsing_errors(lexer)) {
-        // TODO: handle errors this way and have a buffer in the Lexer struct to store the error message
-        return 0;
+    while (parsing_if(it)) {
+        parse_if_else(&it);
     }
-
-    result->condition = *parse_binary_expression(lexer, &result->condition);
-    require_token(lexer, TOKEN_CLOSE_PARENTHESIS, "parse_if");
-    get_next_token(lexer);
-    require_token(lexer, TOKEN_OPEN_BRACE, "parse_if");
-
-    if (parsing_errors(lexer)) {
-        return 0;
-    }
-
-    result->block = *parse_block(lexer, &result->block);
 
     return result;
 }
