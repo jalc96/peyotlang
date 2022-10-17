@@ -14,6 +14,58 @@ internal void leaf(Ast_expression *ast, AST_EXPRESSION_TYPE type) {
     ast->right = 0;
 }
 
+struct Call_parameter_list_creator {
+    Call_parameter *parameter;
+    Call_parameter **last;
+    u32 parameter_count;
+    Lexer *lexer;
+    bool finished;
+};
+
+internal Call_parameter_list_creator iterate_parameter_list(Lexer *lexer) {
+    Call_parameter_list_creator result;
+
+    result.parameter = 0;
+    result.last = 0;
+    result.parameter_count = 0;
+    result.lexer = lexer;
+    result.finished = (lexer->current_token.type == TOKEN_CLOSE_PARENTHESIS);
+
+    return result;
+}
+
+internal bool parsing(Call_parameter_list_creator it) {
+    return !it.finished;
+}
+/*
+struct Call_parameter {
+    Ast_expression *parameter;
+    Call_parameter *next;
+};
+*/
+internal Ast_expression *parse_or_expression(Lexer *lexer, Ast_expression *result);
+
+internal void parse_parameter(Call_parameter_list_creator *it) {
+    assert(it->last, "last pointer never can be zero, it must be initialized outside the iteration function");
+
+    Token token = it->lexer->current_token;
+    it->parameter_count++;
+    Call_parameter *new_parameter = push_struct(it->lexer->allocator, Call_parameter);
+    new_parameter->parameter = parse_or_expression(it->lexer, 0);
+    *it->last = new_parameter;
+    it->last = &new_parameter->next;
+
+    token = it->lexer->current_token;
+
+    if (token.type == TOKEN_CLOSE_PARENTHESIS) {
+        it->finished = true;
+    } else {
+        // TODO: report this error instead of assert
+        assert(token.type == TOKEN_COMMA, "comma expected while parsing parameter list in function call");
+        get_next_token(it->lexer);
+    }
+}
+
 internal Ast_expression *parse_factor(Lexer *lexer, Ast_expression *result) {
     if (!result) {
         result = push_struct(lexer->allocator, Ast_expression);
@@ -25,6 +77,38 @@ internal Ast_expression *parse_factor(Lexer *lexer, Ast_expression *result) {
         case TOKEN_NAME: {
             leaf(result, AST_EXPRESSION_NAME);
             result->name = token.name;
+
+            Lexer_savepoint sp = create_savepoint(lexer);
+            token = get_next_token(lexer);
+
+            if (token.type == TOKEN_DOT) {
+                result->type = AST_EXPRESSION_MEMBER;
+
+                result->right = push_struct(lexer->allocator, Ast_expression);
+                token = get_next_token(lexer);
+                assert(token.type == TOKEN_NAME, "member must be a name");
+                leaf(result->right, AST_EXPRESSION_NAME);
+                result->right->name = token.name;
+            } else if (token.type == TOKEN_OPEN_PARENTHESIS) {
+                result->type = AST_EXPRESSION_FUNCTION_CALL;
+
+                get_next_token(lexer);
+                Call_parameter_list_creator it = iterate_parameter_list(lexer);
+                it.last = &it.parameter;
+
+                while (parsing(it)) {
+                    parse_parameter(&it);
+                }
+
+                token = lexer->current_token;
+                // TODO: report this error instead of assert
+                assert(token.type == TOKEN_CLOSE_PARENTHESIS, "missing close parenthesis ')' when calling a function");
+
+                result->parameter_count = it.parameter_count;
+                result->parameter = it.parameter;
+            } else {
+                rollback_lexer(sp);
+            }
         } break;
 
         case TOKEN_LITERAL_U32: {

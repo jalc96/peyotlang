@@ -67,7 +67,8 @@
 s16 main(s16 arg_count, char **args) {
     char *program_complex = R"PROGRAM(
     main :: (u32 x, u32 y) -> u32 {
-        u32 a = 0;
+        u32 a;
+        a = 0;
 
         for (u32 i=0; 1; i = i + 1) {
             a = a + 1;
@@ -93,6 +94,9 @@ s16 main(s16 arg_count, char **args) {
     char *program_function = R"PROGRAM(
     main :: (u32 x, u32 y) -> u32 {
         u32 a = 0;
+        a.member;
+        f(a, a+1, a.member);
+        f(a, a+1, a.member) + a.member;
 
         for (u32 i=0; 1; i = i + 1) {
             a = a + 1;
@@ -225,7 +229,7 @@ s16 main(s16 arg_count, char **args) {
     initialize_native_types(type_table);
 
     Parser parser = new_parser(type_table);
-    Lexer lexer = create_lexer(program_for, &parser, &allocator);
+    Lexer lexer = create_lexer(program_function, &parser, &allocator);
 
 
     get_next_token(&lexer);
@@ -236,8 +240,8 @@ s16 main(s16 arg_count, char **args) {
     debug(lexer.current_line);
 
     // Ast_block *ast = parse_block(&lexer, 0);
-    Ast_statement *ast = parse_statement(&lexer, 0);
-    // Ast_declaration *ast = parse_declaration(&lexer, 0);
+    // Ast_statement *ast = parse_statement(&lexer, 0);
+    Ast_declaration *ast = parse_declaration(&lexer, 0);
     print(ast);
     rollback_lexer(lexer_savepoint);
     test_parser(&lexer);

@@ -33,6 +33,8 @@ enum AST_EXPRESSION_TYPE {
 
     AST_EXPRESSION_LITERAL_U32,
     AST_EXPRESSION_NAME,
+    AST_EXPRESSION_MEMBER,
+    AST_EXPRESSION_FUNCTION_CALL,
 
     AST_EXPRESSION_UNARY_SUB,
     AST_EXPRESSION_BINARY_ADD,
@@ -93,6 +95,13 @@ internal AST_EXPRESSION_TYPE token_type_to_operation(PEYOT_TOKEN_TYPE token_type
     return AST_NULL;
 }
 
+struct Ast_expression;
+
+struct Call_parameter {
+    Ast_expression *parameter;
+    Call_parameter *next;
+};
+
 struct Ast_expression {
     AST_EXPRESSION_TYPE type;
 
@@ -105,8 +114,16 @@ struct Ast_expression {
     };
 
     // Symbol *symbol;
-    Ast_expression *left;
-    Ast_expression *right;
+    union {
+        struct {
+            Ast_expression *left;
+            Ast_expression *right;
+        };
+        struct {
+            u32 parameter_count;
+            Call_parameter *parameter;
+        };
+    };
 };
 
 internal Ast_expression *new_ast_expression(Memory_pool *allocator) {
@@ -121,6 +138,20 @@ internal void print(Ast_expression *ast, u32 indent=0, bool is_declaration=false
     switch (ast->type) {
         case AST_EXPRESSION_NAME:    {printf("%.*s", ast->name.count, ast->name.buffer);} break;
         case AST_EXPRESSION_LITERAL_U32: {printf("%lld", ast->u64_value);} break;
+        case AST_EXPRESSION_MEMBER: {
+            printf("%.*s", ast->name.count, ast->name.buffer);
+            putchar('.');
+            printf("%.*s", ast->right->name.count, ast->right->name.buffer);
+        } break;
+        case AST_EXPRESSION_FUNCTION_CALL: {
+            printf("%.*s(", ast->name.count, ast->name.buffer);
+
+            lfor (ast->parameter) {
+                print(it->parameter, 0, false, false);
+            }
+
+            putchar(')');
+        } break;
 
         case AST_EXPRESSION_UNARY_SUB:  {printf("-:"); print(ast->right, indent+4); } break;
         case AST_EXPRESSION_BINARY_ADD:  {printf("+:"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
