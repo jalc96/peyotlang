@@ -10,8 +10,8 @@ factor ::= (expression) | var_name | function_call | basic_type
 
 internal void leaf(Ast_expression *ast, AST_EXPRESSION_TYPE type) {
     ast->type = type;
-    ast->left = 0;
-    ast->right = 0;
+    ast->binary.left = 0;
+    ast->binary.right = 0;
 }
 
 struct Call_parameter_list_creator {
@@ -72,6 +72,7 @@ internal Ast_expression *parse_factor(Lexer *lexer, Ast_expression *result) {
     }
 
     Token token = lexer->current_token;
+    result->src_p = token.src_p;
 
     switch (token.type){
         case TOKEN_NAME: {
@@ -84,11 +85,11 @@ internal Ast_expression *parse_factor(Lexer *lexer, Ast_expression *result) {
             if (token.type == TOKEN_DOT) {
                 result->type = AST_EXPRESSION_MEMBER;
 
-                result->right = push_struct(lexer->allocator, Ast_expression);
+                result->binary.right = push_struct(lexer->allocator, Ast_expression);
                 token = get_next_token(lexer);
                 assert(token.type == TOKEN_NAME, "member must be a name");
-                leaf(result->right, AST_EXPRESSION_NAME);
-                result->right->name = token.name;
+                leaf(result->binary.right, AST_EXPRESSION_NAME);
+                result->binary.right->name = token.name;
             } else if (token.type == TOKEN_OPEN_PARENTHESIS) {
                 result->type = AST_EXPRESSION_FUNCTION_CALL;
 
@@ -104,8 +105,8 @@ internal Ast_expression *parse_factor(Lexer *lexer, Ast_expression *result) {
                 // TODO: report this error instead of assert
                 assert(token.type == TOKEN_CLOSE_PARENTHESIS, "missing close parenthesis ')' when calling a function");
 
-                result->parameter_count = it.parameter_count;
-                result->parameter = it.parameter;
+                result->function_call.parameter_count = it.parameter_count;
+                result->function_call.parameter = it.parameter;
             } else {
                 rollback_lexer(sp);
             }
@@ -142,7 +143,8 @@ internal Ast_expression *parse_unary_expression(Lexer *lexer, Ast_expression *re
 
     if (sign < 0) {
         result->type = AST_EXPRESSION_UNARY_SUB;
-        result->right = parse_factor(lexer, 0);
+        result->src_p = token.src_p;
+        result->binary.right = parse_factor(lexer, 0);
     } else {
         result = parse_factor(lexer, result);
     }
@@ -158,9 +160,10 @@ internal Ast_expression *parse_term(Lexer *lexer, Ast_expression *result) {
     while (is_mul_operator(lexer->current_token.type)) {
         Ast_expression *operator_tree = new_ast_expression(lexer->allocator);
         operator_tree->type = token_type_to_operation(token.type);
-        operator_tree->left = result;
+        operator_tree->src_p = token.src_p;
+        operator_tree->binary.left = result;
         get_next_token(lexer);
-        operator_tree->right = parse_unary_expression(lexer, 0);
+        operator_tree->binary.right = parse_unary_expression(lexer, 0);
         result = operator_tree;
         
         token = lexer->current_token;
@@ -177,9 +180,10 @@ internal Ast_expression *parse_expression(Lexer *lexer, Ast_expression *result) 
     while (is_add_operator(token.type)) {
         Ast_expression *operator_tree = new_ast_expression(lexer->allocator);
         operator_tree->type = token_type_to_operation(token.type);
-        operator_tree->left = result;
+        operator_tree->src_p = token.src_p;
+        operator_tree->binary.left = result;
         get_next_token(lexer);
-        operator_tree->right = parse_term(lexer, 0);
+        operator_tree->binary.right = parse_term(lexer, 0);
         result = operator_tree;
         token = lexer->current_token;
     }
@@ -208,9 +212,10 @@ internal Ast_expression *parse_relational_inequality_expression(Lexer *lexer, As
     while (is_inequality_operator(token.type)) {
         Ast_expression *operator_tree = new_ast_expression(lexer->allocator);
         operator_tree->type = token_type_to_operation(token.type);
-        operator_tree->left = result;
+        operator_tree->src_p = token.src_p;
+        operator_tree->binary.left = result;
         get_next_token(lexer);
-        operator_tree->right = parse_expression(lexer, 0);
+        operator_tree->binary.right = parse_expression(lexer, 0);
         result = operator_tree;
         token = lexer->current_token;
     }
@@ -237,9 +242,10 @@ internal Ast_expression *parse_relational_equality_expression(Lexer *lexer, Ast_
     while (is_equality_operator(token.type)) {
         Ast_expression *operator_tree = new_ast_expression(lexer->allocator);
         operator_tree->type = token_type_to_operation(token.type);
-        operator_tree->left = result;
+        operator_tree->src_p = token.src_p;
+        operator_tree->binary.left = result;
         get_next_token(lexer);
-        operator_tree->right = parse_relational_inequality_expression(lexer, 0);
+        operator_tree->binary.right = parse_relational_inequality_expression(lexer, 0);
         result = operator_tree;
         token = lexer->current_token;
     }
@@ -258,9 +264,10 @@ internal Ast_expression *parse_and_expression(Lexer *lexer, Ast_expression *resu
     while (token.type == TOKEN_LOGICAL_AND) {
         Ast_expression *operator_tree = new_ast_expression(lexer->allocator);
         operator_tree->type = token_type_to_operation(token.type);
-        operator_tree->left = result;
+        operator_tree->src_p = token.src_p;
+        operator_tree->binary.left = result;
         get_next_token(lexer);
-        operator_tree->right = parse_relational_equality_expression(lexer, 0);
+        operator_tree->binary.right = parse_relational_equality_expression(lexer, 0);
         result = operator_tree;
         token = lexer->current_token;
     }
@@ -279,9 +286,10 @@ internal Ast_expression *parse_or_expression(Lexer *lexer, Ast_expression *resul
     while (token.type == TOKEN_LOGICAL_OR) {
         Ast_expression *operator_tree = new_ast_expression(lexer->allocator);
         operator_tree->type = token_type_to_operation(token.type);
-        operator_tree->left = result;
+        operator_tree->src_p = token.src_p;
+        operator_tree->binary.left = result;
         get_next_token(lexer);
-        operator_tree->right = parse_and_expression(lexer, 0);
+        operator_tree->binary.right = parse_and_expression(lexer, 0);
         result = operator_tree;
         token = lexer->current_token;
     }
@@ -301,9 +309,10 @@ internal Ast_expression *parse_binary_expression(Lexer *lexer, Ast_expression *r
     if (token.type == TOKEN_ASSIGNMENT) {
         Ast_expression *operator_tree = new_ast_expression(lexer->allocator);
         operator_tree->type = token_type_to_operation(token.type);
-        operator_tree->left = result;
+        operator_tree->src_p = token.src_p;
+        operator_tree->binary.left = result;
         get_next_token(lexer);
-        operator_tree->right = parse_or_expression(lexer, 0);
+        operator_tree->binary.right = parse_or_expression(lexer, 0);
         result = operator_tree;
     }
 
@@ -431,11 +440,13 @@ internal Compound_parsing_result parse_compound(Lexer *lexer, bool annonymous=fa
 
             if (is_compound(t.type)) {
                 new_member->member_type = MEMBER_COMPOUND;
+                new_member->src_p = t.src_p;
                 Compound_parsing_result sub = parse_compound(lexer, true);
                 new_member->sub_compound = sub.compound;
             } else {
                 new_member->member_type = MEMBER_SIMPLE;
                 new_member->type = get_type(type_table(lexer), t.name);
+                new_member->src_p = t.src_p;
                 t = get_next_token(lexer);
                 new_member->name = t.name;
                 get_next_token(lexer);
@@ -484,16 +495,17 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
 
     AST_DECLARATION_TYPE declaration_type = get_declaration_type(lexer);
     result->type = declaration_type;
+    result->src_p = lexer->current_token.src_p;
 
     if (declaration_type == AST_DECLARATION_VARIABLE) {
-        result->variable_type = get_type(lexer->parser->type_table, lexer->current_token.name);
+        result->variable.variable_type = get_type(lexer->parser->type_table, lexer->current_token.name);
 
-        if (!result->variable_type) {
+        if (!result->variable.variable_type) {
             // TODO: handle out of order declaration
         }
 
         get_next_token(lexer);
-        result->expression = parse_binary_expression(lexer, 0);
+        result->variable.expression = parse_binary_expression(lexer, 0);
         Token semicolon = lexer->current_token;
         assert(semicolon.type == TOKEN_SEMICOLON, "MISSING A SEMICOLON IN EXPRESSION DECLARATION now this is an assert next should be an error with check or something");
         // Consume the semicolon to start fresh
@@ -506,18 +518,19 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
         require_token(lexer, TOKEN_COLON, "in parse_declaration");
 
         require_token(lexer, TOKEN_OPEN_PARENTHESIS, "in parse_declaration");
-            result->param_count = get_param_count(lexer);
-            result->params = push_array(lexer->allocator, Parameter, result->param_count);
+            result->function.param_count = get_param_count(lexer);
+            result->function.params = push_array(lexer->allocator, Parameter, result->function.param_count);
 
-            sfor_count(result->params, result->param_count) {
+            sfor_count(result->function.params, result->function.param_count) {
                 Token t = lexer->current_token;
                 it->type = get_type(type_table(lexer), t.name);
                 t = get_next_token(lexer);
                 it->name = t.name;
+                it->src_p = t.src_p;
                 get_next_token(lexer);
 
                 // +1 because arrays start at 0 and there are (param_count - 1) number of commas so we have to check (param_count - 1) times
-                if ((i + 1) < result->param_count) {
+                if ((i + 1) < result->function.param_count) {
                     require_token(lexer, TOKEN_COMMA, "in parse_declaration");
                 }
             }
@@ -525,15 +538,15 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
 
         require_token(lexer, TOKEN_RETURN_ARROW, "in parse_declaration");
 
-        result->return_type = get_type(lexer->parser->type_table, lexer->current_token.name);
+        result->function.return_type = get_type(lexer->parser->type_table, lexer->current_token.name);
 
-        if (!result->variable_type) {
+        if (!result->variable.variable_type) {
             // TODO: handle out of order declaration
         }
 
         get_next_token(lexer);
 
-        result->block = parse_block(lexer, 0);
+        result->function.block = parse_block(lexer, 0);
     } else if (declaration_type == AST_DECLARATION_COMPOUND) {
         assert(is_compound(lexer->current_token.type), "in declaration parsing the first keyword must be struct or union");
         Compound_parsing_result cpr = parse_compound(lexer);
@@ -543,20 +556,21 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
     } else if (declaration_type == AST_DECLARATION_ENUM) {
         require_token(lexer, TOKEN_ENUM, "in parse_declaration");
         result->name = lexer->current_token.name;
-        result->enum_type = push_type(type_table(lexer), result->name, TYPE_SPEC_NAME);
+        result->_enum.enum_type = push_type(type_table(lexer), result->name, TYPE_SPEC_NAME);
         get_next_token(lexer);
 
         require_token(lexer, TOKEN_COLON, "in parse_declaration");
         require_token(lexer, TOKEN_COLON, "in parse_declaration");
 
         require_token(lexer, TOKEN_OPEN_BRACE, "in parse_declaration");
-            result->item_count = get_enum_items_count(lexer);
-            result->items = push_array(lexer->allocator, Enum_item, result->item_count);
+            result->_enum.item_count = get_enum_items_count(lexer);
+            result->_enum.items = push_array(lexer->allocator, Enum_item, result->_enum.item_count);
             Token t;
 
-            sfor_count(result->items, result->item_count) {
+            sfor_count(result->_enum.items, result->_enum.item_count) {
                 t = lexer->current_token;
                 it->name = t.name;
+                it->src_p = t.src_p;
                 t = get_next_token(lexer);
 
                 if (t.type == TOKEN_ASSIGNMENT) {
@@ -705,6 +719,7 @@ internal void parse_if_else(If_creation_iterator *it) {
 
             if (t.type == TOKEN_IF) {
                 If *new_if = push_struct(lexer->allocator, If);
+                new_if->src_p = t.src_p;
 
                 get_next_token(lexer);
 
@@ -732,6 +747,7 @@ internal Ast_if *parse_if(Lexer *lexer, Ast_if *result) {
     }
 
     If_creation_iterator it = iterate(lexer, result);
+    result->src_p = lexer->current_token.src_p;
 
     while (parsing_if(it)) {
         parse_if_else(&it);
@@ -750,6 +766,7 @@ internal Ast_loop *parse_loop(Lexer *lexer, Ast_loop *result=0) {
     }
 
     Token loop = lexer->current_token;
+    result->src_p = loop.src_p;
     get_next_token(lexer);
     require_token(lexer, TOKEN_OPEN_PARENTHESIS, "parse_loop");
 
@@ -830,6 +847,7 @@ internal Ast_statement *parse_statement(Lexer *lexer, Ast_statement *result) {
     Token t = lexer->current_token;
     AST_STATEMENT_TYPE type = get_statement_type(lexer);
     result->type = type;
+    result->src_p = t.src_p;
 
     switch (result->type) {
         case AST_STATEMENT_BLOCK: {
@@ -878,12 +896,12 @@ internal Ast *test_parser(Lexer *lexer) {
     Token token = lexer->current_token;
 
     while (!lexer_finished(lexer)) {
-        printf("%d[%d:%d]: %s", token.line, token.c0, token.cf, to_string(token.type));
+        printf("%d[%d:%d]: %s", token.src_p.line, token.src_p.c0, token.src_p.cf, to_string(token.type));
 
         switch (token.type) {
             case TOKEN_NAME: {
                 printf("<%.*s>", token.name.count, token.name.buffer);
-                assert(token.name.count == (token.cf - token.c0), "the char offset selection in get_next_token is wrong");
+                assert(token.name.count == (token.src_p.cf - token.src_p.c0), "the char offset selection in get_next_token is wrong");
             } break;
 
             case TOKEN_LITERAL_U32: {

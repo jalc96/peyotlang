@@ -140,10 +140,14 @@ internal char *to_string(PEYOT_TOKEN_TYPE type) {
     }
 }
 
-struct Token {
-    PEYOT_TOKEN_TYPE type;
+struct Src_position {
     u32 line;
     u32 c0, cf;
+};
+
+struct Token {
+    PEYOT_TOKEN_TYPE type;
+    Src_position src_p;
 
     union {
         u64 u64_value;

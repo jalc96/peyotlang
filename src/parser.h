@@ -104,6 +104,7 @@ struct Call_parameter {
 
 struct Ast_expression {
     AST_EXPRESSION_TYPE type;
+    Src_position src_p;
 
     union {
         u64 u64_value;
@@ -118,11 +119,11 @@ struct Ast_expression {
         struct {
             Ast_expression *left;
             Ast_expression *right;
-        };
+        } binary;
         struct {
             u32 parameter_count;
             Call_parameter *parameter;
-        };
+        } function_call;
     };
 };
 
@@ -141,42 +142,42 @@ internal void print(Ast_expression *ast, u32 indent=0, bool is_declaration=false
         case AST_EXPRESSION_MEMBER: {
             printf("%.*s", ast->name.count, ast->name.buffer);
             putchar('.');
-            printf("%.*s", ast->right->name.count, ast->right->name.buffer);
+            printf("%.*s", ast->binary.right->name.count, ast->binary.right->name.buffer);
         } break;
         case AST_EXPRESSION_FUNCTION_CALL: {
             printf("%.*s(", ast->name.count, ast->name.buffer);
 
-            lfor (ast->parameter) {
+            lfor (ast->function_call.parameter) {
                 print(it->parameter, 0, false, false);
             }
 
             putchar(')');
         } break;
 
-        case AST_EXPRESSION_UNARY_SUB:  {printf("-:"); print(ast->right, indent+4); } break;
-        case AST_EXPRESSION_BINARY_ADD:  {printf("+:"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
-        case AST_EXPRESSION_BINARY_SUB:  {printf("-:"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
-        case AST_EXPRESSION_BINARY_MUL:  {printf("*:"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
-        case AST_EXPRESSION_BINARY_DIV:  {printf("/:"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
-        case AST_EXPRESSION_BINARY_MOD:  {printf("%:"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
+        case AST_EXPRESSION_UNARY_SUB:  {printf("-:"); print(ast->binary.right, indent+4); } break;
+        case AST_EXPRESSION_BINARY_ADD:  {printf("+:"); print(ast->binary.left, indent+4); print(ast->binary.right, indent+4); } break;
+        case AST_EXPRESSION_BINARY_SUB:  {printf("-:"); print(ast->binary.left, indent+4); print(ast->binary.right, indent+4); } break;
+        case AST_EXPRESSION_BINARY_MUL:  {printf("*:"); print(ast->binary.left, indent+4); print(ast->binary.right, indent+4); } break;
+        case AST_EXPRESSION_BINARY_DIV:  {printf("/:"); print(ast->binary.left, indent+4); print(ast->binary.right, indent+4); } break;
+        case AST_EXPRESSION_BINARY_MOD:  {printf("%:"); print(ast->binary.left, indent+4); print(ast->binary.right, indent+4); } break;
 
-        case AST_EXPRESSION_BINARY_EQUALS: {printf("==:"); print(ast->left, indent+4); print(ast->right, indent +4);} break;
-        case AST_EXPRESSION_BINARY_NOT_EQUALS: {printf("!=:"); print(ast->left, indent+4); print(ast->right, indent +4);} break;
+        case AST_EXPRESSION_BINARY_EQUALS: {printf("==:"); print(ast->binary.left, indent+4); print(ast->binary.right, indent +4);} break;
+        case AST_EXPRESSION_BINARY_NOT_EQUALS: {printf("!=:"); print(ast->binary.left, indent+4); print(ast->binary.right, indent +4);} break;
 
-        case AST_EXPRESSION_BINARY_GREATER_THAN: {printf(">:"); print(ast->left, indent+4); print(ast->right, indent +4);} break;
-        case AST_EXPRESSION_BINARY_GREATER_THAN_OR_EQUALS: {printf(">=:"); print(ast->left, indent+4); print(ast->right, indent +4);} break;
-        case AST_EXPRESSION_BINARY_LESS_THAN: {printf("<:"); print(ast->left, indent+4); print(ast->right, indent +4);} break;
-        case AST_EXPRESSION_BINARY_LESS_THAN_OR_EQUALS: {printf("<=:"); print(ast->left, indent+4); print(ast->right, indent +4);} break;
+        case AST_EXPRESSION_BINARY_GREATER_THAN: {printf(">:"); print(ast->binary.left, indent+4); print(ast->binary.right, indent +4);} break;
+        case AST_EXPRESSION_BINARY_GREATER_THAN_OR_EQUALS: {printf(">=:"); print(ast->binary.left, indent+4); print(ast->binary.right, indent +4);} break;
+        case AST_EXPRESSION_BINARY_LESS_THAN: {printf("<:"); print(ast->binary.left, indent+4); print(ast->binary.right, indent +4);} break;
+        case AST_EXPRESSION_BINARY_LESS_THAN_OR_EQUALS: {printf("<=:"); print(ast->binary.left, indent+4); print(ast->binary.right, indent +4);} break;
 
-        case AST_EXPRESSION_UNARY_LOGICAL_NOT: {printf("!:"); print(ast->right, indent +4);} break;
-        case AST_EXPRESSION_BINARY_LOGICAL_OR: {printf("||:"); print(ast->left, indent+4); print(ast->right, indent +4);} break;
-        case AST_EXPRESSION_BINARY_LOGICAL_AND: {printf("&&:"); print(ast->left, indent+4); print(ast->right, indent +4);} break;
+        case AST_EXPRESSION_UNARY_LOGICAL_NOT: {printf("!:"); print(ast->binary.right, indent +4);} break;
+        case AST_EXPRESSION_BINARY_LOGICAL_OR: {printf("||:"); print(ast->binary.left, indent+4); print(ast->binary.right, indent +4);} break;
+        case AST_EXPRESSION_BINARY_LOGICAL_AND: {printf("&&:"); print(ast->binary.left, indent+4); print(ast->binary.right, indent +4);} break;
 
-        case AST_EXPRESSION_UNARY_BITWISE_NOT: {printf("~:"); print(ast->right, indent +4);} break;
-        case AST_EXPRESSION_BINARY_BITWISE_OR: {printf("|:"); print(ast->left, indent+4); print(ast->right, indent +4);} break;
-        case AST_EXPRESSION_BINARY_BITWISE_AND: {printf("&:"); print(ast->left, indent+4); print(ast->right, indent +4);} break;
+        case AST_EXPRESSION_UNARY_BITWISE_NOT: {printf("~:"); print(ast->binary.right, indent +4);} break;
+        case AST_EXPRESSION_BINARY_BITWISE_OR: {printf("|:"); print(ast->binary.left, indent+4); print(ast->binary.right, indent +4);} break;
+        case AST_EXPRESSION_BINARY_BITWISE_AND: {printf("&:"); print(ast->binary.left, indent+4); print(ast->binary.right, indent +4);} break;
 
-        case AST_EXPRESSION_BINARY_ASSIGNMENT:  {printf("=:"); print(ast->left, indent+4); print(ast->right, indent+4); } break;
+        case AST_EXPRESSION_BINARY_ASSIGNMENT:  {printf("=:"); print(ast->binary.left, indent+4); print(ast->binary.right, indent+4); } break;
     }
 
     if (print_new_line) {
@@ -212,6 +213,7 @@ internal char *to_string(AST_DECLARATION_TYPE type) {
 // NOTE: Paramater and Member will probably be different
 struct Parameter {
     Type_spec *type;
+    Src_position src_p;
     str name;
 };
 
@@ -229,6 +231,7 @@ internal void print(Compound *compound, u32 indent=0);
 
 struct Member {
     MEMBER_TYPE member_type;
+    Src_position src_p;
 
     union {
         struct {
@@ -262,6 +265,7 @@ enum COMPOUND_TYPE {
 
 struct Compound {
     COMPOUND_TYPE compound_type;
+    Src_position src_p;
     u32 member_count;
     Member *members;
 };
@@ -306,30 +310,32 @@ internal COMPOUND_TYPE token_type_to_compound_type(PEYOT_TOKEN_TYPE token_type) 
 
 struct Enum_item {
     str name;
+    Src_position src_p;
     Ast_expression *value;
 };
 
 struct Ast_declaration {
     AST_DECLARATION_TYPE type;
+    Src_position src_p;
     str name;
 
     union {
         struct {
             Type_spec *variable_type;
             Ast_expression *expression;
-        }; // VARIABLE
+        } variable;
         struct {
             u32 param_count;
             Parameter *params;
             Type_spec *return_type;
             Ast_block *block;
-        }; // FUNCTION
+        } function;
         Compound *compound; // STRUCT/UNION
         struct {
             u32 item_count;
             Enum_item *items;
             Type_spec *enum_type;
-        }; // ENUM
+        } _enum;
     };
 };
 
@@ -337,17 +343,17 @@ internal void print(Ast_declaration *ast, u32 indent=0) {
     switch (ast->type) {
         case AST_DECLARATION_VARIABLE: {
             printf(ast->name);
-            print(ast->expression, indent, true);
+            print(ast->variable.expression, indent, true);
         } break;
         case AST_DECLARATION_FUNCTION: {
             printf(ast->name);
             print_indent(indent);
 
-            sfor_count(ast->params, ast->param_count) {
+            sfor_count(ast->function.params, ast->function.param_count) {
                 printf("%.*s, ", it->name.count, it->name.buffer);
             }
 
-            print(ast->block);
+            print(ast->function.block);
         } break;
         case AST_DECLARATION_COMPOUND: {
             Compound *c = ast->compound;
@@ -367,7 +373,7 @@ internal void print(Ast_declaration *ast, u32 indent=0) {
             printf(ast->name, false);
             putchar('{');
 
-            sfor_count(ast->items, ast->item_count) {
+            sfor_count(ast->_enum.items, ast->_enum.item_count) {
                 if (it->value) {
                     printf("%.*s=", it->name.count, it->name.buffer);
                     print(it->value, 0, false, false);
@@ -387,6 +393,7 @@ internal void print(Ast_declaration *ast, u32 indent=0) {
 //
 
 struct Ast_loop {
+    Src_position src_p;
     Ast_declaration *pre;
     Ast_expression *condition;
     Ast_expression *post;
@@ -431,6 +438,7 @@ enum AST_STATEMENT_TYPE {
 
 struct Ast_statement {
     AST_STATEMENT_TYPE type;
+    Src_position src_p;
 
     union {
         Ast_block *block_statement;
@@ -515,12 +523,14 @@ internal void print(Ast_block *block, u32 indent) {
 // IF
 //
 struct If {
+    Src_position src_p;
     Ast_expression condition;
     Ast_block block;
     If *next;
 };
 
 struct Ast_if {
+    Src_position src_p;
     u32 if_count;
     If *ifs;
 

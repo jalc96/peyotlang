@@ -38,13 +38,17 @@ internal Token get_next_token(Lexer *lexer) {
 
     // TODO: thest what happend in this loop with a ill-defined program, maybe it also needs the lexer_finished(Lexer *lexer) function, maybe not...
     while (is_whitespace(c) || is_eol(c)) {
+        if (is_eol(c)) {
+            lexer->current_line++;
+        }
+
         advance(lexer);
         c = get_char(lexer);
     }
 
     Token result;
-    result.c0 = lexer->index;
-    result.line = lexer->current_line;
+    result.src_p.c0 = lexer->index;
+    result.src_p.line = lexer->current_line;
 
     if (lexer->index >= length(lexer->source)) {
         result.type = TOKEN_EOF;
@@ -230,7 +234,7 @@ internal Token get_next_token(Lexer *lexer) {
         advance(lexer);
     }
 
-    result.cf = lexer->index;
+    result.src_p.cf = lexer->index;
     lexer->current_token = result;
 
 

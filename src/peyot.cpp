@@ -97,11 +97,15 @@ s16 main(s16 arg_count, char **args) {
         a.member;
         f(a, a+1, a.member);
         f(a, a+1, a.member) + a.member;
+        f() + a.member;
 
         for (u32 i=0; 1; i = i + 1) {
             a = a + 1;
             a = a + 1;
             u32 c = 2;
+            if (1) {
+                a = 0;
+            }
         }
     }
     )PROGRAM";
@@ -239,6 +243,12 @@ s16 main(s16 arg_count, char **args) {
     debug(lexer.index);
     debug(lexer.current_line);
 
+    // TODO: for reporting errors have helper functions to slice samples of the source code for example have a function called get_current_function_source_position(ast, lexer) that returns the index in the source of the current function
+    // have a function called get_source_sample(lexer, u32 current_line, u32 lines_before, u32 lines_after) that samples the source this way 
+    // source[max(0, current_line - lines_before) : min(last_line, current_line + lines_after)]
+    // also have a split(str origin, str slpit_pattern) that iterates over the origin, use this to report errors and being able to print under the source code lines
+    // for knowing where is the keyword to color in red or something have u32 find_first(str source, str pattern) that returns the index in the source where the pattern is, maybe have more find functions as iterators to find more occurencies of the pattern
+
     // Ast_block *ast = parse_block(&lexer, 0);
     // Ast_statement *ast = parse_statement(&lexer, 0);
     Ast_declaration *ast = parse_declaration(&lexer, 0);
@@ -248,6 +258,8 @@ s16 main(s16 arg_count, char **args) {
     print(type_table);
 
     BOLD(ITALIC(UNDERLINE(GREEN("\n\n\nfinished correctly\n"))));
+
+    debug(lexer.current_line);
 
     return 0;
 }
