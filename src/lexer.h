@@ -140,6 +140,68 @@ internal char *to_string(PEYOT_TOKEN_TYPE type) {
     }
 }
 
+internal char *to_symbol(PEYOT_TOKEN_TYPE type) {
+    switch (type){
+        case TOKEN_NULL: {return "null";} break;
+
+        case TOKEN_U32: {return "u32";} break;
+
+        case TOKEN_COLON: {return ":";} break;
+        case TOKEN_SEMICOLON: {return ";";} break;
+        case TOKEN_COMMA: {return ",";} break;
+        case TOKEN_DOT: {return ".";} break;
+
+        case TOKEN_EOL: {return "EOL";} break;
+        case TOKEN_EOF: {return "EOF";} break;
+
+        case TOKEN_ASSIGNMENT: {return "=";} break;
+
+        case TOKEN_ADD: {return "+";} break;
+        case TOKEN_SUB: {return "-";} break;
+        case TOKEN_MUL: {return "*";} break;
+        case TOKEN_DIV: {return "/";} break;
+        case TOKEN_MOD: {return "%";} break;
+
+        case TOKEN_BINARY_EQUALS: {return "==";} break;
+        case TOKEN_NOT_EQUALS: {return "!=";} break;
+        case TOKEN_GREATER_THAN: {return ">";} break;
+        case TOKEN_GREATER_THAN_OR_EQUALS: {return ">=";} break;
+        case TOKEN_LESS_THAN: {return "<";} break;
+        case TOKEN_LESS_THAN_OR_EQUALS: {return "<=";} break;
+
+        case TOKEN_UNARY_BITWISE_NOT: {return "~";} break;
+        case TOKEN_BITWISE_AND: {return "&";} break;
+        case TOKEN_BITWISE_OR: {return "|";} break;
+
+        case TOKEN_UNARY_LOGICAL_NOT: {return "!";} break;
+        case TOKEN_LOGICAL_AND: {return "&&";} break;
+        case TOKEN_LOGICAL_OR: {return "||";} break;
+
+        case TOKEN_RETURN_ARROW: {return "->";} break;
+
+        case TOKEN_IF: {return "if";} break;
+        case TOKEN_ELSE: {return "else";} break;
+        case TOKEN_FOR: {return "for";} break;
+        case TOKEN_WHILE: {return "while";} break;
+        case TOKEN_STRUCT: {return "struct";} break;
+        case TOKEN_UNION: {return "union";} break;
+        case TOKEN_ENUM: {return "enum";} break;
+
+        case TOKEN_OPEN_BRACE: {return "{";} break;
+        case TOKEN_CLOSE_BRACE: {return "}";} break;
+        case TOKEN_OPEN_PARENTHESIS: {return "(";} break;
+        case TOKEN_CLOSE_PARENTHESIS: {return ")";} break;
+
+        case TOKEN_BREAK: {return "break";} break;
+        case TOKEN_CONTINUE: {return "continue";} break;
+        case TOKEN_RETURN: {return "return";} break;
+
+
+
+        invalid_default_case_msg("missing PEYOT_TOKEN_TYPE in to_string");
+    }
+}
+
 struct Src_position {
     u32 line;
     u32 c0, cf;

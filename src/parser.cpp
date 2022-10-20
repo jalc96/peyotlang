@@ -1,4 +1,29 @@
 //
+// ERROR REPORTING
+//
+
+internal void require_token_and_report_line_error_missing_token(Lexer *lexer, Src_position src_p, PEYOT_TOKEN_TYPE token_type, char *msg) {
+    Token token = lexer->current_token;
+
+    if (token.type != token_type) {
+        lexer->parser->parsing_errors = true;
+        u32 l0 = find_first_from_position(lexer->source, src_p.c0, '\n', true);
+        u32 lf = find_first_from_position(lexer->source, src_p.c0, '\n', false);
+        str line = slice(lexer->source, l0 + 1, lf);
+        char *missing_token = to_symbol(token_type);
+        printf("SYNTAX ERROR: %s\n", msg);
+        printf("%d:%.*s", src_p.line, line.count, line.buffer);
+    }
+
+    get_next_token(lexer);
+}
+
+internal void report_parsing_errors(Lexer *lexer) {
+
+}
+
+
+//
 // EXPRESSIONS
 //
 /*
@@ -506,10 +531,9 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
 
         get_next_token(lexer);
         result->variable.expression = parse_binary_expression(lexer, 0);
-        Token semicolon = lexer->current_token;
-        assert(semicolon.type == TOKEN_SEMICOLON, "MISSING A SEMICOLON IN EXPRESSION DECLARATION now this is an assert next should be an error with check or something");
+
         // Consume the semicolon to start fresh
-        get_next_token(lexer);
+        require_token_and_report_line_error_missing_token(lexer, result->src_p, TOKEN_SEMICOLON, "Missing semicolon ';' at the end of the variable declaration");
     } else if (declaration_type == AST_DECLARATION_FUNCTION) {
         result->name = lexer->current_token.name;
         get_next_token(lexer);

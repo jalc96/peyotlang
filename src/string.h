@@ -167,6 +167,43 @@ internal void offset(str *string, u32 i) {
     string->count -= i;
 }
 
+internal str slice(str source, u32 c0, u32 cf) {
+    // source = {18, "this is an example"}, c0 = 5, cf = 10
+    // result = {5,       "is an"}
+    assert(c0 <= cf, "starting index in string slice must be lower than the finish index");
+    assert(c0 >= 0, "start index in string slice must be higher or equal to 0");
+    assert(c0 < source.count, "start index in string slice must be lower than the source length");
+    assert(cf >= 0, "finish index in string slice must be higher or equal to 0");
+    assert(cf < source.count, "finish index in string slice must be lower than the source length");
+
+    str result = source;
+
+    result.buffer += c0;
+    result.count = cf - c0;
+
+    return result;
+}
+
+internal u32 find_first_from_position(str source, u32 start, char match, bool backwards) {
+    s32 d = 1 + ((s32)backwards * (-2));
+    s32 finish = backwards ? 0: source.count;
+    u32 result = 0;
+
+    assert(start >= 0, "start index in find_first_from_position must be higher or equal to 0");
+    assert(start < source.count, "start index in find_first_from_position must be lower than the source length");
+
+    for (s32 i = (s32)start; i != finish; i += d) {
+        char c = source.buffer[i];
+
+        if (c == match) {
+            result = (u32)i;
+            break;
+        }
+    }
+
+    return result;
+}
+
 
 // Hash Functions
 // http://www.cse.yorku.ca/~oz/hash.html
@@ -203,4 +240,9 @@ internal u32 hash3(str string) {
 
     return hash;
 }
+
+
+struct Str_stream {
+    Memory_pool allocator;
+};
 

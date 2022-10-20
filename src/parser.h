@@ -8,11 +8,17 @@ struct Pending_type {
 */
 struct Parser {
     Type_spec_table *type_table;
+    bool parsing_errors;
+    Str_stream error_buffer;
 };
 
 internal Parser new_parser(Type_spec_table *type_table) {
     Parser result;
+
     result.type_table = type_table;
+    result.parsing_errors = false;
+    result.error_buffer = {};
+
     return result;
 }
 

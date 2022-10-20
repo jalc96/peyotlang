@@ -226,6 +226,22 @@ s16 main(s16 arg_count, char **args) {
         };
     )PROGRAM";
 
+    char *program_error_1 = R"PROGRAM(
+        main :: (u32 x, u32 y) -> u32 {
+            u32 a = 3;
+            u32 a = 3
+        }
+    )PROGRAM";
+
+    char *program_error_2 = R"PROGRAM(
+        enum THING_TYPE :: {
+            THING_NONE,
+
+            THING_SMALL,
+            THING_BIG=2,
+        };
+    )PROGRAM";
+
 
     Memory_pool allocator = {};
 
@@ -233,7 +249,7 @@ s16 main(s16 arg_count, char **args) {
     initialize_native_types(type_table);
 
     Parser parser = new_parser(type_table);
-    Lexer lexer = create_lexer(program_function, &parser, &allocator);
+    Lexer lexer = create_lexer(program_error_1, &parser, &allocator);
 
 
     get_next_token(&lexer);
@@ -248,18 +264,32 @@ s16 main(s16 arg_count, char **args) {
     // source[max(0, current_line - lines_before) : min(last_line, current_line + lines_after)]
     // also have a split(str origin, str slpit_pattern) that iterates over the origin, use this to report errors and being able to print under the source code lines
     // for knowing where is the keyword to color in red or something have u32 find_first(str source, str pattern) that returns the index in the source where the pattern is, maybe have more find functions as iterators to find more occurencies of the pattern
+    // also if the scope is too large (a big function) resume it 
+    // void function(u32 a) {
+    //  ...
+    //     if (blah) {
+    //        the error is here
+    //         ^^^^^^^^^^^^^ - message or whatever
+    //     }
+
 
     // Ast_block *ast = parse_block(&lexer, 0);
     // Ast_statement *ast = parse_statement(&lexer, 0);
     Ast_declaration *ast = parse_declaration(&lexer, 0);
-    print(ast);
-    rollback_lexer(lexer_savepoint);
-    test_parser(&lexer);
-    print(type_table);
 
-    BOLD(ITALIC(UNDERLINE(GREEN("\n\n\nfinished correctly\n"))));
+    if (lexer.parser->parsing_errors) {
+        report_parsing_errors(&lexer);
+    } else {
+        print(ast);
+        rollback_lexer(lexer_savepoint);
+        test_parser(&lexer);
+        print(type_table);
 
-    debug(lexer.current_line);
+        BOLD(ITALIC(UNDERLINE(GREEN("\n\n\nfinished correctly\n"))));
+
+        debug(lexer.current_line);
+    }
+
 
     return 0;
 }
