@@ -2,24 +2,28 @@
 // ERROR REPORTING
 //
 
-internal void require_token_and_report_line_error_missing_token(Lexer *lexer, Src_position src_p, PEYOT_TOKEN_TYPE token_type, char *msg) {
+internal void require_token_and_report_line_error_missing_token(Lexer *lexer, Src_position src_p, PEYOT_TOKEN_TYPE token_type, char *msg, u32 previous_lines=0, u32 post_lines=0) {
     Token token = lexer->current_token;
 
     if (token.type != token_type) {
         lexer->parser->parsing_errors = true;
-        u32 l0 = find_first_from_position(lexer->source, src_p.c0, '\n', true);
-        u32 lf = find_first_from_position(lexer->source, src_p.c0, '\n', false);
+
+        u32 l0 = find_n_from_position(lexer->source, src_p.c0, '\n', previous_lines, true);
+        u32 lf = find_n_from_position(lexer->source, src_p.c0, '\n', post_lines, false);
         str line = slice(lexer->source, l0 + 1, lf);
         char *missing_token = to_symbol(token_type);
-        printf("SYNTAX ERROR: %s\n", msg);
-        printf("%d:%.*s", src_p.line, line.count, line.buffer);
+        Str_buffer *eb = &lexer->parser->error_buffer;
+        eb->head += stbsp_snprintf(get_buffer(eb), eb->size, "SYNTAX ERROR: %s\n", msg);
+        eb->head += stbsp_snprintf(get_buffer(eb), eb->size, "%d:%.*s", src_p.line, line.count, line.buffer);
     }
 
     get_next_token(lexer);
 }
 
 internal void report_parsing_errors(Lexer *lexer) {
+    Str_buffer *eb = &lexer->parser->error_buffer;
 
+    printf("%.*s\n", eb->head, eb->buffer);
 }
 
 
@@ -92,6 +96,8 @@ internal void parse_parameter(Call_parameter_list_creator *it) {
 }
 
 internal Ast_expression *parse_factor(Lexer *lexer, Ast_expression *result) {
+    if (lexer->parser->parsing_errors) return 0;
+
     if (!result) {
         result = push_struct(lexer->allocator, Ast_expression);
     }
@@ -151,6 +157,8 @@ internal Ast_expression *parse_factor(Lexer *lexer, Ast_expression *result) {
 }
 
 internal Ast_expression *parse_unary_expression(Lexer *lexer, Ast_expression *result) {
+    if (lexer->parser->parsing_errors) return 0;
+
     if (!result) {
         result = push_struct(lexer->allocator, Ast_expression);
     }
@@ -178,6 +186,8 @@ internal Ast_expression *parse_unary_expression(Lexer *lexer, Ast_expression *re
 }
 
 internal Ast_expression *parse_term(Lexer *lexer, Ast_expression *result) {
+    if (lexer->parser->parsing_errors) return 0;
+
     result = parse_unary_expression(lexer, result);
 
     Token token = lexer->current_token;
@@ -198,6 +208,8 @@ internal Ast_expression *parse_term(Lexer *lexer, Ast_expression *result) {
 }
 
 internal Ast_expression *parse_expression(Lexer *lexer, Ast_expression *result) {
+    if (lexer->parser->parsing_errors) return 0;
+
     result = parse_term(lexer, result);
 
     Token token = lexer->current_token;
@@ -227,6 +239,8 @@ internal bool is_inequality_operator(PEYOT_TOKEN_TYPE type) {
 }
 
 internal Ast_expression *parse_relational_inequality_expression(Lexer *lexer, Ast_expression *result) {
+    if (lexer->parser->parsing_errors) return 0;
+
     if (!result) {
         result = new_ast_expression(lexer->allocator);
     }
@@ -257,6 +271,8 @@ internal bool is_equality_operator(PEYOT_TOKEN_TYPE type) {
 }
 
 internal Ast_expression *parse_relational_equality_expression(Lexer *lexer, Ast_expression *result) {
+    if (lexer->parser->parsing_errors) return 0;
+
     if (!result) {
         result = new_ast_expression(lexer->allocator);
     }
@@ -279,6 +295,8 @@ internal Ast_expression *parse_relational_equality_expression(Lexer *lexer, Ast_
 }
 
 internal Ast_expression *parse_and_expression(Lexer *lexer, Ast_expression *result) {
+    if (lexer->parser->parsing_errors) return 0;
+
     if (!result) {
         result = new_ast_expression(lexer->allocator);
     }
@@ -301,6 +319,8 @@ internal Ast_expression *parse_and_expression(Lexer *lexer, Ast_expression *resu
 }
 
 internal Ast_expression *parse_or_expression(Lexer *lexer, Ast_expression *result) {
+    if (lexer->parser->parsing_errors) return 0;
+
     if (!result) {
         result = new_ast_expression(lexer->allocator);
     }
@@ -323,6 +343,8 @@ internal Ast_expression *parse_or_expression(Lexer *lexer, Ast_expression *resul
 }
 
 internal Ast_expression *parse_binary_expression(Lexer *lexer, Ast_expression *result) {
+    if (lexer->parser->parsing_errors) return 0;
+
     if (!result) {
         result = new_ast_expression(lexer->allocator);
     }
@@ -514,6 +536,8 @@ internal u32 get_enum_items_count(Lexer *lexer) {
 internal Ast_block *parse_block(Lexer *lexer, Ast_block *result);
 
 internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *result) {
+    if (lexer->parser->parsing_errors) return 0;
+
     if (!result) {
         result = push_struct(lexer->allocator, Ast_declaration);
     }
@@ -664,11 +688,18 @@ internal Ast_statement *advance(Ast_block_creation_iterator *it) {
 internal Ast_statement *parse_statement(Lexer *lexer, Ast_statement *result);
 
 internal Ast_block *parse_block(Lexer *lexer, Ast_block *result) {
+    if (lexer->parser->parsing_errors) return 0;
+
     if (!result) {
         result = new_ast_block(lexer->allocator);
     }
 
-    assert(lexer->current_token.type == TOKEN_OPEN_BRACE, "when parsing a block, the current token must be an open brace '{'");
+    result->src_p = lexer->current_token.src_p;
+
+    // assert(lexer->current_token.type == TOKEN_OPEN_BRACE, "when parsing a block, the current token must be an open brace '{'");
+    require_token_and_report_line_error_missing_token(lexer, result->src_p, TOKEN_OPEN_BRACE, "Missing open brace '{' to start a block", 2, 2);
+    if (lexer->parser->parsing_errors) return 0;
+
     get_next_token(lexer);
 
     Block_parser parser;
@@ -683,7 +714,10 @@ internal Ast_block *parse_block(Lexer *lexer, Ast_block *result) {
         update_block_parser(&parser);
     }
 
-    assert(lexer->current_token.type == TOKEN_CLOSE_BRACE, "when parsing a block, the last current token must be a close brace '}'");
+    if (lexer->parser->parsing_errors) return 0;
+
+    require_token_and_report_line_error_missing_token(lexer, result->src_p, TOKEN_OPEN_BRACE, "Missing close brace '}' to end a block", 2, 2);
+    // assert(lexer->current_token.type == TOKEN_CLOSE_BRACE, "when parsing a block, the last current token must be a close brace '}'");
     get_next_token(lexer);
 
     return result;
@@ -766,6 +800,8 @@ internal void parse_if_else(If_creation_iterator *it) {
 }
 
 internal Ast_if *parse_if(Lexer *lexer, Ast_if *result) {
+    if (lexer->parser->parsing_errors) return 0;
+
     if (!result) {
         result = push_struct(lexer->allocator, Ast_if);
     }
@@ -785,6 +821,8 @@ internal Ast_if *parse_if(Lexer *lexer, Ast_if *result) {
 //
 
 internal Ast_loop *parse_loop(Lexer *lexer, Ast_loop *result=0) {
+    if (lexer->parser->parsing_errors) return 0;
+
     if (!result) {
         result = new_ast_loop(lexer->allocator);
     }
@@ -864,6 +902,8 @@ internal AST_STATEMENT_TYPE get_statement_type(Lexer *lexer) {
 }
 
 internal Ast_statement *parse_statement(Lexer *lexer, Ast_statement *result) {
+    if (lexer->parser->parsing_errors) return 0;
+
     if (!result) {
         result = new_ast_statement(lexer->allocator);
     }

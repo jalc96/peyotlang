@@ -38,6 +38,10 @@
             case A: <---this throws an error
         }
 */
+
+#define STB_SPRINTF_IMPLEMENTATION
+#include"external/stb_sprintf.h"
+
 #define print_indent(indent) printf("%*s", (indent), "")
 
 #include"types.h"
@@ -227,9 +231,9 @@ s16 main(s16 arg_count, char **args) {
     )PROGRAM";
 
     char *program_error_1 = R"PROGRAM(
-        main :: (u32 x, u32 y) -> u32 {
+        main :: (u32 x, u32 y) -> u32 
             u32 a = 3;
-            u32 a = 3
+            u32 a = 3;
         }
     )PROGRAM";
 
@@ -248,7 +252,7 @@ s16 main(s16 arg_count, char **args) {
     Type_spec_table *type_table = new_type_spec_table(&allocator);
     initialize_native_types(type_table);
 
-    Parser parser = new_parser(type_table);
+    Parser parser = new_parser(&allocator, type_table);
     Lexer lexer = create_lexer(program_error_1, &parser, &allocator);
 
 

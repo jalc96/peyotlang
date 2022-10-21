@@ -184,10 +184,11 @@ internal str slice(str source, u32 c0, u32 cf) {
     return result;
 }
 
-internal u32 find_first_from_position(str source, u32 start, char match, bool backwards) {
+internal u32 find_n_from_position(str source, u32 start, char match, u32 n, bool backwards) {
     s32 d = 1 + ((s32)backwards * (-2));
     s32 finish = backwards ? 0: source.count;
-    u32 result = 0;
+    u32 result = finish;
+    u32 count = 0;
 
     assert(start >= 0, "start index in find_first_from_position must be higher or equal to 0");
     assert(start < source.count, "start index in find_first_from_position must be lower than the source length");
@@ -196,12 +197,20 @@ internal u32 find_first_from_position(str source, u32 start, char match, bool ba
         char c = source.buffer[i];
 
         if (c == match) {
-            result = (u32)i;
-            break;
+            count++;
+
+            if (count == n) {
+                result = (u32)i;
+                break;
+            }
         }
     }
 
     return result;
+}
+
+internal u32 find_first_from_position(str source, u32 start, char match, bool backwards) {
+    return find_n_from_position(source, start, match, 1, backwards);
 }
 
 
@@ -242,7 +251,26 @@ internal u32 hash3(str string) {
 }
 
 
-struct Str_stream {
-    Memory_pool allocator;
+struct Str_buffer {
+    u32 size;
+    u32 head;
+    char *buffer;
 };
+
+internal Str_buffer new_str_buffer(Memory_pool *allocator, size_t size) {
+    Str_buffer result;
+
+    result.size = size;
+    result.head = 0;
+    // for stb_sprintf zero terminate the buffer
+    result.buffer = push_array(allocator, char, result.size + 1);
+    result.buffer[result.size] = 0;
+
+    return result;
+}
+
+internal char *get_buffer(Str_buffer *str) {
+    char *result = str->buffer + str->head;
+    return result;
+}
 

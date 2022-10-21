@@ -9,17 +9,21 @@ struct Pending_type {
 struct Parser {
     Type_spec_table *type_table;
     bool parsing_errors;
-    Str_stream error_buffer;
+    Str_buffer error_buffer;
 };
 
-internal Parser new_parser(Type_spec_table *type_table) {
+internal Parser new_parser(Memory_pool *allocator, Type_spec_table *type_table) {
     Parser result;
 
     result.type_table = type_table;
     result.parsing_errors = false;
-    result.error_buffer = {};
+    result.error_buffer = new_str_buffer(allocator, 65536);
 
     return result;
+}
+
+internal bool parsing_errors(Parser *parser) {
+    return parser->parsing_errors;
 }
 
 struct Ast_block;
@@ -471,6 +475,7 @@ internal Ast_statement *new_ast_statement(Memory_pool *allocator) {
 #define AST_STATEMENTS_PER_BLOCK_LINK 32
 
 struct Ast_block {
+    Src_position src_p;
     u32 statement_count;
     Ast_statement statements[AST_STATEMENTS_PER_BLOCK_LINK];
     Ast_block *next;
