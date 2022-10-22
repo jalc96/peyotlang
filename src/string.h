@@ -167,14 +167,24 @@ internal void offset(str *string, u32 i) {
     string->count -= i;
 }
 
+internal str offset(str string, u32 i) {
+    assert(i <= string.count, "cannot offset an string more than its size");
+    str result = string;
+
+    result.buffer += i;
+    result.count -= i;
+
+    return result;
+}
+
 internal str slice(str source, u32 c0, u32 cf) {
     // source = {18, "this is an example"}, c0 = 5, cf = 10
     // result = {5,       "is an"}
     assert(c0 <= cf, "starting index in string slice must be lower than the finish index");
     assert(c0 >= 0, "start index in string slice must be higher or equal to 0");
-    assert(c0 < source.count, "start index in string slice must be lower than the source length");
+    assert(c0 <= source.count, "start index in string slice must be lower than the source length");
     assert(cf >= 0, "finish index in string slice must be higher or equal to 0");
-    assert(cf < source.count, "finish index in string slice must be lower than the source length");
+    assert(cf <= source.count, "finish index in string slice must be lower than the source length");
 
     str result = source;
 
@@ -213,6 +223,49 @@ internal u32 find_first_from_position(str source, u32 start, char match, bool ba
     return find_n_from_position(source, start, match, 1, backwards);
 }
 
+struct Split_iterator {
+    str data;
+    str pattern;
+    str sub_str;
+    bool valid;
+};
+
+internal Split_iterator next(Split_iterator iterator) {
+    Split_iterator result = iterator;
+    result.sub_str = result.data;
+    u32 count = 0;
+
+    while (result.data.count > 0) {
+        if (match(result.data, result.pattern)) {
+            result.data = offset(result.data, length(result.pattern));
+            break;
+        }
+
+        result.data = offset(result.data, 1);
+        count++;
+    }
+
+    result.sub_str.count = count;
+
+    return result;
+}
+
+internal Split_iterator split(str original, str pattern) {
+    Split_iterator result;
+
+    result.data = original;
+    result.pattern = pattern;
+
+    result = next(result);
+
+    return result;
+}
+
+internal bool valid(Split_iterator *it) {
+    bool result = it->valid;
+    it->valid = it->data.count > 0;
+    return result;
+}
 
 // Hash Functions
 // http://www.cse.yorku.ca/~oz/hash.html

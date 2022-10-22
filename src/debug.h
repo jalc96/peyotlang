@@ -14,6 +14,10 @@ internal void color_text(char *text, u8 r, u8 g, u8 b) {
 #define ERROR(text) {BOLD(RED("ERROR: ")); printf("%s\n", text);}
 #define ASSERT(text, file, line) {BOLD(RED("\nASSERT FAILED: ")); printf("%s[%d]: %s\n", file, line, text);}
 
+#define STATIC_COLOR_(text, r, g, b) "\033[38;2;" ## #r ## ";" ## #g ## ";" ## #b ## "m" text "\033[0m"
+#define STATIC_COLOR(text, r, g, b) STATIC_COLOR_(text, r, g, b)
+#define STATIC_RED(text) STATIC_COLOR(text, 255, 0, 0)
+
 #if DEVELOPMENT
     #define assert(expression, message) if (!(expression)) {ASSERT(message, __FILE__, __LINE__);(*(u8 *)0) = 0;}
 

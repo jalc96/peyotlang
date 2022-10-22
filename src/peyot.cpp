@@ -69,6 +69,8 @@
 
 
 s16 main(s16 arg_count, char **args) {
+    setup_console();
+
     char *program_complex = R"PROGRAM(
     main :: (u32 x, u32 y) -> u32 {
         u32 a;
@@ -230,11 +232,10 @@ s16 main(s16 arg_count, char **args) {
         };
     )PROGRAM";
 
-    char *program_error_1 = R"PROGRAM(
-        main :: (u32 x, u32 y) -> u32 
-            u32 a = 3;
-            u32 a = 3;
-        }
+    char *program_error_1 = R"PROGRAM(main :: (u32 x, u32 y) -> u32 {
+    u32 a;
+    u32 a = 3;
+}
     )PROGRAM";
 
     char *program_error_2 = R"PROGRAM(
@@ -294,6 +295,7 @@ s16 main(s16 arg_count, char **args) {
         debug(lexer.current_line);
     }
 
+    restore_console();
 
     return 0;
 }

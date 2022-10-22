@@ -2,7 +2,11 @@
 // ERROR REPORTING
 //
 
-internal void require_token_and_report_line_error_missing_token(Lexer *lexer, Src_position src_p, PEYOT_TOKEN_TYPE token_type, char *msg, u32 previous_lines=0, u32 post_lines=0) {
+#define log_error(eb, format, ...) eb->head += stbsp_snprintf(get_buffer(eb), eb->size, format, __VA_ARGS__)
+
+#define FIRST_LINE_IN_CODE_EDITORS_STARTS_AT_1 1
+
+internal void require_token_and_report_block_error_missing_token(Lexer *lexer, Src_position src_p, PEYOT_TOKEN_TYPE token_type, char *msg, u32 previous_lines=0, u32 post_lines=0) {
     Token token = lexer->current_token;
 
     if (token.type != token_type) {
@@ -10,11 +14,40 @@ internal void require_token_and_report_line_error_missing_token(Lexer *lexer, Sr
 
         u32 l0 = find_n_from_position(lexer->source, src_p.c0, '\n', previous_lines, true);
         u32 lf = find_n_from_position(lexer->source, src_p.c0, '\n', post_lines, false);
+        str block = slice(lexer->source, l0, lf);
+        char *missing_token = to_symbol(token_type);
+        Str_buffer *eb = &lexer->parser->error_buffer;
+        log_error(eb, STATIC_RED("SYNTAX ERROR"), 0);
+        log_error(eb, ": %s\n\n", msg);
+
+        u32 line_count = src_p.line - (previous_lines - FIRST_LINE_IN_CODE_EDITORS_STARTS_AT_1);
+
+        for (Split_iterator it = split(block, STATIC_STR("\n")); valid(&it); it = next(it)) {
+            str line = it.sub_str;
+            log_error(eb, "%d:%.*s\n", line_count++, line.count, line.buffer);
+        }
+    }
+
+    get_next_token(lexer);
+}
+
+internal void require_token_and_report_line_error_missing_token(Lexer *lexer, Src_position src_p, PEYOT_TOKEN_TYPE token_type, char *msg) {
+    Token token = lexer->current_token;
+
+    if (token.type != token_type) {
+        lexer->parser->parsing_errors = true;
+
+        u32 l0 = find_first_from_position(lexer->source, src_p.c0, '\n', true);
+        u32 lf = find_first_from_position(lexer->source, src_p.c0, '\n', false);
         str line = slice(lexer->source, l0 + 1, lf);
         char *missing_token = to_symbol(token_type);
         Str_buffer *eb = &lexer->parser->error_buffer;
-        eb->head += stbsp_snprintf(get_buffer(eb), eb->size, "SYNTAX ERROR: %s\n", msg);
-        eb->head += stbsp_snprintf(get_buffer(eb), eb->size, "%d:%.*s", src_p.line, line.count, line.buffer);
+        log_error(eb, STATIC_RED("SYNTAX ERROR"), 0);
+        log_error(eb, ": %s\n\n", msg);
+
+        u32 line_count = src_p.line;
+
+        log_error(eb, "%d:%.*s\n", line_count++, line.count, line.buffer);
     }
 
     get_next_token(lexer);
@@ -697,10 +730,8 @@ internal Ast_block *parse_block(Lexer *lexer, Ast_block *result) {
     result->src_p = lexer->current_token.src_p;
 
     // assert(lexer->current_token.type == TOKEN_OPEN_BRACE, "when parsing a block, the current token must be an open brace '{'");
-    require_token_and_report_line_error_missing_token(lexer, result->src_p, TOKEN_OPEN_BRACE, "Missing open brace '{' to start a block", 2, 2);
+    require_token_and_report_block_error_missing_token(lexer, result->src_p, TOKEN_OPEN_BRACE, "Missing open brace '{' to start a block", 2, 2);
     if (lexer->parser->parsing_errors) return 0;
-
-    get_next_token(lexer);
 
     Block_parser parser;
     parser.lexer = lexer;
@@ -712,11 +743,12 @@ internal Ast_block *parse_block(Lexer *lexer, Ast_block *result) {
         // the weird bug is in parse statement
         parse_statement(lexer, e);
         update_block_parser(&parser);
+        if (lexer->parser->parsing_errors) return 0;
     }
 
     if (lexer->parser->parsing_errors) return 0;
 
-    require_token_and_report_line_error_missing_token(lexer, result->src_p, TOKEN_OPEN_BRACE, "Missing close brace '}' to end a block", 2, 2);
+    require_token_and_report_block_error_missing_token(lexer, result->src_p, TOKEN_CLOSE_BRACE, "Missing close brace '}' to end a block", 2, 2);
     // assert(lexer->current_token.type == TOKEN_CLOSE_BRACE, "when parsing a block, the last current token must be a close brace '}'");
     get_next_token(lexer);
 
