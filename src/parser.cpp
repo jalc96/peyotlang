@@ -6,6 +6,58 @@
 
 #define FIRST_LINE_IN_CODE_EDITORS_STARTS_AT_1 1
 
+struct Enum_declaration_error {
+    Src_position declaration_p;
+    Src_position previous_p;
+};
+
+internal void require_token_and_report_in_enum_declaration(Lexer *lexer, PEYOT_TOKEN_TYPE token_type, Enum_declaration_error positions, char *msg) {
+    Token token = lexer->current_token;
+
+    if (token.type != token_type) {
+        lexer->parser->parsing_errors = true;
+        u32 l0 = positions.declaration_p.c0;
+        u32 lf = positions.previous_p.cf;
+        Src_position error_at_p = positions.previous_p;
+        Src_position last_valid_p = positions.previous_p;
+
+        l0 = find_n_from_position(lexer->source, l0, '\n', 0, true);
+        str block = slice(lexer->source, l0 + 1, lf);
+        Str_buffer *eb = &lexer->parser->error_buffer;
+        log_error(eb, STATIC_RED("SYNTAX ERROR"), 0);
+        log_error(eb, ": %s\n\n", msg);
+
+        u32 line_count = positions.declaration_p.line;
+        u32 non_used_chars = 0;
+
+        for (Split_iterator it = split(block, STATIC_STR("\n")); valid(&it); it = next(it)) {
+            char scratch[256];
+            u32 line_show_count = stbsp_snprintf(scratch, 256, "    %d:", line_count);
+            str line = it.sub_str;
+            log_error(eb, "%s%.*s\n", scratch, line.count, line.buffer);
+
+            if (line_count == error_at_p.line) {
+                // this has to be in line relative space, not global source space as it is now
+                u32 offset_to_the_last_valid_char = last_valid_p.cf - non_used_chars + line_show_count - 1;
+
+                count_for(offset_to_the_last_valid_char) {
+                    log_error(eb, " ");
+                }
+
+                log_error(eb, "^");
+
+            }
+
+            non_used_chars += line.count;
+            #define LINE_COUNT_ABOVE_DOESNT_COUNT_THE_NEW_LINE_CHAR 1
+            non_used_chars += LINE_COUNT_ABOVE_DOESNT_COUNT_THE_NEW_LINE_CHAR;
+            line_count++;
+        }
+    }
+
+    get_next_token(lexer);
+}
+
 internal void require_token_and_report_block_error_missing_token(Lexer *lexer, Src_position src_p, PEYOT_TOKEN_TYPE token_type, char *msg, u32 previous_lines=0, u32 post_lines=0) {
     Token token = lexer->current_token;
 
@@ -31,23 +83,44 @@ internal void require_token_and_report_block_error_missing_token(Lexer *lexer, S
     get_next_token(lexer);
 }
 
-internal void require_token_and_report_line_error_missing_token(Lexer *lexer, Src_position src_p, PEYOT_TOKEN_TYPE token_type, char *msg) {
+internal void require_token_and_report_line_error_missing_token(Lexer *lexer, Src_position begin_p, Src_position last_valid_p, PEYOT_TOKEN_TYPE token_type, char *msg) {
+    // TODO: with a multiline stuff this freaks out
+    /*
+        char *program_error_1 = R"PROGRAM(main :: (u32 x, u32 y) -> u32 {
+            u32 really_long_name_to_see_if_the_pointer_points_to_the_end_of_the_variable;
+            really_long_name_to_see_if_the_pointer_points_to_the_end_of_the_variable + 
+            12222
+        }
+        )PROGRAM";
+    */
     Token token = lexer->current_token;
 
     if (token.type != token_type) {
         lexer->parser->parsing_errors = true;
 
-        u32 l0 = find_first_from_position(lexer->source, src_p.c0, '\n', true);
-        u32 lf = find_first_from_position(lexer->source, src_p.c0, '\n', false);
+        u32 l0 = find_first_from_position(lexer->source, begin_p.c0, '\n', true);
+        u32 lf = find_first_from_position(lexer->source, begin_p.c0, '\n', false);
         str line = slice(lexer->source, l0 + 1, lf);
         char *missing_token = to_symbol(token_type);
         Str_buffer *eb = &lexer->parser->error_buffer;
         log_error(eb, STATIC_RED("SYNTAX ERROR"), 0);
         log_error(eb, ": %s\n\n", msg);
 
-        u32 line_count = src_p.line;
+        u32 line_count = begin_p.line;
 
-        log_error(eb, "%d:%.*s\n", line_count++, line.count, line.buffer);
+        char scratch[256];
+        u32 line_show_count = stbsp_snprintf(scratch, 256, "    %d:", line_count++);
+        log_error(eb, "%s%.*s\n", scratch, line.count, line.buffer);
+        // log_error(eb, "%d:%.*s\n", line_count++, line.count, line.buffer);
+        u32 offset_to_the_last_valid_char = last_valid_p.cf - (l0 + 1) + line_show_count;
+        debug(line_show_count)
+        debug(offset_to_the_last_valid_char)
+
+        count_for(offset_to_the_last_valid_char) {
+            log_error(eb, " ");
+        }
+
+        log_error(eb, "^");
     }
 
     get_next_token(lexer);
@@ -99,12 +172,7 @@ internal Call_parameter_list_creator iterate_parameter_list(Lexer *lexer) {
 internal bool parsing(Call_parameter_list_creator it) {
     return !it.finished;
 }
-/*
-struct Call_parameter {
-    Ast_expression *parameter;
-    Call_parameter *next;
-};
-*/
+
 internal Ast_expression *parse_or_expression(Lexer *lexer, Ast_expression *result);
 
 internal void parse_parameter(Call_parameter_list_creator *it) {
@@ -590,7 +658,7 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
         result->variable.expression = parse_binary_expression(lexer, 0);
 
         // Consume the semicolon to start fresh
-        require_token_and_report_line_error_missing_token(lexer, result->src_p, TOKEN_SEMICOLON, "Missing semicolon ';' at the end of the variable declaration");
+        require_token_and_report_line_error_missing_token(lexer, result->src_p, result->variable.expression->src_p, TOKEN_SEMICOLON, "Missing semicolon ';' at the end of the variable declaration");
     } else if (declaration_type == AST_DECLARATION_FUNCTION) {
         result->name = lexer->current_token.name;
         get_next_token(lexer);
@@ -620,6 +688,7 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
         require_token(lexer, TOKEN_RETURN_ARROW, "in parse_declaration");
 
         result->function.return_type = get_type(lexer->parser->type_table, lexer->current_token.name);
+        result->function.return_src_p = lexer->current_token.src_p;
 
         if (!result->variable.variable_type) {
             // TODO: handle out of order declaration
@@ -630,40 +699,86 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
         result->function.block = parse_block(lexer, 0);
     } else if (declaration_type == AST_DECLARATION_COMPOUND) {
         assert(is_compound(lexer->current_token.type), "in declaration parsing the first keyword must be struct or union");
+        Src_position src_p = lexer->current_token.src_p;
         Compound_parsing_result cpr = parse_compound(lexer);
         result->compound = cpr.compound;
         result->name = cpr.name;
-        push_type(type_table(lexer), result->name, TYPE_SPEC_NAME);
+        push_type(type_table(lexer), result->name, TYPE_SPEC_NAME, src_p);
     } else if (declaration_type == AST_DECLARATION_ENUM) {
-        require_token(lexer, TOKEN_ENUM, "in parse_declaration");
-        result->name = lexer->current_token.name;
-        result->_enum.enum_type = push_type(type_table(lexer), result->name, TYPE_SPEC_NAME);
+        assert(lexer->current_token.type == TOKEN_ENUM, "token type must be TOKEN_ENUM at the begining of enum declaration parsing");
+        Enum_declaration_error error_p;
+        Src_position src_p = lexer->current_token.src_p;
+        error_p.declaration_p = src_p;
+        error_p.previous_p = error_p.declaration_p;
+
+        // Consume the enum keyword
         get_next_token(lexer);
 
-        require_token(lexer, TOKEN_COLON, "in parse_declaration");
-        require_token(lexer, TOKEN_COLON, "in parse_declaration");
+        Token name = lexer->current_token;
 
-        require_token(lexer, TOKEN_OPEN_BRACE, "in parse_declaration");
+        Src_position last_valid_p = lexer->current_token.src_p;
+        require_token_and_report_in_enum_declaration(lexer, TOKEN_NAME, error_p, "missing name in enum declaration");
+        error_p.previous_p = last_valid_p;
+        if (lexer->parser->parsing_errors) return 0;
+
+        result->name = name.name;
+        result->_enum.enum_type = push_type(type_table(lexer), result->name, TYPE_SPEC_NAME, src_p);
+
+
+        last_valid_p = lexer->current_token.src_p;
+        require_token_and_report_in_enum_declaration(lexer, TOKEN_COLON, error_p, "missing colon ':' in enum declaration");
+        error_p.previous_p = last_valid_p;
+        if (lexer->parser->parsing_errors) return 0;
+
+        last_valid_p = lexer->current_token.src_p;
+        require_token_and_report_in_enum_declaration(lexer, TOKEN_COLON, error_p, "missing colon ':' in enum declaration");
+        error_p.previous_p = last_valid_p;
+        if (lexer->parser->parsing_errors) return 0;
+
+        last_valid_p = lexer->current_token.src_p;
+        require_token_and_report_in_enum_declaration(lexer, TOKEN_OPEN_BRACE, error_p, "missing open brace '{' in enum declaration");
+        error_p.previous_p = last_valid_p;
+        if (lexer->parser->parsing_errors) return 0;
+
+        {
             result->_enum.item_count = get_enum_items_count(lexer);
             result->_enum.items = push_array(lexer->allocator, Enum_item, result->_enum.item_count);
-            Token t;
+            last_valid_p = lexer->current_token.src_p;
 
             sfor_count(result->_enum.items, result->_enum.item_count) {
-                t = lexer->current_token;
+                Token t = lexer->current_token;
+                require_token_and_report_in_enum_declaration(lexer, TOKEN_NAME, error_p, "missing enum value name in enum declaration");
+                error_p.previous_p = last_valid_p;
+                if (lexer->parser->parsing_errors) return 0;
+
                 it->name = t.name;
                 it->src_p = t.src_p;
-                t = get_next_token(lexer);
+                t = lexer->current_token;
 
                 if (t.type == TOKEN_ASSIGNMENT) {
                     get_next_token(lexer);
                     it->value = parse_expression(lexer, 0);
+                    if (lexer->parser->parsing_errors) return 0;
+                    last_valid_p = lexer->current_token.src_p;
                 }
 
-                require_token(lexer, TOKEN_COMMA, "in parse_declaration");
-            }
+                require_token_and_report_in_enum_declaration(lexer, TOKEN_COMMA, error_p, "missing comma ',' in enum declaration");
+                error_p.previous_p = last_valid_p;
+                if (lexer->parser->parsing_errors) return 0;
 
-        require_token(lexer, TOKEN_CLOSE_BRACE, "in parse_declaration");
-        require_token(lexer, TOKEN_SEMICOLON, "in parse_declaration");
+                last_valid_p = lexer->current_token.src_p;
+            }
+        }
+
+        last_valid_p = lexer->current_token.src_p;
+        require_token_and_report_in_enum_declaration(lexer, TOKEN_CLOSE_BRACE, error_p, "missing close brace '}' in enum declaration");
+        error_p.previous_p = last_valid_p;
+        if (lexer->parser->parsing_errors) return 0;
+
+        last_valid_p = lexer->current_token.src_p;
+        require_token_and_report_in_enum_declaration(lexer, TOKEN_SEMICOLON, error_p, "missing semicolon ';' in enum declaration");
+        error_p.previous_p = last_valid_p;
+        if (lexer->parser->parsing_errors) return 0;
     } else {
         invalid_code_path;
     }
@@ -681,7 +796,11 @@ struct Block_parser {
 };
 
 internal bool parsing_block(Block_parser *parser) {
-    return !parser->finished;
+    bool result = (
+           (!parser->finished)
+        && (!parser->lexer->parser->parsing_errors)
+    );
+    return result;
 }
 
 internal void update_block_parser(Block_parser *parser) {
@@ -740,10 +859,8 @@ internal Ast_block *parse_block(Lexer *lexer, Ast_block *result) {
 
     while (parsing_block(&parser)) {
         Ast_statement *e = advance(&it);
-        // the weird bug is in parse statement
         parse_statement(lexer, e);
         update_block_parser(&parser);
-        if (lexer->parser->parsing_errors) return 0;
     }
 
     if (lexer->parser->parsing_errors) return 0;
@@ -955,8 +1072,10 @@ internal Ast_statement *parse_statement(Lexer *lexer, Ast_statement *result) {
         case AST_STATEMENT_EXPRESSION: {
             result->expression_statement = parse_binary_expression(lexer, 0);
             Token semicolon = lexer->current_token;
-            assert(semicolon.type == TOKEN_SEMICOLON, "when parsing an expression statement, this must be ended with a semicolon ';'");
-            get_next_token(lexer);
+            // assert(semicolon.type == TOKEN_SEMICOLON, "when parsing an expression statement, this must be ended with a semicolon ';'");
+            // get_next_token(lexer);
+            Ast_expression *rl = get_right_leaf(result->expression_statement);
+            require_token_and_report_line_error_missing_token(lexer, result->src_p, rl->src_p, TOKEN_SEMICOLON, "when parsing an expression statement, this must be ended with a semicolon ';'");
         } break;
         case AST_STATEMENT_DECLARATION: {
             result->declaration_statement = parse_declaration(lexer, 0);
@@ -965,12 +1084,16 @@ internal Ast_statement *parse_statement(Lexer *lexer, Ast_statement *result) {
             result->loop_statement = parse_loop(lexer);
         } break;
         case AST_STATEMENT_BREAK:{
+            Src_position src_p = lexer->current_token.src_p;
             require_token(lexer, TOKEN_BREAK, "parsing break statement");
-            require_token(lexer, TOKEN_SEMICOLON, "parsing break statement");
+            // require_token(lexer, TOKEN_SEMICOLON, "parsing break statement");
+            require_token_and_report_line_error_missing_token(lexer, result->src_p, src_p, TOKEN_SEMICOLON, "when parsing break statement, this must be ended with a semicolon ';'");
         } break;
         case AST_STATEMENT_CONTINUE: {
+            Src_position src_p = lexer->current_token.src_p;
             require_token(lexer, TOKEN_CONTINUE, "parsing continue statement");
-            require_token(lexer, TOKEN_SEMICOLON, "parsing continue statement");
+            // require_token(lexer, TOKEN_SEMICOLON, "parsing continue statement");
+            require_token_and_report_line_error_missing_token(lexer, result->src_p, src_p, TOKEN_SEMICOLON, "when parsing continue statement, this must be ended with a semicolon ';'");
         } break;
         case AST_STATEMENT_RETURN: {
             require_token(lexer, TOKEN_RETURN, "parsing return statement");

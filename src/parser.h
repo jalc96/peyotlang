@@ -195,6 +195,14 @@ internal void print(Ast_expression *ast, u32 indent=0, bool is_declaration=false
     }
 }
 
+internal Ast_expression *get_right_leaf(Ast_expression *ast) {
+    if (ast->binary.right) {
+        return get_right_leaf(ast->binary.right);
+    }
+
+    return ast;
+}
+
 //
 // DECLARATIONS
 //
@@ -338,6 +346,7 @@ struct Ast_declaration {
             u32 param_count;
             Parameter *params;
             Type_spec *return_type;
+            Src_position return_src_p;
             Ast_block *block;
         } function;
         Compound *compound; // STRUCT/UNION

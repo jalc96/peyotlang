@@ -37,6 +37,7 @@
             case A: do_stuf();break;
             case A: <---this throws an error
         }
+    -delete the semicolon from the struct/enum declaration
 */
 
 #define STB_SPRINTF_IMPLEMENTATION
@@ -233,12 +234,23 @@ s16 main(s16 arg_count, char **args) {
     )PROGRAM";
 
     char *program_error_1 = R"PROGRAM(main :: (u32 x, u32 y) -> u32 {
-    u32 a;
-    u32 a = 3;
+    u32 really_long_name_to_see_if_the_pointer_points_to_the_end_of_the_variable;
+    really_long_name_to_see_if_the_pointer_points_to_the_end_of_the_variable + 12222;
+    break;
+    continue;
 }
     )PROGRAM";
 
     char *program_error_2 = R"PROGRAM(
+enum things :: {
+    THING_NONE,
+
+    THING_SMALL,
+    THING_BIG=2,
+}
+    )PROGRAM";
+
+    char *program_error_3 = R"PROGRAM(
         enum THING_TYPE :: {
             THING_NONE,
 
@@ -254,7 +266,7 @@ s16 main(s16 arg_count, char **args) {
     initialize_native_types(type_table);
 
     Parser parser = new_parser(&allocator, type_table);
-    Lexer lexer = create_lexer(program_error_1, &parser, &allocator);
+    Lexer lexer = create_lexer(program_error_2, &parser, &allocator);
 
 
     get_next_token(&lexer);

@@ -46,7 +46,7 @@ internal Token get_next_token(Lexer *lexer) {
         c = get_char(lexer);
     }
 
-    Token result;
+    Token result = {};
     result.src_p.c0 = lexer->index;
     result.src_p.line = lexer->current_line;
 

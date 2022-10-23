@@ -18,15 +18,18 @@ internal char *to_string(TYPE_SPEC_TYPE type) {
 struct Type_spec {
     u32 id;
     TYPE_SPEC_TYPE type;
+    Src_position src_p;
+    // TODO: maybe have a separate name table to make this struct smaller and store here the index to that table
     str name;
     Type_spec *next;
 };
 
-internal Type_spec *new_type_spec(u32 id, TYPE_SPEC_TYPE type, str name, Memory_pool *allocator) {
+internal Type_spec *new_type_spec(u32 id, TYPE_SPEC_TYPE type, str name, Src_position src_p, Memory_pool *allocator) {
     Type_spec *result = push_struct(allocator, Type_spec);
     result->id = id;
     result->type = type;
     result->name = name;
+    result->src_p = src_p;
     result->next = 0;
     return result;
 }
@@ -73,10 +76,10 @@ internal u32 get_type_spec_index(str name) {
     return result;
 }
 
-internal Type_spec *push_type(Type_spec_table *table, str name, TYPE_SPEC_TYPE type) {
+internal Type_spec *push_type(Type_spec_table *table, str name, TYPE_SPEC_TYPE type, Src_position src_p) {
     u32 index = get_type_spec_index(name);
     // When creating types in several threads maybe assign id ranges to each thread so they dont stall in the same lock all the time
-    Type_spec *result = new_type_spec(table->current_id++, type, name, table->allocator);
+    Type_spec *result = new_type_spec(table->current_id++, type, name, src_p, table->allocator);
     result->next = table->table[index];
     table->table[index] = result;
 
@@ -118,6 +121,6 @@ internal void initialize_native_types(Type_spec_table *type_table) {
     };
 
     sfor (native_types) {
-        push_type(type_table, *it, TYPE_SPEC_NAME);
+        push_type(type_table, *it, TYPE_SPEC_NAME, {});
     }
 }

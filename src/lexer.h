@@ -204,6 +204,7 @@ internal char *to_symbol(PEYOT_TOKEN_TYPE type) {
 
 struct Src_position {
     u32 line;
+    // cf is not inclusive, is the index to the next character, so you can get the length by cf - c0
     u32 c0, cf;
 };
 
