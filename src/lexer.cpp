@@ -235,6 +235,7 @@ internal Token get_next_token(Lexer *lexer) {
     }
 
     result.src_p.cf = lexer->index;
+    lexer->previous_token = lexer->current_token;
     lexer->current_token = result;
 
 

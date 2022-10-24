@@ -255,6 +255,7 @@ internal Split_iterator split(str original, str pattern) {
 
     result.data = original;
     result.pattern = pattern;
+    result.valid = true;
 
     result = next(result);
 

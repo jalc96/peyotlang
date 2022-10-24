@@ -251,12 +251,7 @@ enum things :: {
     )PROGRAM";
 
     char *program_error_3 = R"PROGRAM(
-        enum THING_TYPE :: {
-            THING_NONE,
-
-            THING_SMALL,
-            THING_BIG=2,
-        };
+        a.a;
     )PROGRAM";
 
 
@@ -266,7 +261,7 @@ enum things :: {
     initialize_native_types(type_table);
 
     Parser parser = new_parser(&allocator, type_table);
-    Lexer lexer = create_lexer(program_error_2, &parser, &allocator);
+    Lexer lexer = create_lexer(program_error_3, &parser, &allocator);
 
 
     get_next_token(&lexer);
@@ -291,8 +286,8 @@ enum things :: {
 
 
     // Ast_block *ast = parse_block(&lexer, 0);
-    // Ast_statement *ast = parse_statement(&lexer, 0);
-    Ast_declaration *ast = parse_declaration(&lexer, 0);
+    Ast_statement *ast = parse_statement(&lexer, 0);
+    // Ast_declaration *ast = parse_declaration(&lexer, 0);
 
     if (lexer.parser->parsing_errors) {
         report_parsing_errors(&lexer);

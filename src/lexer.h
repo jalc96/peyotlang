@@ -140,7 +140,26 @@ internal char *to_string(PEYOT_TOKEN_TYPE type) {
     }
 }
 
-internal char *to_symbol(PEYOT_TOKEN_TYPE type) {
+struct Src_position {
+    u32 line;
+    // cf is not inclusive, is the index to the next character, so you can get the length by cf - c0
+    u32 c0, cf;
+};
+
+struct Token {
+    PEYOT_TOKEN_TYPE type;
+    Src_position src_p;
+
+    union {
+        u64 u64_value;
+        s64 s64_value;
+        f64 f64_value;
+        str str_value;
+        str name;
+    };
+};
+
+internal char *to_symbol(PEYOT_TOKEN_TYPE type, Token *token = 0) {
     switch (type){
         case TOKEN_NULL: {return "null";} break;
 
@@ -196,30 +215,25 @@ internal char *to_symbol(PEYOT_TOKEN_TYPE type) {
         case TOKEN_CONTINUE: {return "continue";} break;
         case TOKEN_RETURN: {return "return";} break;
 
+        case TOKEN_NAME: {
+            char name[512];
+            name[511] = 0;
+            stbsp_snprintf(name, 512, "%.*s", token->name.count, token->name.buffer);
+            return name;
+        } break;
+
+        case TOKEN_LITERAL_U32: {
+            char name[512];
+            name[511] = 0;
+            stbsp_snprintf(name, 512, "%llu", token->u64_value);
+            return name;
+        } break;
 
 
-        invalid_default_case_msg("missing PEYOT_TOKEN_TYPE in to_string");
+
+        invalid_default_case_msg("missing PEYOT_TOKEN_TYPE in to_symbol");
     }
 }
-
-struct Src_position {
-    u32 line;
-    // cf is not inclusive, is the index to the next character, so you can get the length by cf - c0
-    u32 c0, cf;
-};
-
-struct Token {
-    PEYOT_TOKEN_TYPE type;
-    Src_position src_p;
-
-    union {
-        u64 u64_value;
-        s64 s64_value;
-        f64 f64_value;
-        str str_value;
-        str name;
-    };
-};
 
 struct Parser;
 
@@ -232,6 +246,7 @@ struct Lexer {
     str source;
     u32 index;
     u32 current_line;
+    Token previous_token;
     Token current_token;
     Parser *parser;
     Memory_pool *allocator;
