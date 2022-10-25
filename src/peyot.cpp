@@ -234,24 +234,24 @@ s16 main(s16 arg_count, char **args) {
     )PROGRAM";
 
     char *program_error_1 = R"PROGRAM(main :: (u32 x, u32 y) -> u32 {
-    u32 really_long_name_to_see_if_the_pointer_points_to_the_end_of_the_variable;
-    really_long_name_to_see_if_the_pointer_points_to_the_end_of_the_variable + 12222;
-    break;
-    continue;
-}
+        u32 really_long_name_to_see_if_the_pointer_points_to_the_end_of_the_variable;
+        really_long_name_to_see_if_the_pointer_points_to_the_end_of_the_variable + 12222;
+        break;
+        continue;
+    }
     )PROGRAM";
 
     char *program_error_2 = R"PROGRAM(
-enum things :: {
-    THING_NONE,
+        enum things :: {
+            THING_NONE,
 
-    THING_SMALL,
-    THING_BIG=2,
-}
+            THING_SMALL
+            THING_BIG=2,
+        }
     )PROGRAM";
 
     char *program_error_3 = R"PROGRAM(
-        a.a;
+        a(1, 2, 3
     )PROGRAM";
 
 
@@ -261,7 +261,7 @@ enum things :: {
     initialize_native_types(type_table);
 
     Parser parser = new_parser(&allocator, type_table);
-    Lexer lexer = create_lexer(program_error_3, &parser, &allocator);
+    Lexer lexer = create_lexer(program_error_2, &parser, &allocator);
 
 
     get_next_token(&lexer);
@@ -286,8 +286,8 @@ enum things :: {
 
 
     // Ast_block *ast = parse_block(&lexer, 0);
-    Ast_statement *ast = parse_statement(&lexer, 0);
-    // Ast_declaration *ast = parse_declaration(&lexer, 0);
+    // Ast_statement *ast = parse_statement(&lexer, 0);
+    Ast_declaration *ast = parse_declaration(&lexer, 0);
 
     if (lexer.parser->parsing_errors) {
         report_parsing_errors(&lexer);

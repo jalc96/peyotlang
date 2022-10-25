@@ -216,7 +216,13 @@ internal Call_parameter_list_creator iterate_parameter_list(Lexer *lexer) {
     result.lexer = lexer;
     PEYOT_TOKEN_TYPE t = lexer->current_token.type;
     // TODO: have a better check for this
-    result.finished = (t == TOKEN_CLOSE_PARENTHESIS) || (t != TOKEN_LITERAL_U32) || (t != TOKEN_NAME);
+    result.finished = (
+           (t == TOKEN_CLOSE_PARENTHESIS) 
+        || (
+               (t != TOKEN_LITERAL_U32)
+            && (t != TOKEN_NAME)
+           )
+    );
 
     return result;
 }
@@ -281,6 +287,8 @@ internal Ast_expression *parse_factor(Lexer *lexer, Ast_expression *result) {
                 token = get_next_token(lexer);
                 // assert(token.type == TOKEN_NAME, "member must be a name");
                 require_token_and_report_in_factor_parsing(lexer, TOKEN_NAME, positions, "struct members must be accessed by a name identifier", true);
+                if (lexer->parser->parsing_errors) return 0;
+
                 result->binary.right = push_struct(lexer->allocator, Ast_expression);
                 leaf(result->binary.right, AST_EXPRESSION_NAME);
                 result->binary.right->name = token.name;
@@ -301,6 +309,7 @@ internal Ast_expression *parse_factor(Lexer *lexer, Ast_expression *result) {
 
                 positions.previous_p = pt.src_p;
                 require_token_and_report_in_factor_parsing(lexer, TOKEN_CLOSE_PARENTHESIS, positions, "missing close parenthesis ')' in a function call", false);
+                if (lexer->parser->parsing_errors) return 0;
 
                 result->function_call.parameter_count = it.parameter_count;
                 result->function_call.parameter = it.parameter;
@@ -323,6 +332,8 @@ internal Ast_expression *parse_factor(Lexer *lexer, Ast_expression *result) {
 
             positions.previous_p = pt.src_p;
             require_token_and_report_in_factor_parsing(lexer, TOKEN_CLOSE_PARENTHESIS, positions, "missing close parenthesis ')' for expression", false);
+            if (lexer->parser->parsing_errors) return 0;
+
             result->u64_value = token.u64_value;
         } break;
 
@@ -818,10 +829,11 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
         {
             result->_enum.item_count = get_enum_items_count(lexer);
             result->_enum.items = push_array(lexer->allocator, Enum_item, result->_enum.item_count);
-            last_valid_p = lexer->current_token.src_p;
 
             sfor_count(result->_enum.items, result->_enum.item_count) {
                 Token t = lexer->current_token;
+
+                last_valid_p = lexer->current_token.src_p;
                 require_token_and_report_in_enum_declaration(lexer, TOKEN_NAME, error_p, "missing enum value name in enum declaration");
                 error_p.previous_p = last_valid_p;
                 if (lexer->parser->parsing_errors) return 0;
@@ -834,14 +846,12 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
                     get_next_token(lexer);
                     it->value = parse_expression(lexer, 0);
                     if (lexer->parser->parsing_errors) return 0;
-                    last_valid_p = lexer->current_token.src_p;
+                    error_p.previous_p = lexer->previous_token.src_p;
                 }
 
                 require_token_and_report_in_enum_declaration(lexer, TOKEN_COMMA, error_p, "missing comma ',' in enum declaration");
                 error_p.previous_p = last_valid_p;
                 if (lexer->parser->parsing_errors) return 0;
-
-                last_valid_p = lexer->current_token.src_p;
             }
         }
 
