@@ -59,6 +59,12 @@ internal Token get_next_token(Lexer *lexer) {
     } else if (c == ':') {
         result.type = TOKEN_COLON;
         advance(lexer);
+        c = get_char(lexer);
+
+        if (c == ':') {
+            result.type = TOKEN_DECLARATION;
+            advance(lexer);
+        }
     } else if (c == ';') {
         result.type = TOKEN_SEMICOLON;
         advance(lexer);

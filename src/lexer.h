@@ -20,6 +20,7 @@ enum PEYOT_TOKEN_TYPE {
 
     TOKEN_ASSIGNMENT,
     TOKEN_COLON,
+    TOKEN_DECLARATION,
     TOKEN_SEMICOLON,
     TOKEN_COMMA,
     TOKEN_DOT,
@@ -82,6 +83,7 @@ internal char *to_string(PEYOT_TOKEN_TYPE type) {
         case TOKEN_LITERAL_U32: {return "TOKEN_LITERAL_U32";} break;
 
         case TOKEN_COLON: {return "TOKEN_COLON";} break;
+        case TOKEN_DECLARATION: {return "TOKEN_DECLARATION";} break;
         case TOKEN_SEMICOLON: {return "TOKEN_SEMICOLON";} break;
         case TOKEN_COMMA: {return "TOKEN_COMMA";} break;
         case TOKEN_DOT: {return "TOKEN_DOT";} break;
@@ -166,6 +168,7 @@ internal char *to_symbol(PEYOT_TOKEN_TYPE type, Token *token = 0) {
         case TOKEN_U32: {return "u32";} break;
 
         case TOKEN_COLON: {return ":";} break;
+        case TOKEN_DECLARATION: {return "::";} break;
         case TOKEN_SEMICOLON: {return ";";} break;
         case TOKEN_COMMA: {return ",";} break;
         case TOKEN_DOT: {return ".";} break;

@@ -38,6 +38,8 @@
             case A: <---this throws an error
         }
     -delete the semicolon from the struct/enum declaration
+    -REMAKE THE DECLARATIONS TO THIS:
+        have a token for declaration '::' and if you see a name followed by that then you have a declaration, then to decide which declaration you are talking about you see the next token if struct is found then is a struct declaration, if ( is found then is a function declaration and so on.
 */
 
 #define STB_SPRINTF_IMPLEMENTATION
@@ -198,19 +200,20 @@ s16 main(s16 arg_count, char **args) {
     )PROGRAM";
 
     char *program_struct = R"PROGRAM(
-        struct V2u :: {
+        V2u :: struct {
             u32 a;
             u32 b;
         };
     )PROGRAM";
 
     char *program_union = R"PROGRAM(
-        union stuff :: {
+        stuff :: union {
             u32 a;
             u32 b;
         };
     )PROGRAM";
 
+// TODO: see what jai does in these cases
     char *program_union_struct = R"PROGRAM(
         union V2u :: {
             struct :: {
@@ -225,7 +228,7 @@ s16 main(s16 arg_count, char **args) {
     )PROGRAM";
 
     char *program_enum = R"PROGRAM(
-        enum THING_TYPE :: {
+        THING_TYPE :: enum {
             THING_NONE,
 
             THING_SMALL,
@@ -242,7 +245,7 @@ s16 main(s16 arg_count, char **args) {
     )PROGRAM";
 
     char *program_error_2 = R"PROGRAM(
-        enum things :: {
+        things :: enum {
             THING_NONE,
 
             THING_SMALL
@@ -254,6 +257,12 @@ s16 main(s16 arg_count, char **args) {
         a(1, 2, 3
     )PROGRAM";
 
+    char *program_error_4 = R"PROGRAM(
+        main :: (u32 x, u32 y) -> u32 {
+            u32 a = 3;
+        }
+    )PROGRAM";
+
 
     Memory_pool allocator = {};
 
@@ -261,7 +270,7 @@ s16 main(s16 arg_count, char **args) {
     initialize_native_types(type_table);
 
     Parser parser = new_parser(&allocator, type_table);
-    Lexer lexer = create_lexer(program_error_2, &parser, &allocator);
+    Lexer lexer = create_lexer(program_function, &parser, &allocator);
 
 
     get_next_token(&lexer);
