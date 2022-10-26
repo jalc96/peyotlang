@@ -102,16 +102,17 @@ s16 main(s16 arg_count, char **args) {
 
     char *program_function = R"PROGRAM(
     main :: (u32 x, u32 y) -> u32 {
-        u32 a = 0;
-        a.member;
         f(a, a+1, a.member);
+        a :u32;
+        a :u32 = 0;
+        a.member;
         f(a, a+1, a.member) + a.member;
         f() + a.member;
 
-        for (u32 i=0; 1; i = i + 1) {
+        for (i :u32=0; 1; i = i + 1) {
             a = a + 1;
             a = a + 1;
-            u32 c = 2;
+            c :u32= 2;
             if (1) {
                 a = 0;
             }
@@ -214,6 +215,7 @@ s16 main(s16 arg_count, char **args) {
     )PROGRAM";
 
 // TODO: see what jai does in these cases
+// https://jai.community/t/unions/156
     char *program_union_struct = R"PROGRAM(
         union V2u :: {
             struct :: {
@@ -270,7 +272,7 @@ s16 main(s16 arg_count, char **args) {
     initialize_native_types(type_table);
 
     Parser parser = new_parser(&allocator, type_table);
-    Lexer lexer = create_lexer(program_function, &parser, &allocator);
+    Lexer lexer = create_lexer(program_complex, &parser, &allocator);
 
 
     get_next_token(&lexer);
