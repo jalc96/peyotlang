@@ -238,12 +238,13 @@ s16 main(s16 arg_count, char **args) {
         };
     )PROGRAM";
 
-    char *program_error_1 = R"PROGRAM(main :: (u32 x, u32 y) -> u32 {
-        really_long_name_to_see_if_the_pointer_points_to_the_end_of_the_variable: u32;
-        really_long_name_to_see_if_the_pointer_points_to_the_end_of_the_variable + 12222;
-        break;
-        continue;
-    }
+    char *program_error_1 = R"PROGRAM(
+        main :: (x :u32, y :u32) -> u32 {
+            really_long_name_to_see_if_the_pointer_points_to_the_end_of_the_variable: u32;
+            really_long_name_to_see_if_the_pointer_points_to_the_end_of_the_variable + 12222;
+            break;
+            continue;
+        }
     )PROGRAM";
 
     char *program_error_2 = R"PROGRAM(
@@ -262,6 +263,9 @@ s16 main(s16 arg_count, char **args) {
     char *program_error_4 = R"PROGRAM(
         main :: (x :u32, y :u32) -> u32 {
             a :u32 = 3;
+            12 + 2;
+            break;
+            continue
         }
     )PROGRAM";
 
@@ -272,7 +276,7 @@ s16 main(s16 arg_count, char **args) {
     initialize_native_types(type_table);
 
     Parser parser = new_parser(&allocator, type_table);
-    Lexer lexer = create_lexer(program_struct, &parser, &allocator);
+    Lexer lexer = create_lexer(program_error_4, &parser, &allocator);
 
 
     get_next_token(&lexer);
