@@ -75,33 +75,33 @@ s16 main(s16 arg_count, char **args) {
     setup_console();
 
     char *program_complex = R"PROGRAM(
-    main :: (u32 x, u32 y) -> u32 {
-        u32 a;
+    main :: (x :u32, y :u32) -> u32 {
+        a :u32;
         a = 0;
 
-        for (u32 i=0; 1; i = i + 1) {
+        for (i :u32 = 0; 1; i = i + 1) {
             a = a + 1;
             a = a + 1;
-            u32 c = 2;
+            c :u32 = 2;
 
             if (1) {
-                u32 a = 0;
+                a :u32 = 0;
                 if (22) {
                     a = 22;
                 }
             } else if (2) {
-                u32 a = 321;
+                a :u32 = 321;
             } else if (3) {
-                u32 a = 567;
+                a :u32 = 567;
             } else {
-                u32 a = 34562;
+                a :u32 = 34562;
             }
         }
     }
     )PROGRAM";
 
     char *program_function = R"PROGRAM(
-    main :: (u32 x, u32 y) -> u32 {
+    main :: (x :u32, y :u32) -> u32 {
         f(a, a+1, a.member);
         a :u32;
         a :u32 = 0;
@@ -109,10 +109,10 @@ s16 main(s16 arg_count, char **args) {
         f(a, a+1, a.member) + a.member;
         f() + a.member;
 
-        for (i :u32=0; 1; i = i + 1) {
+        for (i :u32 = 0; 1; i = i + 1) {
             a = a + 1;
             a = a + 1;
-            c :u32= 2;
+            c :u32 = 2;
             if (1) {
                 a = 0;
             }
@@ -121,19 +121,19 @@ s16 main(s16 arg_count, char **args) {
     )PROGRAM";
 
     char *program_function_simple = R"PROGRAM(
-    main :: (u32 x, u32 y) -> u32 {
-        u32 a = 3+4*2 == 3%2 && 3 != 3-3-------++++3;
+    main :: (x :u32 , y :u32) -> u32 {
+        a :u32 = 3+4*2 == 3%2 && 3 != 3-3-------++++3;
     }
     )PROGRAM";
 
     char *program_for = R"PROGRAM(
     {
-        u32 a = 0;
+        a :u32 = 0;
 
-        for (u32 i=0; 1; i = i + 1) {
+        for (i :u32 = 0; 1; i = i + 1) {
             a = a + 1;
             a = a + 1;
-            u32 c = 2;
+            c :u32 = 2;
             continue;
             break;
             return;
@@ -142,22 +142,22 @@ s16 main(s16 arg_count, char **args) {
     )PROGRAM";
     char *program_while = R"PROGRAM(
     {
-        u32 a = 0;
+        a :u32 = 0;
 
         while (1) {
             a = a + 1;
             a = a + 1;
-            u32 c = 2;
+            c :u32 = 2;
         }
     }
     )PROGRAM";
 
     char *program_block = R"PROGRAM(
     {
-        u32 a = 1;
-        u32 b = 2;
+        a :u32 = 1;
+        b :u32 = 2;
         {
-            u32 c = a + b;
+            c :u32 = a + b;
         }
         a=3;
     }
@@ -165,7 +165,7 @@ s16 main(s16 arg_count, char **args) {
 
     char *program_1 = R"PROGRAM(
     {
-        u32 a = 1;
+        a :u32 = 1;
         a = a + 1;
     }
     )PROGRAM";
@@ -176,41 +176,41 @@ s16 main(s16 arg_count, char **args) {
 
     char *program_if = R"PROGRAM(
         if (1) {
-            u32 a = 0;
+            a :u32 = 0;
         }
     )PROGRAM";
 
     char *program_if_else = R"PROGRAM(
         if (1) {
-            u32 a = 0;
+            a :u32 = 0;
         } else {
-            u32 a = 12;
+            a :u32 = 12;
         }
     )PROGRAM";
 
     char *program_if_else_if = R"PROGRAM(
         if (1) {
-            u32 a = 0;
+            a :u32 = 0;
         } else if (2) {
-            u32 a = 321;
+            a :u32 = 321;
         } else if (3) {
-            u32 a = 567;
+            a :u32 = 567;
         } else {
-            u32 a = 34562;
+            a :u32 = 34562;
         }
     )PROGRAM";
 
     char *program_struct = R"PROGRAM(
         V2u :: struct {
-            u32 a;
-            u32 b;
+            a :u32;
+            b :u32;
         };
     )PROGRAM";
 
     char *program_union = R"PROGRAM(
         stuff :: union {
-            u32 a;
-            u32 b;
+            a :u32;
+            b :u32;
         };
     )PROGRAM";
 
@@ -239,7 +239,7 @@ s16 main(s16 arg_count, char **args) {
     )PROGRAM";
 
     char *program_error_1 = R"PROGRAM(main :: (u32 x, u32 y) -> u32 {
-        u32 really_long_name_to_see_if_the_pointer_points_to_the_end_of_the_variable;
+        really_long_name_to_see_if_the_pointer_points_to_the_end_of_the_variable: u32;
         really_long_name_to_see_if_the_pointer_points_to_the_end_of_the_variable + 12222;
         break;
         continue;
@@ -260,8 +260,8 @@ s16 main(s16 arg_count, char **args) {
     )PROGRAM";
 
     char *program_error_4 = R"PROGRAM(
-        main :: (u32 x, u32 y) -> u32 {
-            u32 a = 3;
+        main :: (x :u32, y :u32) -> u32 {
+            a :u32 = 3;
         }
     )PROGRAM";
 
@@ -272,7 +272,7 @@ s16 main(s16 arg_count, char **args) {
     initialize_native_types(type_table);
 
     Parser parser = new_parser(&allocator, type_table);
-    Lexer lexer = create_lexer(program_complex, &parser, &allocator);
+    Lexer lexer = create_lexer(program_struct, &parser, &allocator);
 
 
     get_next_token(&lexer);

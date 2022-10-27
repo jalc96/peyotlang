@@ -362,7 +362,10 @@ internal void print(Ast_declaration *ast, u32 indent=0) {
     switch (ast->type) {
         case AST_DECLARATION_VARIABLE: {
             printf(ast->name);
-            print(ast->variable.expression, indent, true);
+
+            if (ast->variable.expression) {
+                print(ast->variable.expression, indent, true);
+            }
         } break;
         case AST_DECLARATION_FUNCTION: {
             printf(ast->name);
