@@ -204,14 +204,14 @@ s16 main(s16 arg_count, char **args) {
         V2u :: struct {
             a :u32;
             b :u32;
-        };
+        }
     )PROGRAM";
 
     char *program_union = R"PROGRAM(
         stuff :: union {
             a :u32;
             b :u32;
-        };
+        }
     )PROGRAM";
 
 // TODO: see what jai does in these cases
@@ -226,7 +226,7 @@ s16 main(s16 arg_count, char **args) {
                 u32 u;
                 u32 v;
             };
-        };
+        }
     )PROGRAM";
 
     char *program_enum = R"PROGRAM(
@@ -251,7 +251,7 @@ s16 main(s16 arg_count, char **args) {
         things :: enum {
             THING_NONE,
 
-            THING_SMALL
+            THING_SMALL,
             THING_BIG=2,
         }
     )PROGRAM";
@@ -285,6 +285,13 @@ s16 main(s16 arg_count, char **args) {
         }
     )PROGRAM";
 
+    char *program_error_7 = R"PROGRAM(
+        V2u :: struct {
+            a :u32;
+            b :u32;
+
+    )PROGRAM";
+
 
     Memory_pool allocator = {};
 
@@ -292,7 +299,7 @@ s16 main(s16 arg_count, char **args) {
     initialize_native_types(type_table);
 
     Parser parser = new_parser(&allocator, type_table);
-    Lexer lexer = create_lexer(program_error_6, &parser, &allocator);
+    Lexer lexer = create_lexer(program_error_7, &parser, &allocator);
 
 
     get_next_token(&lexer);

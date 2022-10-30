@@ -520,19 +520,34 @@ internal AST_DECLARATION_TYPE get_declaration_type(Lexer *lexer) {
     */
     AST_DECLARATION_TYPE result = AST_DECLARATION_NONE;
     Lexer_savepoint savepoint = create_savepoint(lexer);
+    Syntax_error_positions error_p;
 
     Token t1 = lexer->current_token;
     Token t2 = get_next_token(lexer);
     Token t3 = get_next_token(lexer);
 
+    error_p.start = t1.src_p;
+
     if (is_type(type_table(lexer), t3)) {
+        if (t2.type != TOKEN_COLON) {
+            error_p.last_correct = t1.src_p;
+            require_token_and_report_syntax_error(lexer, always_false, TOKEN_NULL, error_p, "expected colon ':' after variable declaration", false);
+        }
+
         result = AST_DECLARATION_VARIABLE;
-    } else if (is_compound(t3.type)) {
-        result = AST_DECLARATION_COMPOUND;
-    } else if (t3.type == TOKEN_ENUM) {
-        result = AST_DECLARATION_ENUM;
-    } else if (t3.type == TOKEN_OPEN_PARENTHESIS) {
-        result = AST_DECLARATION_FUNCTION;
+    } else {
+        if (t2.type != TOKEN_DECLARATION) {
+            error_p.last_correct = t1.src_p;
+            require_token_and_report_syntax_error(lexer, always_false, TOKEN_NULL, error_p, "expected declaration token '::' after the name in the declaration", false);
+        }
+
+        if (is_compound(t3.type)) {
+            result = AST_DECLARATION_COMPOUND;
+        } else if (t3.type == TOKEN_ENUM) {
+            result = AST_DECLARATION_ENUM;
+        } else if (t3.type == TOKEN_OPEN_PARENTHESIS) {
+            result = AST_DECLARATION_FUNCTION;
+        }
     }
 
     rollback_lexer(savepoint);
@@ -590,12 +605,17 @@ struct Compound_parsing_result {
     Compound *compound;
 };
 
-internal Compound_parsing_result parse_compound(Lexer *lexer, bool annonymous=false) {
+internal Compound_parsing_result parse_compound(Lexer *lexer, Src_position compound_name_p, bool annonymous=false) {
     Compound_parsing_result result;
     result.compound = new_compound(lexer->allocator);
     result.compound->member_count = 0;
+    Syntax_error_positions error_p;
+    error_p.start = compound_name_p;
 
-    require_token(lexer, TOKEN_OPEN_BRACE, "in parse_compound");
+    error_p.last_correct = lexer->previous_token.src_p;
+    require_token_and_report_syntax_error(lexer, token_check, TOKEN_OPEN_BRACE, error_p, "expected open brace '{' for compound type declaration", false);
+    if (lexer->parser->parsing_errors) return {};
+
         Token t = lexer->current_token;
         Member **last = &result.compound->members;
 
@@ -607,21 +627,31 @@ internal Compound_parsing_result parse_compound(Lexer *lexer, bool annonymous=fa
                 // TODO: now the annonymous and the names have to be handled here
                 new_member->member_type = MEMBER_COMPOUND;
                 new_member->src_p = t.src_p;
-                Compound_parsing_result sub = parse_compound(lexer, true);
+                Compound_parsing_result sub = parse_compound(lexer, compound_name_p, true);
+                if (lexer->parser->parsing_errors) return {};
                 new_member->sub_compound = sub.compound;
+                // TODO: handle here the semicolon
             } else {
                 new_member->member_type = MEMBER_SIMPLE;
                 new_member->name = t.name;
                 new_member->src_p = t.src_p;
 
-                t = get_next_token(lexer);
-                assert(t.type == TOKEN_COLON, "token after a member name in a struct declaration must be a colon");
+                get_next_token(lexer); // consume the name
+                error_p.last_correct = lexer->previous_token.src_p;
+                require_token_and_report_syntax_error(lexer, token_check, TOKEN_COLON, error_p, "token after a member name in a struct declaration must be a colon ':'", false);
+                if (lexer->parser->parsing_errors) return {};
 
-                t = get_next_token(lexer);
+                t = lexer->current_token;
                 new_member->type = get_type(type_table(lexer), t.name);
 
-                get_next_token(lexer);
-                require_token(lexer, TOKEN_SEMICOLON, "in parse_declaration");
+                if (new_member->type) {
+                    // TODO: handle out of order declaration
+                }
+
+                get_next_token(lexer); // consume the type
+                error_p.last_correct = lexer->previous_token.src_p;
+                require_token_and_report_syntax_error(lexer, token_check, TOKEN_SEMICOLON, error_p, "compound type members end with a semicolon ';' in the declaration", false);
+                if (lexer->parser->parsing_errors) return {};
             }
 
             new_member->next = 0;
@@ -631,8 +661,10 @@ internal Compound_parsing_result parse_compound(Lexer *lexer, bool annonymous=fa
 
             t = lexer->current_token;
         }
-    require_token(lexer, TOKEN_CLOSE_BRACE, "in parse_compound");
-    require_token(lexer, TOKEN_SEMICOLON, "in parse_compound");
+
+    error_p.last_correct = lexer->previous_token.src_p;
+    require_token_and_report_syntax_error(lexer, token_check, TOKEN_CLOSE_BRACE, error_p, "expected close brace '}' at the end of compound type declaration", false);
+    if (lexer->parser->parsing_errors) return {};
 
     return result;
 }
@@ -675,11 +707,13 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
     positions.start = result->src_p;
 
     AST_DECLARATION_TYPE declaration_type = get_declaration_type(lexer);
+    if (lexer->parser->parsing_errors) return 0;
+
     result->type = declaration_type;
 
     // Consume the name
-    Token declaration = get_next_token(lexer);
-    assert(declaration.type == TOKEN_DECLARATION || declaration.type == TOKEN_COLON, "the token following the name of a declaration must be a declaration or a colon");
+    get_next_token(lexer);
+
     // Consume the declaration or type in variable declaration
     Token declaration_token_type = get_next_token(lexer);
     COMPOUND_TYPE compound_type = token_type_to_compound_type(declaration_token_type.type);
@@ -772,11 +806,13 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
     } else if (declaration_type == AST_DECLARATION_COMPOUND) {
         // Consume the struct/union token
         get_next_token(lexer);
-        Src_position src_p = lexer->current_token.src_p;
-        Compound_parsing_result cpr = parse_compound(lexer);
+
+        Compound_parsing_result cpr = parse_compound(lexer, result->src_p);
+        if (lexer->parser->parsing_errors) return 0;
+
         result->compound = cpr.compound;
         result->compound->compound_type = compound_type;
-        push_type(type_table(lexer), result->name, TYPE_SPEC_NAME, src_p);
+        push_type(type_table(lexer), result->name, TYPE_SPEC_NAME, result->src_p);
     } else if (declaration_type == AST_DECLARATION_ENUM) {
         // Consume the enum token
         get_next_token(lexer);
@@ -825,7 +861,10 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
         if (lexer->parser->parsing_errors) return 0;
         positions.last_correct = last_valid_p;
     } else {
-        invalid_code_path;
+        positions.last_correct = lexer->previous_token.src_p;
+        require_token_and_report_syntax_error(lexer, always_false, TOKEN_NULL, positions, "unrecognized declaration", false);
+        if (lexer->parser->parsing_errors) return 0;
+        // invalid_code_path;
     }
 
     return result;
@@ -1034,7 +1073,6 @@ internal Ast_loop *parse_loop(Lexer *lexer, Ast_loop *result=0) {
     require_token(lexer, TOKEN_OPEN_PARENTHESIS, "parse_loop");
 
     if (loop.type == TOKEN_FOR) {
-        // the weird bug seems to be here
         result->pre = parse_declaration(lexer, 0);
         result->condition = parse_binary_expression(lexer, 0);
         require_token(lexer, TOKEN_SEMICOLON, "parse_loop");
@@ -1140,21 +1178,27 @@ internal Ast_statement *parse_statement(Lexer *lexer, Ast_statement *result) {
             result->loop_statement = parse_loop(lexer);
         } break;
         case AST_STATEMENT_BREAK:{
-            Src_position src_p = lexer->current_token.src_p;
-            require_token(lexer, TOKEN_BREAK, "parsing break statement");
+            Token t = lexer->current_token;
+            assert(t.type == TOKEN_BREAK, "expected token break. This assert should not fire");
+            get_next_token(lexer);
+
             positions.last_correct = lexer->previous_token.src_p;
             require_token_and_report_syntax_error(lexer, token_check, TOKEN_SEMICOLON, positions, "Missing semicolon ';' at the end of a break statement", false);
         } break;
         case AST_STATEMENT_CONTINUE: {
-            Src_position src_p = lexer->current_token.src_p;
-            require_token(lexer, TOKEN_CONTINUE, "parsing continue statement");
+            Token t = lexer->current_token;
+            assert(t.type == TOKEN_CONTINUE, "expected token continue. This assert should not fire");
+            get_next_token(lexer);
+
             positions.last_correct = lexer->previous_token.src_p;
             require_token_and_report_syntax_error(lexer, token_check, TOKEN_SEMICOLON, positions, "Missing semicolon ';' at the end of continue statement", false);
         } break;
         case AST_STATEMENT_RETURN: {
-            require_token(lexer, TOKEN_RETURN, "parsing return statement");
-            require_token(lexer, TOKEN_SEMICOLON, "parsing return statement");
+            // TODO: do something with return
+            not_implemented
         } break;
+
+        invalid_default_case_msg("unrecognized statement");
     }
 
     return result;
