@@ -26,6 +26,11 @@ internal SYNTAX_CHECK_FUNCTION(type_check) {
     return result;
 }
 
+internal SYNTAX_CHECK_FUNCTION(always_false) {
+    bool result = false;
+    return result;
+}
+
 internal void require_token_and_report_syntax_error(Lexer *lexer, Check_function check_function, PEYOT_TOKEN_TYPE desired_token_type, Syntax_error_positions positions, char *msg, bool print_wrong_token_in_red) {
     if (!check_function(desired_token_type, lexer->current_token, lexer->parser->type_table)) {
         lexer->parser->parsing_errors = true;
@@ -239,7 +244,17 @@ internal Ast_expression *parse_factor(Lexer *lexer, Ast_expression *result) {
             result->u64_value = token.u64_value;
         } break;
 
-        invalid_default_case_msg("create a error in parse_factor()");
+        default: {
+            Syntax_error_positions error_p;
+            error_p.start = lexer->previous_token.src_p;
+            error_p.last_correct = lexer->previous_token.src_p;
+
+            char msg[256];
+            stbsp_snprintf(msg, 256, "unexpected token found '%s'", to_symbol(token.type));
+            require_token_and_report_syntax_error(lexer, always_false, TOKEN_NULL, error_p, msg, true);
+        }
+
+        // invalid_default_case_msg("create a error in parse_factor()");
     }
 
     return result;
@@ -707,7 +722,7 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
                 it->src_p = t.src_p;
 
                 t = get_next_token(lexer);
-                // At this point this is syntax checked, so this assert should NEVER TRIGGER
+                // At this point this is syntax checked, so this assert should NEVER TRIGGER, keep it as an assert
                 assert(t.type == TOKEN_COLON, "this should never trigger. Token after a name in the header of a function declaration must be a colon");
 
                 t = get_next_token(lexer);
@@ -717,7 +732,7 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
 
                 // +1 because arrays start at 0 and there are (param_count - 1) number of commas so we have to check (param_count - 1) times
                 if ((i + 1) < result->function.param_count) {
-                    // At this point this is syntax checked, so this assert should NEVER TRIGGER
+                    // At this point this is syntax checked, so this assert should NEVER TRIGGER, keep it as an assert
                     assert(lexer->current_token.type == TOKEN_COMMA, "this should never trigger. Parameters in a function declarations must be separated by commas ','");
                     get_next_token(lexer);
                 }

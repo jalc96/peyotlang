@@ -278,11 +278,10 @@ s16 main(s16 arg_count, char **args) {
         }
     )PROGRAM";
 
-    the problem here has to be in the Syntax_error_positions *positions; from the struct Call_parameter_list_creator { in the line 103
     char *program_error_6 = R"PROGRAM(
         main :: (x :u32, y :u32) -> u32 {
+            f(1, 2 2 2, 3);
             f(1, 2,, 3);
-            f(1, 2 3);
         }
     )PROGRAM";
 
@@ -293,7 +292,7 @@ s16 main(s16 arg_count, char **args) {
     initialize_native_types(type_table);
 
     Parser parser = new_parser(&allocator, type_table);
-    Lexer lexer = create_lexer(program_error_5, &parser, &allocator);
+    Lexer lexer = create_lexer(program_error_6, &parser, &allocator);
 
 
     get_next_token(&lexer);
