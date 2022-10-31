@@ -624,19 +624,26 @@ internal Compound_parsing_result parse_compound(Lexer *lexer, Src_position compo
             result.compound->member_count++;
 
             if (is_compound(t.type)) {
-                // TODO: now the annonymous and the names have to be handled here
                 new_member->member_type = MEMBER_COMPOUND;
                 new_member->src_p = t.src_p;
+
+                get_next_token(lexer); // consume the union/struct keyword
+
                 Compound_parsing_result sub = parse_compound(lexer, compound_name_p, true);
                 if (lexer->parser->parsing_errors) return {};
+
+                error_p.last_correct = lexer->previous_token.src_p;
+                require_token_and_report_syntax_error(lexer, token_check, TOKEN_SEMICOLON, error_p, "compound type members end with a semicolon ';' in the declaration", false);
+                if (lexer->parser->parsing_errors) return {};
+
                 new_member->sub_compound = sub.compound;
-                // TODO: handle here the semicolon
             } else {
                 new_member->member_type = MEMBER_SIMPLE;
                 new_member->name = t.name;
                 new_member->src_p = t.src_p;
 
                 get_next_token(lexer); // consume the name
+
                 error_p.last_correct = lexer->previous_token.src_p;
                 require_token_and_report_syntax_error(lexer, token_check, TOKEN_COLON, error_p, "token after a member name in a struct declaration must be a colon ':'", false);
                 if (lexer->parser->parsing_errors) return {};
@@ -649,6 +656,7 @@ internal Compound_parsing_result parse_compound(Lexer *lexer, Src_position compo
                 }
 
                 get_next_token(lexer); // consume the type
+
                 error_p.last_correct = lexer->previous_token.src_p;
                 require_token_and_report_syntax_error(lexer, token_check, TOKEN_SEMICOLON, error_p, "compound type members end with a semicolon ';' in the declaration", false);
                 if (lexer->parser->parsing_errors) return {};

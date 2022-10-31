@@ -214,17 +214,15 @@ s16 main(s16 arg_count, char **args) {
         }
     )PROGRAM";
 
-// TODO: see what jai does in these cases
-// https://jai.community/t/unions/156
     char *program_union_struct = R"PROGRAM(
-        union V2u :: {
-            struct :: {
-                u32 x;
-                u32 y;
+        V2u :: union {
+            struct {
+                x: u32;
+                y: u32;
             };
-            struct :: {
-                u32 u;
-                u32 v;
+            struct {
+                u: u32;
+                v: u32;
             };
         }
     )PROGRAM";
@@ -299,7 +297,7 @@ s16 main(s16 arg_count, char **args) {
     initialize_native_types(type_table);
 
     Parser parser = new_parser(&allocator, type_table);
-    Lexer lexer = create_lexer(program_error_7, &parser, &allocator);
+    Lexer lexer = create_lexer(program_union_struct, &parser, &allocator);
 
 
     get_next_token(&lexer);
