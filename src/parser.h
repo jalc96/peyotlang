@@ -616,14 +616,30 @@ internal void print(Ast_statement *ast, u32 indent) {
     }
 }
 
-// UNUSED
-// UNUSED
-// UNUSED
+#define AST_DECLARATIONS_PER_NODE 32
 
-struct Ast {
-    AST_EXPRESSION_TYPE type;
+struct Ast_program {
+    u32 count;
+    Ast_declaration declarations[AST_DECLARATIONS_PER_NODE];
 
-    union {
-        Ast_block block;
-    };
+    Ast_program *next;
 };
+
+internal Ast_program *new_ast_program(Memory_pool *allocator) {
+    Ast_program *result = push_struct(allocator, Ast_program);
+
+    result->count = 0;
+    result->next = 0;
+
+    return result;
+}
+
+internal void print(Ast_program *ast) {
+    while (ast) {
+        sfor_count (ast->declarations, ast->count) {
+            print(it);
+        }
+
+        ast = ast->next;
+    }
+}

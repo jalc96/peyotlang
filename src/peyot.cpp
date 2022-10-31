@@ -290,6 +290,23 @@ s16 main(s16 arg_count, char **args) {
 
     )PROGRAM";
 
+    char *program_multiple_declarations = R"PROGRAM(
+        V2u :: struct {
+            x :u32;
+            y :u32;
+        }
+
+        V3u :: struct {
+            x :u32;
+            y :u32;
+            z :u32;
+        }
+
+        main :: (a: u32, position: u32) -> u32 {
+            position = position + a;
+        }
+    )PROGRAM";
+
 
     Memory_pool allocator = {};
 
@@ -297,7 +314,7 @@ s16 main(s16 arg_count, char **args) {
     initialize_native_types(type_table);
 
     Parser parser = new_parser(&allocator, type_table);
-    Lexer lexer = create_lexer(program_union_struct, &parser, &allocator);
+    Lexer lexer = create_lexer(program_multiple_declarations, &parser, &allocator);
 
 
     get_next_token(&lexer);
@@ -323,7 +340,8 @@ s16 main(s16 arg_count, char **args) {
 
     // Ast_block *ast = parse_block(&lexer, 0);
     // Ast_statement *ast = parse_statement(&lexer, 0);
-    Ast_declaration *ast = parse_declaration(&lexer, 0);
+    // Ast_declaration *ast = parse_declaration(&lexer, 0);
+    Ast_program *ast = parse_program(&lexer, 0);
 
     if (lexer.parser->parsing_errors) {
         report_parsing_errors(&lexer);

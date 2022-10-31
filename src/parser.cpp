@@ -1212,14 +1212,50 @@ internal Ast_statement *parse_statement(Lexer *lexer, Ast_statement *result) {
     return result;
 }
 
-internal Ast *parse_program(Lexer *lexer) {
-    // Ast *result = parse_block(lexer);
-    // return result;
+struct Program_parser {
+    Ast_program *current;
+    Memory_pool *allocator;
+};
+
+internal Program_parser iterate(Ast_program *_current, Memory_pool *allocator) {
+    Program_parser result;
+
+    result.current = _current;
+    result.allocator = allocator;
+
+    return result;
 }
 
-internal Ast *test_parser(Lexer *lexer) {
-    Ast *result = {};
+internal Ast_declaration *advance(Program_parser *it) {
+    if (it->current->count >= AST_DECLARATIONS_PER_NODE) {
+        Ast_program *n = new_ast_program(it->allocator);
+        it->current->next = n;
+        it->current = n;
+    }
 
+    Ast_declaration *result = it->current->declarations + it->current->count++;
+    return result;
+}
+
+internal Ast_program *parse_program(Lexer *lexer, Ast_program *result) {
+    if (!result) {
+        result = new_ast_program(lexer->allocator);
+    }
+
+    Program_parser it = iterate(result, lexer->allocator);
+
+    while (!lexer_finished(lexer)) {
+        Ast_declaration *e = advance(&it);
+        parse_declaration(lexer, e);
+
+        if (lexer->parser->parsing_errors) return 0;
+    }
+
+
+    return result;
+}
+
+internal void test_parser(Lexer *lexer) {
     Token token = lexer->current_token;
 
     while (!lexer_finished(lexer)) {
@@ -1240,6 +1276,4 @@ internal Ast *test_parser(Lexer *lexer) {
 
         token = get_next_token(lexer);
     }
-
-    return result;
 }
