@@ -26,6 +26,14 @@ internal SYNTAX_CHECK_FUNCTION(type_check) {
     return result;
 }
 
+internal SYNTAX_CHECK_FUNCTION(type_name_check) {
+    bool result = (
+           token.type == TOKEN_NAME
+        || is_type(type_table, token)
+    );
+    return result;
+}
+
 internal SYNTAX_CHECK_FUNCTION(always_false) {
     bool result = false;
     return result;
@@ -573,7 +581,7 @@ internal u32 get_param_count(Lexer *lexer, Syntax_error_positions positions) {
         positions.last_correct = last_correct;
 
         last_correct = lexer->current_token.src_p;
-        require_token_and_report_syntax_error(lexer, type_check, TOKEN_NAME, positions, "type expected in a function parameter declaration", false);
+        require_token_and_report_syntax_error(lexer, type_name_check, TOKEN_NAME, positions, "type expected in a function parameter declaration", false);
         if (lexer->parser->parsing_errors) break;
         positions.last_correct = last_correct;
 
@@ -750,10 +758,9 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
     } else if (declaration_type == AST_DECLARATION_FUNCTION) {
         positions.last_correct = positions.start;
 
-        Src_position last_valid_p = lexer->current_token.src_p;
-        require_token_and_report_syntax_error(lexer, token_check, TOKEN_OPEN_PARENTHESIS, positions, "missing open parenthesis '(' in a header of a function declaration", false);
+        require_token_and_report_syntax_error(lexer, token_check, TOKEN_OPEN_PARENTHESIS, positions, "Missing open parenthesis '(' in a header of a function declaration", false);
         if (lexer->parser->parsing_errors) return 0;
-        positions.last_correct = last_valid_p;
+        positions.last_correct = lexer->previous_token.src_p;
             result->function.param_count = get_param_count(lexer, positions);
             if (lexer->parser->parsing_errors) return 0;
             result->function.params = push_array(lexer->allocator, Parameter, result->function.param_count);
@@ -781,20 +788,25 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
 
                 positions.last_correct = lexer->current_token.src_p;
             }
-        last_valid_p = lexer->current_token.src_p;
         require_token_and_report_syntax_error(lexer, token_check, TOKEN_CLOSE_PARENTHESIS, positions, "missing close parenthesis ')' in the header of a function declaration", false);
         if (lexer->parser->parsing_errors) return 0;
-        positions.last_correct = last_valid_p;
+        positions.last_correct = lexer->previous_token.src_p;
 
-        last_valid_p = lexer->current_token.src_p;
         require_token_and_report_syntax_error(lexer, token_check, TOKEN_RETURN_ARROW, positions, "missing return arrow '->' in the header of a function declaration", false);
         if (lexer->parser->parsing_errors) return 0;
-        positions.last_correct = last_valid_p;
+        positions.last_correct = lexer->previous_token.src_p;
 
-        result->function.return_type = get_type(lexer->parser->type_table, lexer->current_token.name);
+        Token return_type = lexer->current_token;
+
+        require_token_and_report_syntax_error(lexer, type_name_check, TOKEN_NAME, positions, "missing return type in the header of a function declaration", false);
+        if (lexer->parser->parsing_errors) return 0;
+        positions.last_correct = lexer->previous_token.src_p;
+
+        result->function.return_type = get_type(lexer->parser->type_table, return_type.name);
         result->function.return_src_p = lexer->current_token.src_p;
 
-        if (!result->variable.variable_type) {
+        if (!result->function.return_type) {
+            push_pending_type(lexer->parser, result, return_type.name);
             // TODO: handle out of order declaration
             /*
             have a queue and iterate over the queue to check for types, maybe a dependency graph is needed for circularish dependencies, set times_checked to 2 or something and every time the items goes back to the queue decrement the counter, if the counter goes to 0 then throw an error and stop
@@ -805,9 +817,6 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
                 }
             */
         }
-
-        // Consume the return type token
-        get_next_token(lexer);
 
         // TODO: Maybe do here the check for open brace to say that a its expected for a function body or something like that
         result->function.block = parse_block(lexer, 0);
@@ -829,10 +838,9 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
 
         result->_enum.enum_type = push_type(type_table(lexer), result->name, TYPE_SPEC_NAME, result->src_p);
 
-        Src_position last_valid_p = lexer->current_token.src_p;
         require_token_and_report_syntax_error(lexer, token_check, TOKEN_OPEN_BRACE, positions, "missing open brace '{' in enum declaration", false);
         if (lexer->parser->parsing_errors) return 0;
-        positions.last_correct = last_valid_p;
+        positions.last_correct = lexer->previous_token.src_p;
 
         {
             result->_enum.item_count = get_enum_items_count(lexer);
@@ -841,10 +849,9 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
             sfor_count(result->_enum.items, result->_enum.item_count) {
                 Token t = lexer->current_token;
 
-                last_valid_p = lexer->current_token.src_p;
                 require_token_and_report_syntax_error(lexer, token_check, TOKEN_NAME, positions, "missing enum value name in enum declaration", false);
                 if (lexer->parser->parsing_errors) return 0;
-                positions.last_correct = last_valid_p;
+                positions.last_correct = lexer->previous_token.src_p;
 
                 it->name = t.name;
                 it->src_p = t.src_p;
@@ -857,17 +864,15 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
                     positions.last_correct = lexer->previous_token.src_p;
                 }
 
-                last_valid_p = lexer->current_token.src_p;
                 require_token_and_report_syntax_error(lexer, token_check, TOKEN_COMMA, positions, "missing comma ',' in enum declaration", false);
                 if (lexer->parser->parsing_errors) return 0;
-                positions.last_correct = last_valid_p;
+                positions.last_correct = lexer->previous_token.src_p;
             }
         }
 
-        last_valid_p = lexer->current_token.src_p;
         require_token_and_report_syntax_error(lexer, token_check, TOKEN_CLOSE_BRACE, positions, "missing close brace '}' in enum declaration", false);
         if (lexer->parser->parsing_errors) return 0;
-        positions.last_correct = last_valid_p;
+        positions.last_correct = lexer->previous_token.src_p;
     } else {
         positions.last_correct = lexer->previous_token.src_p;
         require_token_and_report_syntax_error(lexer, always_false, TOKEN_NULL, positions, "unrecognized declaration", false);

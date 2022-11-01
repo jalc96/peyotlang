@@ -1,23 +1,27 @@
-// TODO: maybe put the Lexer in here and pass this around instead??
-// TODO: have here a list of pending typing and getting the type afterwards
-/*
-struct Pending_type {
-    Ast_declaration *ast;
-    Pending_type *next;
-}
-*/
+internal void print(Ast_statement *ast, u32 indent=0);
+internal void print(Ast_block *block, u32 indent=0);
+
+
+
 struct Parser {
+// TODO: maybe put the Lexer in here and pass this around instead??
     Type_spec_table *type_table;
     bool parsing_errors;
     Str_buffer error_buffer;
+    Memory_pool *allocator;
+
+    Pending_type sentinel;
 };
 
-internal Parser new_parser(Memory_pool *allocator, Type_spec_table *type_table) {
-    Parser result;
+internal Parser *new_parser(Memory_pool *allocator, Type_spec_table *type_table) {
+    Parser *result = push_struct(allocator, Parser);
 
-    result.type_table = type_table;
-    result.parsing_errors = false;
-    result.error_buffer = new_str_buffer(allocator, 65536);
+    result->type_table = type_table;
+    result->parsing_errors = false;
+    result->error_buffer = new_str_buffer(allocator, 65536);
+    result->allocator = allocator;
+    result->sentinel.next = &result->sentinel;
+    result->sentinel.previous = &result->sentinel;
 
     return result;
 }
@@ -26,13 +30,25 @@ internal bool parsing_errors(Parser *parser) {
     return parser->parsing_errors;
 }
 
-struct Ast_block;
-struct Ast_if;
-struct Ast_expression;
-struct Ast_statement;
+internal bool type_errors(Parser *parser) {
+    return parser->sentinel.previous != &parser->sentinel;
+}
 
-internal void print(Ast_statement *ast, u32 indent=0);
-internal void print(Ast_block *block, u32 indent=0);
+internal void report_type_errors(Parser *parser) {
+    printf("type error\n");
+    Pending_type *it = parser->sentinel.next;
+
+    while (it != &parser->sentinel) {
+        printf("undeclared type: %.*s\n", it->type_name.count, it->type_name.buffer);
+        it = it->next;
+    }
+}
+
+
+
+
+
+
 
 //
 // EXPRESSIONS
@@ -105,7 +121,6 @@ internal AST_EXPRESSION_TYPE token_type_to_operation(PEYOT_TOKEN_TYPE token_type
     return AST_NULL;
 }
 
-struct Ast_expression;
 
 struct Call_parameter {
     Ast_expression *parameter;
@@ -299,7 +314,9 @@ internal char *to_string(COMPOUND_TYPE type) {
         case COMPOUND_STRUCT: {return "struct";} break;
         case COMPOUND_UNION: {return "union";} break;
         invalid_default_case_msg("COMPOUND_TYPE unrecognized");
-    };
+    }
+
+    return "ERROR";
 }
 
 internal void print(Compound *compound, u32 indent) {
@@ -369,12 +386,16 @@ internal void print(Ast_declaration *ast, u32 indent=0) {
         } break;
         case AST_DECLARATION_FUNCTION: {
             printf(ast->name);
+            printf(" -> ");
+            printf(ast->function.return_type->name);
+            putchar('\n');
             print_indent(indent);
 
             sfor_count(ast->function.params, ast->function.param_count) {
                 printf("%.*s, ", it->name.count, it->name.buffer);
             }
 
+            putchar('\n');
             print(ast->function.block);
         } break;
         case AST_DECLARATION_COMPOUND: {

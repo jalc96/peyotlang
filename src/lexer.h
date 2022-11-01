@@ -140,6 +140,8 @@ internal char *to_string(PEYOT_TOKEN_TYPE type) {
 
         invalid_default_case_msg("missing PEYOT_TOKEN_TYPE in to_string");
     }
+
+    return "ERROR";
 }
 
 struct Src_position {
@@ -236,6 +238,8 @@ internal char *to_symbol(PEYOT_TOKEN_TYPE type, Token *token = 0) {
 
         invalid_default_case_msg("missing PEYOT_TOKEN_TYPE in to_symbol");
     }
+
+    return "ERROR";
 }
 
 struct Parser;

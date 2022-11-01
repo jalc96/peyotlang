@@ -54,8 +54,20 @@
 
 
 // #include"symbol_table.h"
+
+struct Ast_declaration;
+struct Ast_statement;
+struct Ast_expression;
+struct Ast_if;
+struct Ast_loop;
+struct Ast_block;
+struct Parser;
+struct Pending_type;
+
 #include"lexer.cpp"
+#include"type_checker.h"
 #include"parser.h"
+#include"type_checker.cpp"
 #include"parser.cpp"
 
 
@@ -282,10 +294,6 @@ s16 main(s16 arg_count, char **args) {
     )PROGRAM";
 
     char *program_multiple_declarations = R"PROGRAM(
-        V2u :: struct {
-            x :u32;
-            y :u32;
-        }
 
         V3u :: struct {
             x :u32;
@@ -293,8 +301,13 @@ s16 main(s16 arg_count, char **args) {
             z :u32;
         }
 
-        main :: (a: u32, position: V2u) -> u32 {
+        main :: (a: u32, position: V2u) -> V2u {
             position = position + a;
+        }
+
+        V2u :: struct {
+            x :u32;
+            y :u32;
         }
     )PROGRAM";
 
@@ -304,8 +317,8 @@ s16 main(s16 arg_count, char **args) {
     Type_spec_table *type_table = new_type_spec_table(&allocator);
     initialize_native_types(type_table);
 
-    Parser parser = new_parser(&allocator, type_table);
-    Lexer lexer = create_lexer(program_multiple_declarations, &parser, &allocator);
+    Parser *parser = new_parser(&allocator, type_table);
+    Lexer lexer = create_lexer(program_multiple_declarations, parser, &allocator);
 
 
     get_next_token(&lexer);
@@ -319,9 +332,13 @@ s16 main(s16 arg_count, char **args) {
     // Ast_statement *ast = parse_statement(&lexer, 0);
     // Ast_declaration *ast = parse_declaration(&lexer, 0);
     Ast_program *ast = parse_program(&lexer, 0);
+    out_of_order_declaration(lexer.parser);
+    type_check(&lexer, ast);
 
     if (lexer.parser->parsing_errors) {
         report_parsing_errors(&lexer);
+    } else if (type_errors(lexer.parser)) {
+        report_type_errors(lexer.parser);
     } else {
         print(ast);
         rollback_lexer(lexer_savepoint);
