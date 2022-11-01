@@ -1,6 +1,5 @@
 /*
 ######## TODO ########
-    -get a memory allocator in the platform layer
     -MODES:
         -compile: creates a binary into a .pvm file
         -run: runs a binary .pvm file with the virtual machine
@@ -13,13 +12,9 @@
     -you can set the stack size of the program and if overflowed an error is shown
     -debugger for the virtual machine, showing the content of the registers and the content of the stack, show a window of the code (like 11 lines of assembly, the current one, 5 above and 5 below)
     -function parsing is easier if a keyword is introduced for function declaration like "fn" or "func" "fn do_stuff(u32 a) -> u32 {return 2 * a;}" maybe "function" since a lot of languages use that
-    -error reporter that shows a sample of the code that created the error (a couple of lines above the current line should be enough)
     -add introspection for example have .type in structs to check for the type of structs and also be able to iterate over the members of structs, implement this with an integer, each time a struct is declare the type integer is incremented and that is asign to the struct, the basic types of the language are the first numbers. Add also something like typedef??
     -add the hability to undefine variables with the keyword undef
-    -get the stb_printf for compositing strings (for the ast debug print)
-    -structs
     -arrays
-    -variable names with _ and the other special characters allowed in variable names in c-like languages
     -add introspection, be able to check a struct type and iterate over struct members
     -type checking in the ast
     -generics struct v2 <T> {
@@ -30,16 +25,12 @@
     -before allocating the memory for the bytecode, calculate all of the constants sizes and take that into account
     -do string pooling in the .data segment for constant strings
     -interface with the OS to get memory/open_files/etc
-    -grammar check with a function require_token(lexer, TOKEN_OPEN_BRACE); and maybe have an error bool in the lexer or something to check stuff??
     -try Casey's idea for integers: dont have signed/unsigned types, have only integers and when type is important in an operation (multiply/divide/shift/etc) show an error and ask the user to specify someway (figure out this) which type is going to be used
     -show an error like c when a case in a switch statement is already used
         switch(thing){
             case A: do_stuf();break;
             case A: <---this throws an error
         }
-    -delete the semicolon from the struct/enum declaration
-    -REMAKE THE DECLARATIONS TO THIS:
-        have a token for declaration '::' and if you see a name followed by that then you have a declaration, then to decide which declaration you are talking about you see the next token if struct is found then is a struct declaration, if ( is found then is a function declaration and so on.
 */
 
 #define STB_SPRINTF_IMPLEMENTATION
@@ -302,7 +293,7 @@ s16 main(s16 arg_count, char **args) {
             z :u32;
         }
 
-        main :: (a: u32, position: u32) -> u32 {
+        main :: (a: u32, position: V2u) -> u32 {
             position = position + a;
         }
     )PROGRAM";
@@ -323,20 +314,6 @@ s16 main(s16 arg_count, char **args) {
     debug(lexer.source);
     debug(lexer.index);
     debug(lexer.current_line);
-
-    // TODO: for reporting errors have helper functions to slice samples of the source code for example have a function called get_current_function_source_position(ast, lexer) that returns the index in the source of the current function
-    // have a function called get_source_sample(lexer, u32 current_line, u32 lines_before, u32 lines_after) that samples the source this way 
-    // source[max(0, current_line - lines_before) : min(last_line, current_line + lines_after)]
-    // also have a split(str origin, str slpit_pattern) that iterates over the origin, use this to report errors and being able to print under the source code lines
-    // for knowing where is the keyword to color in red or something have u32 find_first(str source, str pattern) that returns the index in the source where the pattern is, maybe have more find functions as iterators to find more occurencies of the pattern
-    // also if the scope is too large (a big function) resume it 
-    // void function(u32 a) {
-    //  ...
-    //     if (blah) {
-    //        the error is here
-    //         ^^^^^^^^^^^^^ - message or whatever
-    //     }
-
 
     // Ast_block *ast = parse_block(&lexer, 0);
     // Ast_statement *ast = parse_statement(&lexer, 0);

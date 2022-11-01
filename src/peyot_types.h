@@ -103,9 +103,13 @@ internal Type_spec *get_type(Type_spec_table *table, str name) {
 
 internal bool is_type(Type_spec_table *table, Token token) {
     switch (token.type) {
-        // TODO: how to handle custom types here??, maybe do a query to the hash table of types??
         case TOKEN_U32: {
             return true;
+        }
+
+        case TOKEN_NAME: {
+            Type_spec *type = get_type(table, token.name);
+            return (bool)type;
         }
 
         default: {
