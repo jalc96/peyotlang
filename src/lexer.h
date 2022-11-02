@@ -146,9 +146,17 @@ internal char *to_string(PEYOT_TOKEN_TYPE type) {
 
 struct Src_position {
     u32 line;
-    // cf is not inclusive, is the index to the next character, so you can get the length by cf - c0
+    // cf is not inclusive, is the index to the next token's first character, so you can get the length by cf - c0
     u32 c0, cf;
 };
+
+internal bool equals(Src_position a, Src_position b) {
+    bool result = (
+           a.line == b.line
+        && a.c0 == b.c0
+        && a.cf == b.cf
+    );
+}
 
 struct Token {
     PEYOT_TOKEN_TYPE type;

@@ -2,16 +2,12 @@
 // ERROR REPORTING
 //
 
-#define log_error(eb, format, ...) eb->head += stbsp_snprintf(get_buffer(eb), eb->size, format, __VA_ARGS__)
-
 #define FIRST_LINE_IN_CODE_EDITORS_STARTS_AT_1 1
 
 struct Syntax_error_positions {
     Src_position start;
     Src_position last_correct;
 };
-
-#define skip_new_line 1
 
 #define SYNTAX_CHECK_FUNCTION(name) bool name(PEYOT_TOKEN_TYPE desired_token_type, Token token, Type_spec_table *type_table)
 typedef SYNTAX_CHECK_FUNCTION(Check_function);
@@ -44,7 +40,6 @@ internal void require_token_and_report_syntax_error(Lexer *lexer, Check_function
         lexer->parser->parsing_errors = true;
         u32 l0 = positions.start.c0;
         u32 lf = positions.last_correct.cf;
-        Src_position error_at_p = positions.last_correct;
         Src_position last_valid_p = positions.last_correct;
 
         l0 = find_first_from_position(lexer->source, l0, '\n', true);
@@ -66,7 +61,7 @@ internal void require_token_and_report_syntax_error(Lexer *lexer, Check_function
                 log_error(eb, "\n");
             }
 
-            if (line_count == error_at_p.line) {
+            if (line_count == last_valid_p.line) {
                 // this has to be in line relative space, not global source space as it is now
                 if (print_wrong_token_in_red) {
                     log_error(eb, STATIC_RED("%s\n"), to_symbol(lexer->current_token.type, &lexer->current_token));
@@ -806,7 +801,7 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
         result->function.return_src_p = lexer->current_token.src_p;
 
         if (!result->function.return_type) {
-            push_pending_type(lexer->parser, result, return_type.name);
+            push_pending_type(lexer->parser, result, return_type.name, return_type.src_p);
             // TODO: handle out of order declaration
             /*
             have a queue and iterate over the queue to check for types, maybe a dependency graph is needed for circularish dependencies, set times_checked to 2 or something and every time the items goes back to the queue decrement the counter, if the counter goes to 0 then throw an error and stop

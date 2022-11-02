@@ -1,7 +1,8 @@
 internal void print(Ast_statement *ast, u32 indent=0);
 internal void print(Ast_block *block, u32 indent=0);
 
-
+#define log_error(eb, format, ...) eb->head += stbsp_snprintf(get_buffer(eb), eb->size, format, __VA_ARGS__)
+#define skip_new_line 1
 
 struct Parser {
 // TODO: maybe put the Lexer in here and pass this around instead??
@@ -32,16 +33,6 @@ internal bool parsing_errors(Parser *parser) {
 
 internal bool type_errors(Parser *parser) {
     return parser->sentinel.previous != &parser->sentinel;
-}
-
-internal void report_type_errors(Parser *parser) {
-    printf("type error\n");
-    Pending_type *it = parser->sentinel.next;
-
-    while (it != &parser->sentinel) {
-        printf("undeclared type: %.*s\n", it->type_name.count, it->type_name.buffer);
-        it = it->next;
-    }
 }
 
 

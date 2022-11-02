@@ -268,6 +268,25 @@ internal bool valid(Split_iterator *it) {
     return result;
 }
 
+struct Split_at {
+    str p1;
+    str p2;
+};
+
+internal Split_at split_at(str source, u32 at) {
+    assert(at >= 0, "split_at position must be higher than 0");
+    assert(at <= source.count, "split_at position must be lower than source count");
+
+    Split_at result;
+
+    result.p1 = source;
+    result.p1.count = at;
+
+    result.p2 = offset(source, at);
+
+    return result;
+}
+
 // Hash Functions
 // http://www.cse.yorku.ca/~oz/hash.html
 

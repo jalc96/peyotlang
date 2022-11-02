@@ -15,6 +15,7 @@ struct Pending_type {
     PENDING_TYPE_TYPE type;
 
     str type_name;
+    Src_position name_location;
     u32 times_checked;
 
     union {

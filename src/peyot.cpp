@@ -301,7 +301,11 @@ s16 main(s16 arg_count, char **args) {
             z :u32;
         }
 
-        main :: (a: u32, position: V2u) -> V2u {
+        main :: (a: u32, position: V2u) -> V2ua {
+            position = position + a;
+        }
+
+        main :: (a: u32, position: V2u) -> V2uaa {
             position = position + a;
         }
 
@@ -338,7 +342,7 @@ s16 main(s16 arg_count, char **args) {
     if (lexer.parser->parsing_errors) {
         report_parsing_errors(&lexer);
     } else if (type_errors(lexer.parser)) {
-        report_type_errors(lexer.parser);
+        report_type_errors(&lexer);
     } else {
         print(ast);
         rollback_lexer(lexer_savepoint);

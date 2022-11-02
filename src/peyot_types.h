@@ -87,6 +87,7 @@ internal Type_spec *push_type(Type_spec_table *table, str name, TYPE_SPEC_TYPE t
 }
 
 internal Type_spec *get_type(Type_spec_table *table, str name) {
+    // TODO: check everywhere this is called to add to the out of order list
     u32 index = get_type_spec_index(name);
     Type_spec *result = table->table[index];
 
