@@ -1,49 +1,74 @@
 struct Symbol {
     str name;
-    PEYOT_TYPE type;
-    str custom_type;
-    // str type; when structs appear this will be needed?? 2022-10-05: NO, just use an incremental number to determine the type, and have a parallel array to store the string name of the type for debug and error reporting
+    // NOTE(Juan Antonio) 2022-11-05: maybe use a pointer to the type_spec?? that can make the out of order a bit more annoying to deal with though, storing the name allow to wait until the out of order is finished to check whether the type is declared or not and the type check is already made, so this seems more convenient.
+    str type_name;
+    // Scope
     Symbol *next;
 };
+
+internal Symbol *new_symbol(Memory_pool *allocator, str name, str type_name) {
+    Symbol *result = push_struct(allocator, Symbol);
+
+    result->name = name;
+    result->type_name = type_name;
+
+    return result;
+}
+
+internal void print_entire_list(Symbol *symbol, u32 indent=0) {
+    lfor(symbol) {
+        print_indent(indent);
+        printf("%.*s<%.*s>\n", STR_PRINT(it->name), STR_PRINT(it->type_name));
+        indent += 2;
+    }
+}
 
 #define SYMBOL_TABLE_SIZE (1 << 10)
 
 struct Symbol_table {
     Symbol *symbols[SYMBOL_TABLE_SIZE];
-    void *allocator;
-    Symbol *first_free;
+    Memory_pool *allocator;
 };
 
-internal Symbol_table *create_symbol_table(void *allocator) {
-    Symbol_table *result = (Symbol_table *)malloc(sizeof(Symbol_table));
+internal Symbol_table *new_symbol_table(Memory_pool *allocator) {
+    Symbol_table *result = push_struct(allocator, Symbol_table);
+
     result->allocator = allocator;
-    result->first_free = 0;
 
-    sfor (result->symbols) {
-        *it = 0;
+    return result;
+}
+
+internal void print(Symbol_table *table) {
+    printf("---SYMBOL TABLE---\n");
+
+    sfor(table->symbols) {
+        print_entire_list(*it, 4);
     }
+}
 
+internal u32 get_symbol_index(str name) {
+    u32 h = hash(name);
+    u32 result = h & (SYMBOL_TABLE_SIZE - 1);
     return result;
 }
 
-internal Symbol *create_symbol(Symbol_table *table, str name, PEYOT_TYPE type, str custom_type) {
-    // TODO: do the check first with the free list and create an allocator and use it
-    Symbol *result = (Symbol *)malloc(sizeof(Symbol));
-    result->name = name;
-    result->type = type;
-    result->custom_type = custom_type;
-    return result;
-}
+internal void put(Symbol_table *table, str name, str type_name) {
+    Symbol *symbol = new_symbol(table->allocator, name, type_name);
 
-internal Symbol *create_symbol(Symbol_table *table, str name, PEYOT_TYPE type) {
-    str empty = {};
-    return create_symbol(table, name, type, empty);
-}
-
-internal void put(Symbol_table *table, Symbol *symbol) {
-    u32 h = hash(symbol->name);
-    u32 i = h & (SYMBOL_TABLE_SIZE - 1);
+    u32 i = get_symbol_index(symbol->name);
 
     symbol->next = table->symbols[i];
     table->symbols[i] = symbol;
+}
+
+internal Symbol *get(Symbol_table *table, str name) {
+    u32 i = get_symbol_index(name);
+
+    Symbol *result = table->symbols[i];
+
+    while (result && !equals(result->name, name)) {
+        result = result->next;
+    }
+
+    return result;
 }

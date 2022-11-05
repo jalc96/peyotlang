@@ -65,7 +65,7 @@ global_variable bool ASSERT_FOR_DEBUGGING = false;
 #include"peyot_types.h"
 
 
-// #include"symbol_table.h"
+#include"symbol_table.h"
 
 struct Ast_declaration;
 struct Ast_statement;
@@ -308,6 +308,29 @@ s16 main(s16 arg_count, char **args) {
     char *program_multiple_declarations = R"PROGRAM(
 
         V3u :: struct {
+            x :u32;
+            y :u32;
+            z :u32;
+        }
+
+        main :: (a: u32, position: V2u) -> V2u {
+            position = position + a;
+            vector :V2u;
+        }
+
+        main :: (a: u32, position: V2u) -> V2u {
+            position = position + a;
+        }
+
+        V2u :: struct {
+            x :u32;
+            y :u32;
+        }
+    )PROGRAM";
+
+    char *program_type_error_1 = R"PROGRAM(
+
+        V3u :: struct {
             x :u32a;
             y :u32;
             z :u32;
@@ -334,7 +357,9 @@ s16 main(s16 arg_count, char **args) {
     Type_spec_table *type_table = new_type_spec_table(&allocator);
     initialize_native_types(type_table);
 
-    Parser *parser = new_parser(&allocator, type_table);
+    Symbol_table *symbol_table = new_symbol_table(&allocator);
+
+    Parser *parser = new_parser(&allocator, type_table, symbol_table);
     Lexer lexer = create_lexer(program_multiple_declarations, parser, &allocator);
 
 
@@ -360,12 +385,13 @@ s16 main(s16 arg_count, char **args) {
         print(ast);
         rollback_lexer(lexer_savepoint);
         test_parser(&lexer);
-        print(type_table);
-
         BOLD(ITALIC(UNDERLINE(GREEN("\n\n\nfinished correctly\n"))));
 
         debug(lexer.current_line);
     }
+
+    print(type_table);
+    print(symbol_table);
 
     restore_console();
 

@@ -655,7 +655,7 @@ internal Compound_parsing_result parse_compound(Lexer *lexer, Src_position compo
                 if (lexer->parser->parsing_errors) return {};
 
                 t = lexer->current_token;
-                new_member->type = get_type(type_table(lexer), t.name);
+                new_member->type = get(type_table(lexer), t.name);
 
                 if (!new_member->type) {
                     push_pending_type(lexer->parser, new_member, t.name, t.src_p);
@@ -734,7 +734,8 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
 
 
     if (declaration_type == AST_DECLARATION_VARIABLE) {
-        result->variable.variable_type = get_type(lexer->parser->type_table, declaration_token_type.name);
+        result->variable.variable_type = get(lexer->parser->type_table, declaration_token_type.name);
+        put(lexer->parser->symbol_table, result->name, declaration_token_type.name);
 
         if (!result->variable.variable_type) {
             push_pending_type(lexer->parser, result, declaration_token_type.name, declaration_token_type.src_p);
@@ -746,6 +747,7 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
         result->variable.expression = 0;
 
         if (after_type.type == TOKEN_ASSIGNMENT) {
+            // TODO: check this error a:u32 =;
             get_next_token(lexer);
             result->variable.expression = parse_binary_expression(lexer, 0);
         }
@@ -773,7 +775,7 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
                 assert(t.type == TOKEN_COLON, "this should never trigger. Token after a name in the header of a function declaration must be a colon");
 
                 t = get_next_token(lexer);
-                it->type = get_type(type_table(lexer), t.name);
+                it->type = get(type_table(lexer), t.name);
 
                 if (!it->type) {
                     push_pending_type(lexer->parser, it, t.name, t.src_p);
@@ -804,7 +806,7 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
         if (lexer->parser->parsing_errors) return 0;
         positions.last_correct = lexer->previous_token.src_p;
 
-        result->function.return_type = get_type(lexer->parser->type_table, return_type.name);
+        result->function.return_type = get(lexer->parser->type_table, return_type.name);
         result->function.return_src_p = lexer->current_token.src_p;
 
         if (!result->function.return_type) {
@@ -822,14 +824,14 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
 
         result->compound = cpr.compound;
         result->compound->compound_type = compound_type;
-        push_type(type_table(lexer), result->name, TYPE_SPEC_COMPOUND, result->src_p, result->compound->member_count, result->compound->members);
+        put(type_table(lexer), result->name, TYPE_SPEC_COMPOUND, result->src_p, result->compound->member_count, result->compound->members);
     } else if (declaration_type == AST_DECLARATION_ENUM) {
         // Consume the enum token
         get_next_token(lexer);
 
         positions.last_correct = positions.start;
 
-        result->_enum.enum_type = push_type(type_table(lexer), result->name, TYPE_SPEC_NAME, result->src_p);
+        result->_enum.enum_type = put(type_table(lexer), result->name, TYPE_SPEC_NAME, result->src_p);
 
         require_token_and_report_syntax_error(lexer, token_check, TOKEN_OPEN_BRACE, positions, "missing open brace '{' in enum declaration", false);
         if (lexer->parser->parsing_errors) return 0;
@@ -1225,13 +1227,13 @@ internal Program_parser iterate(Ast_program *_current, Memory_pool *allocator) {
 }
 
 internal Ast_declaration *advance(Program_parser *it) {
-    if (it->current->count >= AST_DECLARATIONS_PER_NODE) {
+    if (it->current->declaration_count >= AST_DECLARATIONS_PER_NODE) {
         Ast_program *n = new_ast_program(it->allocator);
         it->current->next = n;
         it->current = n;
     }
 
-    Ast_declaration *result = it->current->declarations + it->current->count++;
+    Ast_declaration *result = it->current->declarations + it->current->declaration_count++;
     return result;
 }
 

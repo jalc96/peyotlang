@@ -96,7 +96,7 @@ internal void out_of_order_declaration(Parser *parser) {
             break;
         }
 
-        Type_spec *type = get_type(parser->type_table, it->type_name);
+        Type_spec *type = get(parser->type_table, it->type_name);
         it->times_checked++;
 
         if (!type) {
@@ -146,13 +146,51 @@ internal void out_of_order_declaration(Parser *parser) {
     }
 }
 
+internal void type_check(Lexer *lexer, Ast_declaration *ast);
+internal void type_check(Lexer *lexer, Ast_statement *ast);
+internal void type_check(Lexer *lexer, Ast_expression *ast);
+internal void type_check(Lexer *lexer, Ast_if *ast);
+internal void type_check(Lexer *lexer, Ast_loop *ast);
+internal void type_check(Lexer *lexer, Ast_block *ast);
 
 internal void type_check(Lexer *lexer, Ast_declaration *ast) {
+    switch (ast->type) {
+        case AST_DECLARATION_VARIABLE: {
+            if (ast->variable.expression) {
+                type_check(lexer, ast->variable.expression);
+            }
+        } break;
+        case AST_DECLARATION_FUNCTION: {} break;
+        case AST_DECLARATION_COMPOUND: {} break;
+        case AST_DECLARATION_ENUM: {} break;
 
+        invalid_default_case_msg("ast_declaration type_check missing type");
+    }
 }
 
 internal void type_check(Lexer *lexer, Ast_statement *ast) {
+    switch (ast->type) {
+        case AST_STATEMENT_BLOCK: {
+            type_check(lexer, ast->block_statement);
+        } break;
+        case AST_STATEMENT_IF: {
+            type_check(lexer, ast->if_statement);
+        } break;
+        case AST_STATEMENT_LOOP: {
+            type_check(lexer, ast->loop_statement);
+        } break;
+        case AST_STATEMENT_EXPRESSION: {
+            type_check(lexer, ast->expression_statement);
+        } break;
+        case AST_STATEMENT_DECLARATION: {
+            type_check(lexer, ast->declaration_statement);
+        } break;
+        case AST_STATEMENT_BREAK: {} break;
+        case AST_STATEMENT_CONTINUE: {} break;
+        case AST_STATEMENT_RETURN: {} break;
 
+        invalid_default_case_msg("ast_statement type_check missing type");
+    }
 }
 
 internal void type_check(Lexer *lexer, Ast_expression *ast) {
@@ -160,20 +198,45 @@ internal void type_check(Lexer *lexer, Ast_expression *ast) {
 }
 
 internal void type_check(Lexer *lexer, Ast_if *ast) {
+    If *ifs = ast->ifs;
 
+    while (ifs) {
+        type_check(lexer, &ifs->condition);
+        type_check(lexer, &ifs->block);
+    }
+
+    if (ast->else_block) {
+        type_check(lexer, ast->else_block);
+    }
 }
 
 internal void type_check(Lexer *lexer, Ast_loop *ast) {
+    if (ast->pre) {
+        type_check(lexer, ast->pre);
+    }
 
+    type_check(lexer, ast->condition);
+
+    if (ast->post) {
+        type_check(lexer, ast->post);
+    }
+
+    type_check(lexer, ast->block);
 }
 
 internal void type_check(Lexer *lexer, Ast_block *ast) {
+    while (ast) {
+        sfor_count (ast->statements, ast->statement_count) {
+            type_check(lexer, it);
+        }
 
+        ast = ast->next;
+    }
 }
 
 internal void type_check(Lexer *lexer, Ast_program *ast) {
     while (ast) {
-        sfor_count (ast->declarations, ast->count) {
+        sfor_count (ast->declarations, ast->declaration_count) {
             type_check(lexer, it);
         }
 

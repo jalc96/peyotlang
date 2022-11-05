@@ -56,7 +56,12 @@ internal void print_entire_list(Type_spec *type, u32 indent=0) {
     }
 }
 
-#define TYPE_SPEC_HASH_TABLE_SIZE 1024
+#if DEVELOPMENT
+    // This is to have a smaller table to check
+    #define TYPE_SPEC_HASH_TABLE_SIZE (1 << 4)
+#else
+    #define TYPE_SPEC_HASH_TABLE_SIZE (1 << 10)
+#endif
 
 struct Type_spec_table {
     u32 current_id;
@@ -86,7 +91,7 @@ internal u32 get_type_spec_index(str name) {
     return result;
 }
 
-internal Type_spec *push_type(Type_spec_table *table, str name, TYPE_SPEC_TYPE type, Src_position src_p) {
+internal Type_spec *put(Type_spec_table *table, str name, TYPE_SPEC_TYPE type, Src_position src_p) {
     u32 index = get_type_spec_index(name);
     // When creating types in several threads maybe assign id ranges to each thread so they dont stall in the same lock all the time
     Type_spec *result = new_type_spec(table->current_id++, type, name, src_p, table->allocator);
@@ -96,7 +101,7 @@ internal Type_spec *push_type(Type_spec_table *table, str name, TYPE_SPEC_TYPE t
     return result;
 }
 
-internal Type_spec *push_type(Type_spec_table *table, str name, TYPE_SPEC_TYPE type, Src_position src_p, u32 member_count, Member *members) {
+internal Type_spec *put(Type_spec_table *table, str name, TYPE_SPEC_TYPE type, Src_position src_p, u32 member_count, Member *members) {
     u32 index = get_type_spec_index(name);
     // When creating types in several threads maybe assign id ranges to each thread so they dont stall in the same lock all the time
     Type_spec *result = new_type_spec(table->current_id++, type, name, src_p, table->allocator);
@@ -108,7 +113,7 @@ internal Type_spec *push_type(Type_spec_table *table, str name, TYPE_SPEC_TYPE t
     return result;
 }
 
-internal Type_spec *get_type(Type_spec_table *table, str name) {
+internal Type_spec *get(Type_spec_table *table, str name) {
     // TODO: check everywhere this is called to add to the out of order list
     u32 index = get_type_spec_index(name);
     Type_spec *result = table->table[index];
@@ -150,6 +155,6 @@ internal void initialize_native_types(Type_spec_table *type_table) {
     };
 
     sfor (native_types) {
-        push_type(type_table, *it, TYPE_SPEC_NAME, {});
+        put(type_table, *it, TYPE_SPEC_NAME, {});
     }
 }

@@ -7,6 +7,7 @@ internal void print(Ast_block *block, u32 indent=0);
 struct Parser {
 // TODO: maybe put the Lexer in here and pass this around instead??
     Type_spec_table *type_table;
+    Symbol_table *symbol_table;
     bool parsing_errors;
     Str_buffer error_buffer;
     Memory_pool *allocator;
@@ -14,10 +15,11 @@ struct Parser {
     Pending_type sentinel;
 };
 
-internal Parser *new_parser(Memory_pool *allocator, Type_spec_table *type_table) {
+internal Parser *new_parser(Memory_pool *allocator, Type_spec_table *type_table, Symbol_table *symbol_table) {
     Parser *result = push_struct(allocator, Parser);
 
     result->type_table = type_table;
+    result->symbol_table = symbol_table;
     result->parsing_errors = false;
     result->error_buffer = new_str_buffer(allocator, 65536);
     result->allocator = allocator;
@@ -130,7 +132,6 @@ struct Ast_expression {
         str name;
     };
 
-    // Symbol *symbol;
     union {
         struct {
             Ast_expression *left;
@@ -631,7 +632,7 @@ internal void print(Ast_statement *ast, u32 indent) {
 #define AST_DECLARATIONS_PER_NODE 32
 
 struct Ast_program {
-    u32 count;
+    u32 declaration_count;
     Ast_declaration declarations[AST_DECLARATIONS_PER_NODE];
 
     Ast_program *next;
@@ -640,7 +641,7 @@ struct Ast_program {
 internal Ast_program *new_ast_program(Memory_pool *allocator) {
     Ast_program *result = push_struct(allocator, Ast_program);
 
-    result->count = 0;
+    result->declaration_count = 0;
     result->next = 0;
 
     return result;
@@ -648,7 +649,7 @@ internal Ast_program *new_ast_program(Memory_pool *allocator) {
 
 internal void print(Ast_program *ast) {
     while (ast) {
-        sfor_count (ast->declarations, ast->count) {
+        sfor_count (ast->declarations, ast->declaration_count) {
             print(it);
         }
 
