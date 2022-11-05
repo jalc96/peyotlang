@@ -31,6 +31,14 @@
             case A: do_stuf();break;
             case A: <---this throws an error
         }
+    -entry point check
+    -avoid infinitly big structs like:
+        struct A {
+            u32 x;
+            u32 y;
+            A other;
+        }
+
 */
 
 #define STB_SPRINTF_IMPLEMENTATION
@@ -38,10 +46,14 @@
 
 #define print_indent(indent) printf("%*s", (indent), "")
 
+
 #include"types.h"
 #include"utils.h"
 #include<stdio.h>
 #include<stdlib.h>
+
+global_variable bool ASSERT_FOR_DEBUGGING = false;
+
 #include"debug.h"
 #include"memory.h"
 
@@ -296,16 +308,17 @@ s16 main(s16 arg_count, char **args) {
     char *program_multiple_declarations = R"PROGRAM(
 
         V3u :: struct {
-            x :u32;
+            x :u32a;
             y :u32;
             z :u32;
         }
 
         main :: (a: u32, position: V2u) -> V2ua {
             position = position + a;
+            vector :V2ua;
         }
 
-        main :: (a: u32, position: V2u) -> V2uaa {
+        main :: (a: u32, position: V2ua) -> V2uaa {
             position = position + a;
         }
 

@@ -36,6 +36,9 @@ internal SYNTAX_CHECK_FUNCTION(always_false) {
 }
 
 internal void require_token_and_report_syntax_error(Lexer *lexer, Check_function check_function, PEYOT_TOKEN_TYPE desired_token_type, Syntax_error_positions positions, char *msg, bool print_wrong_token_in_red) {
+#if DEVELOPMENT
+    if (ASSERT_FOR_DEBUGGING) assert(check_function(desired_token_type, lexer->current_token, lexer->parser->type_table), "debug this syntax error");
+#endif
     if (!check_function(desired_token_type, lexer->current_token, lexer->parser->type_table)) {
         lexer->parser->parsing_errors = true;
         u32 l0 = positions.start.c0;
@@ -654,8 +657,8 @@ internal Compound_parsing_result parse_compound(Lexer *lexer, Src_position compo
                 t = lexer->current_token;
                 new_member->type = get_type(type_table(lexer), t.name);
 
-                if (new_member->type) {
-                    // TODO: handle out of order declaration
+                if (!new_member->type) {
+                    push_pending_type(lexer->parser, new_member, t.name, t.src_p);
                 }
 
                 get_next_token(lexer); // consume the type
@@ -734,7 +737,7 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
         result->variable.variable_type = get_type(lexer->parser->type_table, declaration_token_type.name);
 
         if (!result->variable.variable_type) {
-            // TODO: handle out of order declaration
+            push_pending_type(lexer->parser, result, declaration_token_type.name, declaration_token_type.src_p);
         }
 
         // TODO: handle type inference if the declaration_token_type is an assignment
@@ -772,6 +775,10 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
                 t = get_next_token(lexer);
                 it->type = get_type(type_table(lexer), t.name);
 
+                if (!it->type) {
+                    push_pending_type(lexer->parser, it, t.name, t.src_p);
+                }
+
                 get_next_token(lexer);
 
                 // +1 because arrays start at 0 and there are (param_count - 1) number of commas so we have to check (param_count - 1) times
@@ -802,15 +809,6 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
 
         if (!result->function.return_type) {
             push_pending_type(lexer->parser, result, return_type.name, return_type.src_p);
-            // TODO: handle out of order declaration
-            /*
-            have a queue and iterate over the queue to check for types, maybe a dependency graph is needed for circularish dependencies, set times_checked to 2 or something and every time the items goes back to the queue decrement the counter, if the counter goes to 0 then throw an error and stop
-                struct Pending_declaration {
-                    u32 times_checked;
-                    Ast_declaration *declaration;
-                    Pending_declaration *next;
-                }
-            */
         }
 
         // TODO: Maybe do here the check for open brace to say that a its expected for a function body or something like that
@@ -824,7 +822,7 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
 
         result->compound = cpr.compound;
         result->compound->compound_type = compound_type;
-        push_type(type_table(lexer), result->name, TYPE_SPEC_NAME, result->src_p);
+        push_type(type_table(lexer), result->name, TYPE_SPEC_COMPOUND, result->src_p, result->compound->member_count, result->compound->members);
     } else if (declaration_type == AST_DECLARATION_ENUM) {
         // Consume the enum token
         get_next_token(lexer);

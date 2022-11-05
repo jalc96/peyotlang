@@ -3,6 +3,7 @@ enum TYPE_SPEC_TYPE {
 
     TYPE_SPEC_NAME,
     TYPE_SPEC_FUNCTION,
+    TYPE_SPEC_COMPOUND,
 
     TYPE_SPEC_COUNT,
 };
@@ -15,12 +16,21 @@ internal char *to_string(TYPE_SPEC_TYPE type) {
     }
 }
 
+struct Member;
+
 struct Type_spec {
     u32 id;
     TYPE_SPEC_TYPE type;
     Src_position src_p;
-    // TODO: maybe have a separate name table to make this struct smaller and store here the index to that table
     str name;
+
+    union {
+        struct {
+            u32 member_count;
+            Member *members;
+        } compound;
+    };
+
     Type_spec *next;
 };
 
@@ -86,6 +96,18 @@ internal Type_spec *push_type(Type_spec_table *table, str name, TYPE_SPEC_TYPE t
     return result;
 }
 
+internal Type_spec *push_type(Type_spec_table *table, str name, TYPE_SPEC_TYPE type, Src_position src_p, u32 member_count, Member *members) {
+    u32 index = get_type_spec_index(name);
+    // When creating types in several threads maybe assign id ranges to each thread so they dont stall in the same lock all the time
+    Type_spec *result = new_type_spec(table->current_id++, type, name, src_p, table->allocator);
+    result->compound.member_count = member_count;
+    result->compound.members = members;
+    result->next = table->table[index];
+    table->table[index] = result;
+
+    return result;
+}
+
 internal Type_spec *get_type(Type_spec_table *table, str name) {
     // TODO: check everywhere this is called to add to the out of order list
     u32 index = get_type_spec_index(name);
@@ -109,8 +131,10 @@ internal bool is_type(Type_spec_table *table, Token token) {
         }
 
         case TOKEN_NAME: {
-            Type_spec *type = get_type(table, token.name);
-            return (bool)type;
+            // NOTE(Juan Antonio) 2022-11-05: i comment this because this check will be made in the type checker where the "undefined type" error will be shown 
+            // Type_spec *type = get_type(table, token.name);
+            // return (bool)type;
+            return true;
         }
 
         default: {
