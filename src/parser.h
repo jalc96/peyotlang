@@ -9,6 +9,7 @@ struct Parser {
     Type_spec_table *type_table;
     Symbol_table *symbol_table;
     bool parsing_errors;
+    bool type_errors;
     Str_buffer error_buffer;
     Memory_pool *allocator;
 
@@ -33,8 +34,12 @@ internal bool parsing_errors(Parser *parser) {
     return parser->parsing_errors;
 }
 
-internal bool type_errors(Parser *parser) {
+internal bool out_of_order_declaration_errors(Parser *parser) {
     return parser->sentinel.previous != &parser->sentinel;
+}
+
+internal bool type_errors(Parser *parser) {
+    return parser->type_errors;
 }
 
 
@@ -202,10 +207,80 @@ internal void print(Ast_expression *ast, u32 indent=0, bool is_declaration=false
     }
 }
 
+internal bool is_binary(AST_EXPRESSION_TYPE type) {
+    switch (type) {
+        case AST_EXPRESSION_BINARY_ADD:
+        case AST_EXPRESSION_BINARY_SUB:
+        case AST_EXPRESSION_BINARY_MUL:
+        case AST_EXPRESSION_BINARY_DIV:
+        case AST_EXPRESSION_BINARY_MOD:
+        case AST_EXPRESSION_BINARY_EQUALS:
+        case AST_EXPRESSION_BINARY_NOT_EQUALS:
+        case AST_EXPRESSION_BINARY_GREATER_THAN:
+        case AST_EXPRESSION_BINARY_GREATER_THAN_OR_EQUALS:
+        case AST_EXPRESSION_BINARY_LESS_THAN:
+        case AST_EXPRESSION_BINARY_LESS_THAN_OR_EQUALS:
+        case AST_EXPRESSION_BINARY_LOGICAL_OR:
+        case AST_EXPRESSION_BINARY_LOGICAL_AND:
+        case AST_EXPRESSION_BINARY_BITWISE_OR:
+        case AST_EXPRESSION_BINARY_BITWISE_AND:
+        case AST_EXPRESSION_BINARY_ASSIGNMENT:  {
+            return true;
+        }
+
+        default: {return false;}
+    }
+}
+
+internal bool is_unary(AST_EXPRESSION_TYPE type) {
+    switch (type) {
+        case AST_EXPRESSION_MEMBER:
+        case AST_EXPRESSION_UNARY_SUB:
+        case AST_EXPRESSION_UNARY_LOGICAL_NOT:
+        case AST_EXPRESSION_UNARY_BITWISE_NOT: {
+            return true;
+        }
+
+        default: {return false;}
+    }
+}
+
+internal bool is_leaf(AST_EXPRESSION_TYPE type) {
+    switch (type) {
+        case AST_EXPRESSION_LITERAL_U32:
+        case AST_EXPRESSION_NAME:
+        case AST_EXPRESSION_FUNCTION_CALL: {
+            return true;
+        }
+
+        default: {return false;}
+    }
+}
+
+internal Ast_expression *get_left_leaf(Ast_expression *ast) {
+    if (is_binary(ast->type)) {
+        return get_left_leaf(ast->binary.left);
+    }
+
+    if (is_unary(ast->type)) {
+        return ast;
+    }
+
+    assert(is_leaf(ast->type), "the last option in get_right_leaf is to be a leaf node");
+
+    return ast;
+}
+
 internal Ast_expression *get_right_leaf(Ast_expression *ast) {
-    if (ast->binary.right) {
+    if (is_binary(ast->type)) {
         return get_right_leaf(ast->binary.right);
     }
+
+    if (is_unary(ast->type)) {
+        return get_right_leaf(ast->binary.right);
+    }
+
+    assert(is_leaf(ast->type), "the last option in get_right_leaf is to be a leaf node");
 
     return ast;
 }

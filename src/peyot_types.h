@@ -44,6 +44,10 @@ internal Type_spec *new_type_spec(u32 id, TYPE_SPEC_TYPE type, str name, Src_pos
     return result;
 }
 
+internal bool equals(Type_spec *a, Type_spec *b) {
+    return a->id == b->id;
+}
+
 internal void print(Type_spec *type, u32 indent=0) {
     printf("%.*s<id: %d>\n", type->name.count, type->name.buffer, type->id);
 }

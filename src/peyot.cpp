@@ -351,6 +351,40 @@ s16 main(s16 arg_count, char **args) {
         }
     )PROGRAM";
 
+    char *program_type_checking = R"PROGRAM(
+        V2u :: struct {
+            x :u32;
+            y :u32;
+        }
+        main :: (a: u32) -> u32 {
+            very_long_name_for_a_vector :V2u;
+            a :u32 = 1 + very_long_name_for_a_vector;
+        }
+    )PROGRAM";
+
+    // TODO: make a function get_most_separated_leafs() to get the 1 + 2 positions
+    char *program_type_checking_this_one_doesnt_get_the_entire_expression_for_u32 = R"PROGRAM(
+        V2u :: struct {
+            x :u32;
+            y :u32;
+        }
+        main :: (a: u32) -> u32 {
+            very_long_name_for_a_vector :V2u;
+            a :u32 = 1 + 2 + very_long_name_for_a_vector;
+        }
+    )PROGRAM";
+
+    // TODO: this error
+    char *program_error_undeclared_identifier = R"PROGRAM(
+        V2u :: struct {
+            x :u32;
+            y :u32;
+        }
+        main :: (a: u32) -> u32 {
+            a :u32 = 1 + vector;
+        }
+    )PROGRAM";
+
 
     Memory_pool allocator = {};
 
@@ -360,7 +394,7 @@ s16 main(s16 arg_count, char **args) {
     Symbol_table *symbol_table = new_symbol_table(&allocator);
 
     Parser *parser = new_parser(&allocator, type_table, symbol_table);
-    Lexer lexer = create_lexer(program_multiple_declarations, parser, &allocator);
+    Lexer lexer = create_lexer(program_type_checking, parser, &allocator);
 
 
     get_next_token(&lexer);
@@ -374,21 +408,30 @@ s16 main(s16 arg_count, char **args) {
     // Ast_statement *ast = parse_statement(&lexer, 0);
     // Ast_declaration *ast = parse_declaration(&lexer, 0);
     Ast_program *ast = parse_program(&lexer, 0);
-    out_of_order_declaration(lexer.parser);
-    type_check(&lexer, ast);
 
     if (lexer.parser->parsing_errors) {
         report_parsing_errors(&lexer);
-    } else if (type_errors(lexer.parser)) {
-        report_type_errors(&lexer);
     } else {
-        print(ast);
-        rollback_lexer(lexer_savepoint);
-        test_parser(&lexer);
-        BOLD(ITALIC(UNDERLINE(GREEN("\n\n\nfinished correctly\n"))));
+        out_of_order_declaration(lexer.parser);
 
-        debug(lexer.current_line);
+        if (out_of_order_declaration_errors(lexer.parser)) {
+            report_type_declaration_errors(&lexer);
+        } else {
+            type_check(&lexer, ast);
+
+            if (type_errors(lexer.parser)) {
+                report_type_errors(&lexer);
+            } else {
+                print(ast);
+                rollback_lexer(lexer_savepoint);
+                test_parser(&lexer);
+                BOLD(ITALIC(UNDERLINE(GREEN("\n\n\nfinished correctly\n"))));
+
+                debug(lexer.current_line);
+            }
+        }
     }
+
 
     print(type_table);
     print(symbol_table);
