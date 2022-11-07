@@ -257,6 +257,65 @@ internal bool is_leaf(AST_EXPRESSION_TYPE type) {
     }
 }
 
+internal bool is_arithmetic(AST_EXPRESSION_TYPE type) {
+    switch(type) {
+        case AST_EXPRESSION_BINARY_EQUALS:
+        case AST_EXPRESSION_BINARY_NOT_EQUALS:
+        case AST_EXPRESSION_BINARY_GREATER_THAN:
+        case AST_EXPRESSION_BINARY_GREATER_THAN_OR_EQUALS:
+        case AST_EXPRESSION_BINARY_LESS_THAN:
+        case AST_EXPRESSION_BINARY_LESS_THAN_OR_EQUALS: {
+            return true;
+        }
+        default: {return false;}
+    }
+}
+
+internal bool is_relational(AST_EXPRESSION_TYPE type) {
+    switch(type) {
+        case AST_EXPRESSION_UNARY_SUB:
+        case AST_EXPRESSION_BINARY_ADD:
+        case AST_EXPRESSION_BINARY_SUB:
+        case AST_EXPRESSION_BINARY_MUL:
+        case AST_EXPRESSION_BINARY_DIV:
+        case AST_EXPRESSION_BINARY_MOD: {
+            return true;
+        }
+        default: {return false;}
+    }
+}
+
+internal bool is_boolean(AST_EXPRESSION_TYPE type) {
+    switch(type) {
+        case AST_EXPRESSION_UNARY_LOGICAL_NOT:
+        case AST_EXPRESSION_BINARY_LOGICAL_OR:
+        case AST_EXPRESSION_BINARY_LOGICAL_AND: {
+            return true;
+        }
+        default: {return false;}
+    }
+}
+
+internal bool is_assignment(AST_EXPRESSION_TYPE type) {
+    if (type == AST_EXPRESSION_BINARY_ASSIGNMENT) {
+        return true;
+    }
+
+    return false;
+}
+
+internal bool is_bit_operator(AST_EXPRESSION_TYPE type) {
+    switch(type) {
+        case AST_EXPRESSION_UNARY_BITWISE_NOT:
+        case AST_EXPRESSION_BINARY_BITWISE_OR:
+        case AST_EXPRESSION_BINARY_BITWISE_AND: {
+            return true;
+        }
+        default: {return false;}
+    }
+}
+
+
 internal Ast_expression *get_left_leaf(Ast_expression *ast) {
     if (is_binary(ast->type)) {
         return get_left_leaf(ast->binary.left);

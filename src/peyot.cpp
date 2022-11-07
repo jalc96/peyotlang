@@ -362,15 +362,57 @@ s16 main(s16 arg_count, char **args) {
         }
     )PROGRAM";
 
-    // TODO: make a function get_most_separated_leafs() to get the 1 + 2 positions
-    char *program_type_checking_this_one_doesnt_get_the_entire_expression_for_u32 = R"PROGRAM(
+    char *program_type_checking_long_expression = R"PROGRAM(
         V2u :: struct {
             x :u32;
             y :u32;
         }
         main :: (a: u32) -> u32 {
             very_long_name_for_a_vector :V2u;
-            a :u32 = 1 + 2 + very_long_name_for_a_vector;
+            a :u32 = 1 + 2 + 1 + 1 + 1 + 1 + 1 + very_long_name_for_a_vector;
+        }
+    )PROGRAM";
+
+    // TODO: handle multiline more gracefully
+    char *program_type_checking_multiline = R"PROGRAM(
+        V2u :: struct {
+            x :u32;
+            y :u32;
+        }
+        main :: (a: u32) -> u32 {
+            very_long_name_for_a_vector :V2u;
+            a :u32 = (
+                  (1 + 2)
+                + very_long_name_for_a_vector
+            );
+        }
+    )PROGRAM";
+
+    char *program_type_checking_multiple_types = R"PROGRAM(
+        V2u :: struct {
+            x :u32;
+            y :u32;
+        }
+        V3u :: struct {
+            x :u32;
+            y :u32;
+            z :u32;
+        }
+        main :: (a: u32) -> u32 {
+            vector :V2u;
+            vector2 :V3u;
+            a :u32 = 1 * vector + vector2;
+        }
+    )PROGRAM";
+
+    char *program_type_checking_assignment = R"PROGRAM(
+        V2u :: struct {
+            x :u32;
+            y :u32;
+        }
+        main :: (a: u32) -> u32 {
+            vector :V2u;
+            a :u32 = vector;
         }
     )PROGRAM";
 
@@ -394,7 +436,7 @@ s16 main(s16 arg_count, char **args) {
     Symbol_table *symbol_table = new_symbol_table(&allocator);
 
     Parser *parser = new_parser(&allocator, type_table, symbol_table);
-    Lexer lexer = create_lexer(program_type_checking, parser, &allocator);
+    Lexer lexer = create_lexer(program_type_checking_assignment, parser, &allocator);
 
 
     get_next_token(&lexer);

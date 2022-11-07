@@ -146,15 +146,34 @@ internal void out_of_order_declaration(Parser *parser) {
     }
 }
 
+internal Src_position get_sub_tree_width(Ast_expression *ast) {
+    Src_position result;
+
+    if (is_unary(ast->type)) {
+        result = merge(ast->src_p, get_sub_tree_width(ast->binary.right));
+    } else if (is_binary(ast->type)) {
+        result = merge(get_sub_tree_width(ast->binary.left), get_sub_tree_width(ast->binary.right));
+    } else {
+        assert(is_leaf(ast->type), "get_sub_tree_width else must be a leaf node");
+
+        result = ast->src_p;
+    }
+
+    return result;
+}
+
 internal void report_binary_expression_missmatch_type_error(Lexer *lexer, Ast_expression *ast, Type_spec *l, Type_spec *r) {
     lexer->parser->type_errors = true;
     Str_buffer *eb = &lexer->parser->error_buffer;
 
-    Ast_expression *left_most = get_left_leaf(ast);
-    Ast_expression *right_most = get_right_leaf(ast);
+    Src_position lp = get_sub_tree_width(ast->binary.left);
+    Src_position rp = get_sub_tree_width(ast->binary.right);
 
-    Src_position lp = left_most->src_p;
-    Src_position rp = right_most->src_p;
+
+
+
+
+    // THIS PART DOWN HERE LOOKS THAT ITS INDEPENDANT FROM THE TOP, DO MORE REPORT FUNCTIONS AND UNIFY IF ITS THE SAME
 
     u32 l0 = find_first_from_position(lexer->source, lp.c0, '\n', true) + skip_new_line;
     u32 lf = find_first_from_position(lexer->source, rp.cf, '\n', false);
@@ -173,6 +192,53 @@ internal void report_binary_expression_missmatch_type_error(Lexer *lexer, Ast_ex
     Split_at d = split_at(c.p2, rp.cf - rp.c0);
     str second_type = d.p1;
     str rest = d.p2;
+
+    // TODO: handle multiline expressions
+
+
+    log_error(eb, STATIC_RED("TYPE ERROR"), 0);
+    log_error(eb, ": no valid operator between ");
+    log_error(eb, STATIC_COLOR("%.*s", 100, 255, 100), STR_PRINT(l->name));
+    log_error(eb, " and ");
+    log_error(eb, STATIC_COLOR("%.*s\n", 100, 100, 255), STR_PRINT(r->name));
+
+    log_error(eb, "    %d:%.*s", lp.line, STR_PRINT(prev));
+    log_error(eb, STATIC_COLOR("%.*s", 100, 255, 100), STR_PRINT(first_type));
+    log_error(eb, "%.*s", STR_PRINT(operand));
+    log_error(eb, STATIC_COLOR("%.*s", 100, 100, 255), STR_PRINT(second_type));
+    log_error(eb, "%.*s", STR_PRINT(rest));
+}
+
+internal void report_declaration_missmatch_type_error(Lexer *lexer, Ast_declaration *ast, Type_spec *l, Type_spec *r) {
+    lexer->parser->type_errors = true;
+    Str_buffer *eb = &lexer->parser->error_buffer;
+
+    Src_position lp = ast->src_p;
+    Src_position rp = get_sub_tree_width(ast->variable.expression);
+
+
+
+    // THIS PART DOWN HERE LOOKS THAT ITS INDEPENDANT FROM THE TOP, DO MORE REPORT FUNCTIONS AND UNIFY IF ITS THE SAME
+
+    u32 l0 = find_first_from_position(lexer->source, lp.c0, '\n', true) + skip_new_line;
+    u32 lf = find_first_from_position(lexer->source, rp.cf, '\n', false);
+
+    str line = slice(lexer->source, l0, lf);
+
+    Split_at a = split_at(line, lp.c0 - l0);
+    str prev = a.p1;
+
+    Split_at b = split_at(a.p2, lp.cf - lp.c0);
+    str first_type = b.p1;
+
+    u32 base = l0 + length(prev) + length(first_type);
+    Split_at c = split_at(b.p2, rp.c0 - base);
+    str operand = c.p1;
+    Split_at d = split_at(c.p2, rp.cf - rp.c0);
+    str second_type = d.p1;
+    str rest = d.p2;
+
+    // TODO: handle multiline expressions
 
 
     log_error(eb, STATIC_RED("TYPE ERROR"), 0);
@@ -212,27 +278,27 @@ internal Type_spec *get_type(Lexer *lexer, str name) {
 }
 
 internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast) {
-    Type_spec *result = {};
+    Type_spec *result = 0;
     Symbol_table *symbol_table = lexer->parser->symbol_table;
     Type_spec_table *type_table = lexer->parser->type_table;
 
-    switch (ast->type) {
-        case AST_EXPRESSION_LITERAL_U32: {
-            result = get(type_table, STATIC_STR("u32"));
-        } break;
-        case AST_EXPRESSION_NAME: {
-            result = get_type(symbol_table, type_table, ast->name);
-        } break;
-        case AST_EXPRESSION_MEMBER: {} break;
-        case AST_EXPRESSION_FUNCTION_CALL: {} break;
-
-        case AST_EXPRESSION_UNARY_SUB: {
-            Type_spec *r = get_type(lexer, ast->binary.right);
-            result = r;
-        } break;
-        case AST_EXPRESSION_BINARY_ADD: {
+    if (is_leaf(ast->type)) {
+        switch (ast->type) {
+            case AST_EXPRESSION_LITERAL_U32: {
+                result = get(type_table, STATIC_STR("u32"));
+            } break;
+            case AST_EXPRESSION_NAME: {
+                result = get_type(symbol_table, type_table, ast->name);
+            } break;
+            case AST_EXPRESSION_MEMBER: {} break;
+            case AST_EXPRESSION_FUNCTION_CALL: {} break;
+        }
+    } else if (is_binary(ast->type)) {
+        if (is_arithmetic(ast->type) || is_relational(ast->type)) {
             Type_spec *l = get_type(lexer, ast->binary.left);
             Type_spec *r = get_type(lexer, ast->binary.right);
+
+            if (type_errors(lexer->parser)) {return 0;}
 
             // TODO: in the future check here if there is an operator that accepts these 2 types
             if (equals(l, r)) {
@@ -240,75 +306,14 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast) {
             } else {
                 report_binary_expression_missmatch_type_error(lexer, ast, l, r);
             }
-        } break;
-        case AST_EXPRESSION_BINARY_SUB: {
-            Type_spec *l = get_type(lexer, ast->binary.left);
-            Type_spec *r = get_type(lexer, ast->binary.right);
-        } break;
-        case AST_EXPRESSION_BINARY_MUL: {
-            Type_spec *l = get_type(lexer, ast->binary.left);
-            Type_spec *r = get_type(lexer, ast->binary.right);
-        } break;
-        case AST_EXPRESSION_BINARY_DIV: {
-            Type_spec *l = get_type(lexer, ast->binary.left);
-            Type_spec *r = get_type(lexer, ast->binary.right);
-        } break;
-        case AST_EXPRESSION_BINARY_MOD: {
-            Type_spec *l = get_type(lexer, ast->binary.left);
-            Type_spec *r = get_type(lexer, ast->binary.right);
-        } break;
-        case AST_EXPRESSION_BINARY_EQUALS: {
-            Type_spec *l = get_type(lexer, ast->binary.left);
-            Type_spec *r = get_type(lexer, ast->binary.right);
-        } break;
-        case AST_EXPRESSION_BINARY_NOT_EQUALS: {
-            Type_spec *l = get_type(lexer, ast->binary.left);
-            Type_spec *r = get_type(lexer, ast->binary.right);
-        } break;
-        case AST_EXPRESSION_BINARY_GREATER_THAN: {
-            Type_spec *l = get_type(lexer, ast->binary.left);
-            Type_spec *r = get_type(lexer, ast->binary.right);
-        } break;
-        case AST_EXPRESSION_BINARY_GREATER_THAN_OR_EQUALS: {
-            Type_spec *l = get_type(lexer, ast->binary.left);
-            Type_spec *r = get_type(lexer, ast->binary.right);
-        } break;
-        case AST_EXPRESSION_BINARY_LESS_THAN: {
-            Type_spec *l = get_type(lexer, ast->binary.left);
-            Type_spec *r = get_type(lexer, ast->binary.right);
-        } break;
-        case AST_EXPRESSION_BINARY_LESS_THAN_OR_EQUALS: {
-            Type_spec *l = get_type(lexer, ast->binary.left);
-            Type_spec *r = get_type(lexer, ast->binary.right);
-        } break;
-        case AST_EXPRESSION_UNARY_LOGICAL_NOT: {
-            Type_spec *r = get_type(lexer, ast->binary.right);
-            result = r;
-        } break;
-        case AST_EXPRESSION_BINARY_LOGICAL_OR: {
-            Type_spec *l = get_type(lexer, ast->binary.left);
-            Type_spec *r = get_type(lexer, ast->binary.right);
-        } break;
-        case AST_EXPRESSION_BINARY_LOGICAL_AND: {
-            Type_spec *l = get_type(lexer, ast->binary.left);
-            Type_spec *r = get_type(lexer, ast->binary.right);
-        } break;
-        case AST_EXPRESSION_UNARY_BITWISE_NOT: {
-            Type_spec *r = get_type(lexer, ast->binary.right);
-            result = r;
-        } break;
-        case AST_EXPRESSION_BINARY_BITWISE_OR: {
-            Type_spec *l = get_type(lexer, ast->binary.left);
-            Type_spec *r = get_type(lexer, ast->binary.right);
-        } break;
-        case AST_EXPRESSION_BINARY_BITWISE_AND: {
-            Type_spec *l = get_type(lexer, ast->binary.left);
-            Type_spec *r = get_type(lexer, ast->binary.right);
-        } break;
-        case AST_EXPRESSION_BINARY_ASSIGNMENT: {
-            Type_spec *l = get_type(lexer, ast->binary.left);
-            Type_spec *r = get_type(lexer, ast->binary.right);
-        } break;
+        } else if (is_assignment(ast->type)) {
+        } else if (is_boolean(ast->type)) {
+        } else if (is_bit_operator(ast->type)) {
+        }
+    } else if (is_unary(ast->type)) {
+        Type_spec *r = get_type(lexer, ast->binary.right);
+        result = r;
+
     }
 
     return result;
@@ -323,9 +328,9 @@ internal void type_check(Lexer *lexer, Ast_declaration *ast) {
 
                 if (type_errors(lexer->parser)) {return;}
 
-                debug(variable);
-                debug(value);
-                debug(equals(variable, value));
+                if (!equals(variable, value)) {
+                    report_declaration_missmatch_type_error(lexer, ast, variable, value);
+                }
             }
         } break;
         case AST_DECLARATION_FUNCTION: {

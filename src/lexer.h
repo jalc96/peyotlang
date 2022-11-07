@@ -158,6 +158,16 @@ internal bool equals(Src_position a, Src_position b) {
     );
 }
 
+internal Src_position merge(Src_position a, Src_position b) {
+    Src_position result;
+
+    result.line = al_min(a.line, b.line);
+    result.c0 = al_min(a.c0, b.c0);
+    result.cf = al_max(a.cf, b.cf);
+
+    return result;
+}
+
 struct Token {
     PEYOT_TOKEN_TYPE type;
     Src_position src_p;
