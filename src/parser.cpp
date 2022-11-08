@@ -735,7 +735,6 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
 
     if (declaration_type == AST_DECLARATION_VARIABLE) {
         result->variable.variable_type = get(lexer->parser->type_table, declaration_token_type.name);
-        put(lexer->parser->symbol_table, result->name, declaration_token_type.name);
 
         if (!result->variable.variable_type) {
             push_pending_type(lexer->parser, result, declaration_token_type.name, declaration_token_type.src_p);

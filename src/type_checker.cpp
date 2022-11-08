@@ -263,23 +263,27 @@ internal void type_check(Lexer *lexer, Ast_block *ast);
 
 internal Type_spec *get_type(Symbol_table *symbol_table, Type_spec_table *type_table, str name) {
     Type_spec *result = {};
-    Symbol *s = get(symbol_table, name);
 
-    if (s) {
-        result = get(type_table, s->type_name);
+    lfor (symbol_table) {
+        Symbol *s = get(it, name);
+
+        if (s) {
+            result = get(type_table, s->type_name);
+            break;
+        }
     }
 
     return result;
 }
 
 internal Type_spec *get_type(Lexer *lexer, str name) {
-    Type_spec *result = get_type(lexer->parser->symbol_table, lexer->parser->type_table, name);
+    Type_spec *result = get_type(lexer->parser->current_scope, lexer->parser->type_table, name);
     return result;
 }
 
 internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast) {
     Type_spec *result = 0;
-    Symbol_table *symbol_table = lexer->parser->symbol_table;
+    Symbol_table *current_scope = lexer->parser->current_scope;
     Type_spec_table *type_table = lexer->parser->type_table;
 
     if (is_leaf(ast->type)) {
@@ -288,18 +292,18 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast) {
                 result = get(type_table, STATIC_STR("u32"));
             } break;
             case AST_EXPRESSION_NAME: {
-                result = get_type(symbol_table, type_table, ast->name);
+                result = get_type(current_scope, type_table, ast->name);
             } break;
             case AST_EXPRESSION_MEMBER: {} break;
             case AST_EXPRESSION_FUNCTION_CALL: {} break;
         }
     } else if (is_binary(ast->type)) {
+        Type_spec *l = get_type(lexer, ast->binary.left);
+        Type_spec *r = get_type(lexer, ast->binary.right);
+
+        if (type_errors(lexer->parser)) {return 0;}
+
         if (is_arithmetic(ast->type) || is_relational(ast->type)) {
-            Type_spec *l = get_type(lexer, ast->binary.left);
-            Type_spec *r = get_type(lexer, ast->binary.right);
-
-            if (type_errors(lexer->parser)) {return 0;}
-
             // TODO: in the future check here if there is an operator that accepts these 2 types
             if (equals(l, r)) {
                 result = l;
@@ -307,8 +311,16 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast) {
                 report_binary_expression_missmatch_type_error(lexer, ast, l, r);
             }
         } else if (is_assignment(ast->type)) {
+            // TODO: in the future check here if there is an operator that accepts these 2 types
+            if (equals(l, r)) {
+                result = l;
+            } else {
+                report_binary_expression_missmatch_type_error(lexer, ast, l, r);
+            }
         } else if (is_boolean(ast->type)) {
+            // TODO: check if both sides are bool
         } else if (is_bit_operator(ast->type)) {
+            // TODO: check for correct types (left has to be s32 or u32 or something like that and right aswell)
         }
     } else if (is_unary(ast->type)) {
         Type_spec *r = get_type(lexer, ast->binary.right);
@@ -322,6 +334,9 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast) {
 internal void type_check(Lexer *lexer, Ast_declaration *ast) {
     switch (ast->type) {
         case AST_DECLARATION_VARIABLE: {
+            // TODO: check if already declared
+            put(lexer->parser->current_scope, ast->name, ast->variable.variable_type->name);
+
             if (ast->variable.expression) {
                 Type_spec *variable = get_type(lexer, ast->name);
                 Type_spec *value = get_type(lexer, ast->variable.expression);
@@ -334,7 +349,21 @@ internal void type_check(Lexer *lexer, Ast_declaration *ast) {
             }
         } break;
         case AST_DECLARATION_FUNCTION: {
+            // TODO: put the functions in the global symbol table
+            // NOTE(Juan Antonio) 2022-11-08: in the case of a function we add 1 extra scope because blocks always create a new scope
+            Parser *parser = lexer->parser;
+            Memory_pool mp = {};
+            Symbol_table *new_scope = new_symbol_table(&mp);
+            new_scope->next = parser->current_scope;
+            parser->current_scope = new_scope;
+
+            sfor_count (ast->function.params, ast->function.param_count) {
+                put(parser->current_scope, it->name, it->type->name);
+            }
+
             type_check(lexer, ast->function.block);
+            parser->current_scope = parser->current_scope->next;
+            clear(&mp);
         } break;
         case AST_DECLARATION_COMPOUND: {} break;
         case AST_DECLARATION_ENUM: {} break;
@@ -369,6 +398,10 @@ internal void type_check(Lexer *lexer, Ast_statement *ast) {
 }
 
 internal void type_check(Lexer *lexer, Ast_expression *ast) {
+    get_type(lexer, ast);
+    return;
+
+    // TODO: is all of this useless?
     switch (ast->type) {
         case AST_EXPRESSION_LITERAL_U32: {} break;
         case AST_EXPRESSION_NAME: {} break;
@@ -430,6 +463,11 @@ internal void type_check(Lexer *lexer, Ast_loop *ast) {
 }
 
 internal void type_check(Lexer *lexer, Ast_block *ast) {
+    Memory_pool mp = {};
+    Symbol_table *new_scope = new_symbol_table(&mp);
+    new_scope->next = lexer->parser->current_scope;
+    lexer->parser->current_scope = new_scope;
+
     while (ast) {
         sfor_count (ast->statements, ast->statement_count) {
             type_check(lexer, it);
@@ -437,6 +475,9 @@ internal void type_check(Lexer *lexer, Ast_block *ast) {
 
         ast = ast->next;
     }
+
+    lexer->parser->current_scope = lexer->parser->current_scope->next;
+    clear(&mp);
 }
 
 internal void type_check(Lexer *lexer, Ast_program *ast) {

@@ -38,6 +38,7 @@
             u32 y;
             A other;
         }
+    -link the break/continue/return statements to the closest previous loop/function (with a current_loop/current_function members in the parser maybe??)
 
 */
 
@@ -416,6 +417,33 @@ s16 main(s16 arg_count, char **args) {
         }
     )PROGRAM";
 
+    char *program_type_checking_scope = R"PROGRAM(
+        V2u :: struct {
+            x :u32;
+            y :u32;
+        }
+        main :: (a: u32) -> u32 {
+            vector :V2u;
+            a = vector;
+        }
+    )PROGRAM";
+
+    char *program_type_checking_function = R"PROGRAM(
+        V2u :: struct {
+            x :u32;
+            y :u32;
+        }
+
+        f ::(a :u32) ->u32 {
+            return a;
+        }
+
+        main :: (a: u32) -> u32 {
+            vector :V2u;
+            a = vector;
+        }
+    )PROGRAM";
+
     // TODO: this error
     char *program_error_undeclared_identifier = R"PROGRAM(
         V2u :: struct {
@@ -433,10 +461,10 @@ s16 main(s16 arg_count, char **args) {
     Type_spec_table *type_table = new_type_spec_table(&allocator);
     initialize_native_types(type_table);
 
-    Symbol_table *symbol_table = new_symbol_table(&allocator);
+    Symbol_table *global_scope = new_symbol_table(&allocator);
 
-    Parser *parser = new_parser(&allocator, type_table, symbol_table);
-    Lexer lexer = create_lexer(program_type_checking_assignment, parser, &allocator);
+    Parser *parser = new_parser(&allocator, type_table, global_scope);
+    Lexer lexer = create_lexer(program_type_checking_scope, parser, &allocator);
 
 
     get_next_token(&lexer);
@@ -476,7 +504,7 @@ s16 main(s16 arg_count, char **args) {
 
 
     print(type_table);
-    print(symbol_table);
+    print(global_scope);
 
     restore_console();
 

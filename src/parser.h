@@ -7,7 +7,11 @@ internal void print(Ast_block *block, u32 indent=0);
 struct Parser {
 // TODO: maybe put the Lexer in here and pass this around instead??
     Type_spec_table *type_table;
-    Symbol_table *symbol_table;
+
+    Symbol_table *current_scope;
+    Symbol_table *first_free_table;
+    Symbol *first_free_symbol;
+
     bool parsing_errors;
     bool type_errors;
     Str_buffer error_buffer;
@@ -20,7 +24,7 @@ internal Parser *new_parser(Memory_pool *allocator, Type_spec_table *type_table,
     Parser *result = push_struct(allocator, Parser);
 
     result->type_table = type_table;
-    result->symbol_table = symbol_table;
+    result->current_scope = symbol_table;
     result->parsing_errors = false;
     result->error_buffer = new_str_buffer(allocator, 65536);
     result->allocator = allocator;

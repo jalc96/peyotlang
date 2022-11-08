@@ -23,11 +23,17 @@ internal void print_entire_list(Symbol *symbol, u32 indent=0) {
     }
 }
 
-#define SYMBOL_TABLE_SIZE (1 << 10)
+#if DEVELOPMENT
+    // This is to have a smaller table to check
+    #define SYMBOL_TABLE_SIZE (1 << 4)
+#else
+    #define SYMBOL_TABLE_SIZE (1 << 10)
+#endif
 
 struct Symbol_table {
     Symbol *symbols[SYMBOL_TABLE_SIZE];
     Memory_pool *allocator;
+    Symbol_table *next;
 };
 
 internal Symbol_table *new_symbol_table(Memory_pool *allocator) {
