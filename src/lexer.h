@@ -150,6 +150,11 @@ struct Src_position {
     u32 c0, cf;
 };
 
+internal u32 length(Src_position src_p) {
+    u32 result = src_p.cf - src_p.c0;
+    return result;
+}
+
 internal bool equals(Src_position a, Src_position b) {
     bool result = (
            a.line == b.line

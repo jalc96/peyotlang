@@ -183,13 +183,13 @@ internal void report_binary_expression_missmatch_type_error(Lexer *lexer, Ast_ex
     Split_at a = split_at(line, lp.c0 - l0);
     str prev = a.p1;
 
-    Split_at b = split_at(a.p2, lp.cf - lp.c0);
+    Split_at b = split_at(a.p2, length(lp));
     str first_type = b.p1;
 
     u32 base = l0 + length(prev) + length(first_type);
     Split_at c = split_at(b.p2, rp.c0 - base);
     str operand = c.p1;
-    Split_at d = split_at(c.p2, rp.cf - rp.c0);
+    Split_at d = split_at(c.p2, length(rp));
     str second_type = d.p1;
     str rest = d.p2;
 
@@ -206,7 +206,7 @@ internal void report_binary_expression_missmatch_type_error(Lexer *lexer, Ast_ex
     log_error(eb, STATIC_COLOR("%.*s", 100, 255, 100), STR_PRINT(first_type));
     log_error(eb, "%.*s", STR_PRINT(operand));
     log_error(eb, STATIC_COLOR("%.*s", 100, 100, 255), STR_PRINT(second_type));
-    log_error(eb, "%.*s", STR_PRINT(rest));
+    log_error(eb, "%.*s\n", STR_PRINT(rest));
 }
 
 internal void report_declaration_missmatch_type_error(Lexer *lexer, Ast_declaration *ast, Type_spec *l, Type_spec *r) {
@@ -228,13 +228,13 @@ internal void report_declaration_missmatch_type_error(Lexer *lexer, Ast_declarat
     Split_at a = split_at(line, lp.c0 - l0);
     str prev = a.p1;
 
-    Split_at b = split_at(a.p2, lp.cf - lp.c0);
+    Split_at b = split_at(a.p2, length(lp));
     str first_type = b.p1;
 
     u32 base = l0 + length(prev) + length(first_type);
     Split_at c = split_at(b.p2, rp.c0 - base);
     str operand = c.p1;
-    Split_at d = split_at(c.p2, rp.cf - rp.c0);
+    Split_at d = split_at(c.p2, length(rp));
     str second_type = d.p1;
     str rest = d.p2;
 
@@ -251,7 +251,36 @@ internal void report_declaration_missmatch_type_error(Lexer *lexer, Ast_declarat
     log_error(eb, STATIC_COLOR("%.*s", 100, 255, 100), STR_PRINT(first_type));
     log_error(eb, "%.*s", STR_PRINT(operand));
     log_error(eb, STATIC_COLOR("%.*s", 100, 100, 255), STR_PRINT(second_type));
-    log_error(eb, "%.*s", STR_PRINT(rest));
+    log_error(eb, "%.*s\n", STR_PRINT(rest));
+}
+
+internal void report_undeclared_identifier(Lexer *lexer, str name, Src_position src_p) {
+    lexer->parser->type_errors = true;
+    Str_buffer *eb = &lexer->parser->error_buffer;
+
+    Src_position lp = src_p;
+
+
+
+    // THIS PART DOWN HERE LOOKS THAT ITS INDEPENDANT FROM THE TOP, DO MORE REPORT FUNCTIONS AND UNIFY IF ITS THE SAME
+
+    u32 l0 = find_first_from_position(lexer->source, lp.c0, '\n', true) + skip_new_line;
+    u32 lf = find_first_from_position(lexer->source, lp.cf, '\n', false);
+
+    str line = slice(lexer->source, l0, lf);
+    Split_at a = split_at(line, src_p.c0 - l0);
+    str pre = a.p1;
+    Split_at b = split_at(a.p2, length(src_p));
+    str undeclared = b.p1;
+    str post = b.p2;
+
+    log_error(eb, STATIC_RED("TYPE ERROR"), 0);
+    log_error(eb, ": undeclared identifier ");
+    log_error(eb, STATIC_RED("%.*s\n"), STR_PRINT(name));
+
+    log_error(eb, "    %d:%.*s", lp.line, STR_PRINT(pre));
+    log_error(eb, STATIC_RED("%.*s"), STR_PRINT(undeclared));
+    log_error(eb, "%.*s\n", STR_PRINT(post));
 }
 
 internal void type_check(Lexer *lexer, Ast_declaration *ast);
@@ -290,9 +319,14 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast) {
         switch (ast->type) {
             case AST_EXPRESSION_LITERAL_U32: {
                 result = get(type_table, STATIC_STR("u32"));
+
             } break;
             case AST_EXPRESSION_NAME: {
                 result = get_type(current_scope, type_table, ast->name);
+
+                if (!result) {
+                    report_undeclared_identifier(lexer, ast->name, ast->src_p);
+                }
             } break;
             case AST_EXPRESSION_MEMBER: {} break;
             case AST_EXPRESSION_FUNCTION_CALL: {} break;
@@ -324,6 +358,7 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast) {
         }
     } else if (is_unary(ast->type)) {
         Type_spec *r = get_type(lexer, ast->binary.right);
+        // TODO: all of the above
         result = r;
 
     }

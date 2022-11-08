@@ -444,14 +444,13 @@ s16 main(s16 arg_count, char **args) {
         }
     )PROGRAM";
 
-    // TODO: this error
     char *program_error_undeclared_identifier = R"PROGRAM(
         V2u :: struct {
             x :u32;
             y :u32;
         }
         main :: (a: u32) -> u32 {
-            a :u32 = 1 + vector;
+            a :u32 = vector + 11;
         }
     )PROGRAM";
 
@@ -464,7 +463,7 @@ s16 main(s16 arg_count, char **args) {
     Symbol_table *global_scope = new_symbol_table(&allocator);
 
     Parser *parser = new_parser(&allocator, type_table, global_scope);
-    Lexer lexer = create_lexer(program_type_checking_scope, parser, &allocator);
+    Lexer lexer = create_lexer(program_error_undeclared_identifier, parser, &allocator);
 
 
     get_next_token(&lexer);
