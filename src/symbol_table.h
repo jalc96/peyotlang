@@ -2,15 +2,17 @@ struct Symbol {
     str name;
     // NOTE(Juan Antonio) 2022-11-05: maybe use a pointer to the type_spec?? that can make the out of order a bit more annoying to deal with though, storing the name allow to wait until the out of order is finished to check whether the type is declared or not and the type check is already made, so this seems more convenient.
     str type_name;
+    Src_position src_p;
     // Scope
     Symbol *next;
 };
 
-internal Symbol *new_symbol(Memory_pool *allocator, str name, str type_name) {
+internal Symbol *new_symbol(Memory_pool *allocator, str name, str type_name, Src_position src_p) {
     Symbol *result = push_struct(allocator, Symbol);
 
     result->name = name;
     result->type_name = type_name;
+    result->src_p = src_p;
 
     return result;
 }
@@ -58,8 +60,8 @@ internal u32 get_symbol_index(str name) {
     return result;
 }
 
-internal void put(Symbol_table *table, str name, str type_name) {
-    Symbol *symbol = new_symbol(table->allocator, name, type_name);
+internal void put(Symbol_table *table, str name, str type_name, Src_position src_p) {
+    Symbol *symbol = new_symbol(table->allocator, name, type_name, src_p);
 
     u32 i = get_symbol_index(symbol->name);
 
@@ -68,12 +70,19 @@ internal void put(Symbol_table *table, str name, str type_name) {
 }
 
 internal Symbol *get(Symbol_table *table, str name) {
+    Symbol *result = 0;
     u32 i = get_symbol_index(name);
 
-    Symbol *result = table->symbols[i];
+    lfor (table) {
+        result = it->symbols[i];
 
-    while (result && !equals(result->name, name)) {
-        result = result->next;
+        while (result && !equals(result->name, name)) {
+            result = result->next;
+        }
+
+        if (result) {
+            break;
+        }
     }
 
     return result;

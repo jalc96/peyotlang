@@ -283,23 +283,64 @@ internal void report_undeclared_identifier(Lexer *lexer, str name, Src_position 
     log_error(eb, "%.*s\n", STR_PRINT(post));
 }
 
+internal void report_variable_redefinition(Lexer *lexer, Ast_declaration *ast, Src_position previous_definition_p) {
+    lexer->parser->type_errors = true;
+    Str_buffer *eb = &lexer->parser->error_buffer;
+
+    u32 pl0 = find_first_from_position(lexer->source, previous_definition_p.c0, '\n', true) + skip_new_line;
+    u32 plf = find_first_from_position(lexer->source, previous_definition_p.cf, '\n', false);
+
+    str previous_definition_line = slice(lexer->source, pl0, plf);
+
+    u32 rl0 = find_first_from_position(lexer->source, ast->src_p.c0, '\n', true) + skip_new_line;
+    u32 rlf = find_first_from_position(lexer->source, ast->src_p.cf, '\n', false);
+
+    str redefinition_line = slice(lexer->source, rl0, rlf);
+
+    Split_at a = split_at(previous_definition_line, previous_definition_p.c0 - pl0);
+    Split_at b = split_at(a.p2, length(previous_definition_p));
+
+    str pd_prev = a.p1;
+    str pd_name = b.p1;
+    str pd_post = b.p2;
+
+    a = split_at(redefinition_line, ast->src_p.c0 - rl0);
+    b = split_at(a.p2, length(ast->src_p));
+
+    str rd_prev = a.p1;
+    str rd_name = b.p1;
+    str rd_post = b.p2;
+
+    log_error(eb, STATIC_RED("TYPE ERROR"), 0);
+    log_error(eb, ": variable redefinition, ");
+    log_error(eb, STATIC_RED("%.*s\n"), STR_PRINT(ast->name));
+
+    log_error(eb, "    %d:%.*s", ast->src_p.line, STR_PRINT(rd_prev));
+    log_error(eb, STATIC_RED("%.*s"), STR_PRINT(rd_name));
+    log_error(eb, "%.*s\n", STR_PRINT(rd_post));
+
+
+    log_error(eb, "Was already defined in line %d\n", previous_definition_p.line);
+
+    log_error(eb, "    %d:%.*s", previous_definition_p.line, STR_PRINT(pd_prev));
+    log_error(eb, STATIC_CYAN("%.*s"), STR_PRINT(pd_name));
+    log_error(eb, "%.*s\n", STR_PRINT(pd_post));
+}
+
 internal void type_check(Lexer *lexer, Ast_declaration *ast);
 internal void type_check(Lexer *lexer, Ast_statement *ast);
 internal void type_check(Lexer *lexer, Ast_expression *ast);
 internal void type_check(Lexer *lexer, Ast_if *ast);
 internal void type_check(Lexer *lexer, Ast_loop *ast);
-internal void type_check(Lexer *lexer, Ast_block *ast);
+internal void type_check(Lexer *lexer, Ast_block *ast, bool create_scope);
 
 internal Type_spec *get_type(Symbol_table *symbol_table, Type_spec_table *type_table, str name) {
     Type_spec *result = {};
 
-    lfor (symbol_table) {
-        Symbol *s = get(it, name);
+    Symbol *s = get(symbol_table, name);
 
-        if (s) {
-            result = get(type_table, s->type_name);
-            break;
-        }
+    if (s) {
+        result = get(type_table, s->type_name);
     }
 
     return result;
@@ -312,8 +353,9 @@ internal Type_spec *get_type(Lexer *lexer, str name) {
 
 internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast) {
     Type_spec *result = 0;
-    Symbol_table *current_scope = lexer->parser->current_scope;
-    Type_spec_table *type_table = lexer->parser->type_table;
+    Parser *parser = lexer->parser;
+    Symbol_table *current_scope = parser->current_scope;
+    Type_spec_table *type_table = parser->type_table;
 
     if (is_leaf(ast->type)) {
         switch (ast->type) {
@@ -325,6 +367,7 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast) {
                 result = get_type(current_scope, type_table, ast->name);
 
                 if (!result) {
+                    // NOTE(Juan Antonio) 2022-11-08: this has an inplicit call to the symbol table, so if 0 is return then the symbol doesnt exists
                     report_undeclared_identifier(lexer, ast->name, ast->src_p);
                 }
             } break;
@@ -335,7 +378,7 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast) {
         Type_spec *l = get_type(lexer, ast->binary.left);
         Type_spec *r = get_type(lexer, ast->binary.right);
 
-        if (type_errors(lexer->parser)) {return 0;}
+        if (type_errors(parser)) {return 0;}
 
         if (is_arithmetic(ast->type) || is_relational(ast->type)) {
             // TODO: in the future check here if there is an operator that accepts these 2 types
@@ -367,16 +410,26 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast) {
 }
 
 internal void type_check(Lexer *lexer, Ast_declaration *ast) {
+    Parser *parser = lexer->parser;
+
     switch (ast->type) {
         case AST_DECLARATION_VARIABLE: {
-            // TODO: check if already declared
-            put(lexer->parser->current_scope, ast->name, ast->variable.variable_type->name);
+            Symbol *s = get(parser->current_scope, ast->name);
+
+            if (s) {
+                // TODO: do something here for variable shadowing maybe in the get function above have a flag bool only_in_current_scope and allow to redeclare variables in deeper scopes just check for redefinitions in the same scope level
+                report_variable_redefinition(lexer, ast, s->src_p);
+            }
+
+            if (type_errors(parser)) {return;}
+
+            put(parser->current_scope, ast->name, ast->variable.variable_type->name, ast->src_p);
 
             if (ast->variable.expression) {
                 Type_spec *variable = get_type(lexer, ast->name);
                 Type_spec *value = get_type(lexer, ast->variable.expression);
 
-                if (type_errors(lexer->parser)) {return;}
+                if (type_errors(parser)) {return;}
 
                 if (!equals(variable, value)) {
                     report_declaration_missmatch_type_error(lexer, ast, variable, value);
@@ -384,19 +437,19 @@ internal void type_check(Lexer *lexer, Ast_declaration *ast) {
             }
         } break;
         case AST_DECLARATION_FUNCTION: {
-            // TODO: put the functions in the global symbol table
-            // NOTE(Juan Antonio) 2022-11-08: in the case of a function we add 1 extra scope because blocks always create a new scope
-            Parser *parser = lexer->parser;
+            put(parser->current_scope, ast->name, ast->function.return_type->name, ast->src_p);
+
             Memory_pool mp = {};
             Symbol_table *new_scope = new_symbol_table(&mp);
             new_scope->next = parser->current_scope;
             parser->current_scope = new_scope;
 
             sfor_count (ast->function.params, ast->function.param_count) {
-                put(parser->current_scope, it->name, it->type->name);
+                put(parser->current_scope, it->name, it->type->name, it->src_p);
             }
 
-            type_check(lexer, ast->function.block);
+            // NOTE(Juan Antonio) 2022-11-09: false in chreate_scopre because in the case of a function the parameters in the header are in the same scope level as the first level scope inside the function body
+            type_check(lexer, ast->function.block, false);
             parser->current_scope = parser->current_scope->next;
             clear(&mp);
         } break;
@@ -410,7 +463,7 @@ internal void type_check(Lexer *lexer, Ast_declaration *ast) {
 internal void type_check(Lexer *lexer, Ast_statement *ast) {
     switch (ast->type) {
         case AST_STATEMENT_BLOCK: {
-            type_check(lexer, ast->block_statement);
+            type_check(lexer, ast->block_statement, true);
         } break;
         case AST_STATEMENT_IF: {
             type_check(lexer, ast->if_statement);
@@ -475,11 +528,11 @@ internal void type_check(Lexer *lexer, Ast_if *ast) {
 
     while (ifs) {
         type_check(lexer, &ifs->condition);
-        type_check(lexer, &ifs->block);
+        type_check(lexer, &ifs->block, true);
     }
 
     if (ast->else_block) {
-        type_check(lexer, ast->else_block);
+        type_check(lexer, ast->else_block, true);
     }
 }
 
@@ -494,14 +547,18 @@ internal void type_check(Lexer *lexer, Ast_loop *ast) {
         type_check(lexer, ast->post);
     }
 
-    type_check(lexer, ast->block);
+    type_check(lexer, ast->block, true);
 }
 
-internal void type_check(Lexer *lexer, Ast_block *ast) {
+internal void type_check(Lexer *lexer, Ast_block *ast, bool create_scope) {
+    // NOTE(Juan Antonio) 2022-11-09: the create_scope parameter is actually for the function parameters to have them in the same scope as the variables in the function block to not allow to shadow the parameters in the first level of the function scope
     Memory_pool mp = {};
-    Symbol_table *new_scope = new_symbol_table(&mp);
-    new_scope->next = lexer->parser->current_scope;
-    lexer->parser->current_scope = new_scope;
+
+    if (create_scope) {
+        Symbol_table *new_scope = new_symbol_table(&mp);
+        new_scope->next = lexer->parser->current_scope;
+        lexer->parser->current_scope = new_scope;
+    }
 
     while (ast) {
         sfor_count (ast->statements, ast->statement_count) {

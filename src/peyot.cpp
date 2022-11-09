@@ -39,7 +39,7 @@
             A other;
         }
     -link the break/continue/return statements to the closest previous loop/function (with a current_loop/current_function members in the parser maybe??)
-
+    -illegal breaks/continue if no loop found
 */
 
 #define STB_SPRINTF_IMPLEMENTATION
@@ -450,7 +450,13 @@ s16 main(s16 arg_count, char **args) {
             y :u32;
         }
         main :: (a: u32) -> u32 {
-            a :u32 = vector + 11;
+            a = vector + 11;
+        }
+    )PROGRAM";
+
+    char *program_error_variable_redefinition = R"PROGRAM(
+        main :: (a: u32) -> u32 {
+            a :u32 = 11;
         }
     )PROGRAM";
 
@@ -463,7 +469,7 @@ s16 main(s16 arg_count, char **args) {
     Symbol_table *global_scope = new_symbol_table(&allocator);
 
     Parser *parser = new_parser(&allocator, type_table, global_scope);
-    Lexer lexer = create_lexer(program_error_undeclared_identifier, parser, &allocator);
+    Lexer lexer = create_lexer(program_error_variable_redefinition, parser, &allocator);
 
 
     get_next_token(&lexer);
