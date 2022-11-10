@@ -1,9 +1,28 @@
 enum PEYOT_TOKEN_TYPE {
     TOKEN_NULL,
 
-    // TODO: maybe delete TOKEN_U32 and make all the types behave the same way??
+    TOKEN_CHAR,
+    TOKEN_LITERAL_CHAR,
+
+    TOKEN_U8,
+    TOKEN_U16,
     TOKEN_U32,
-    TOKEN_LITERAL_U32,
+    TOKEN_U64,
+
+    TOKEN_S8,
+    TOKEN_S16,
+    TOKEN_S32,
+    TOKEN_S64,
+    TOKEN_LITERAL_INTEGER,
+
+    TOKEN_F32,
+    TOKEN_F64,
+    TOKEN_LITERAL_FLOAT,
+
+    TOKEN_BOOL,
+    TOKEN_LITERAL_BOOL_TRUE,
+    TOKEN_LITERAL_BOOL_FALSE,
+
     TOKEN_NAME,
 
     TOKEN_IF,
@@ -46,10 +65,10 @@ enum PEYOT_TOKEN_TYPE {
     TOKEN_LOGICAL_AND,
     TOKEN_LOGICAL_OR,
 
-    TOKEN_OPEN_BRACE = '{',
-    TOKEN_CLOSE_BRACE = '}',
-    TOKEN_OPEN_PARENTHESIS = '(',
-    TOKEN_CLOSE_PARENTHESIS = ')',
+    TOKEN_OPEN_BRACE,
+    TOKEN_CLOSE_BRACE,
+    TOKEN_OPEN_PARENTHESIS,
+    TOKEN_CLOSE_PARENTHESIS,
 
     TOKEN_RETURN_ARROW,
 
@@ -76,11 +95,29 @@ internal char *to_string(PEYOT_TOKEN_TYPE type) {
     switch (type){
         case TOKEN_NULL: {return "TOKEN_NULL";} break;
 
+        case TOKEN_CHAR: {return "TOKEN_CHAR";} break;
+        case TOKEN_LITERAL_CHAR: {return "TOKEN_LITERAL_CHAR";} break;
+
+        case TOKEN_U8: {return "TOKEN_U8";} break;
+        case TOKEN_U16: {return "TOKEN_U16";} break;
         case TOKEN_U32: {return "TOKEN_U32";} break;
+        case TOKEN_U64: {return "TOKEN_U64";} break;
+
+        case TOKEN_S8: {return "TOKEN_S8";} break;
+        case TOKEN_S16: {return "TOKEN_S16";} break;
+        case TOKEN_S32: {return "TOKEN_S32";} break;
+        case TOKEN_S64: {return "TOKEN_S64";} break;
+        case TOKEN_LITERAL_INTEGER: {return "TOKEN_LITERAL_INTEGER";} break;
+
+        case TOKEN_F32: {return "TOKEN_F32";} break;
+        case TOKEN_F64: {return "TOKEN_F64";} break;
+        case TOKEN_LITERAL_FLOAT: {return "TOKEN_LITERAL_FLOAT";} break;
+
+        case TOKEN_BOOL: {return "TOKEN_BOOL";} break;
+        case TOKEN_LITERAL_BOOL_TRUE: {return "TOKEN_LITERAL_BOOL_TRUE";} break;
+        case TOKEN_LITERAL_BOOL_FALSE: {return "TOKEN_LITERAL_BOOL_FALSE";} break;
 
         case TOKEN_NAME: {return "TOKEN_NAME";} break;
-
-        case TOKEN_LITERAL_U32: {return "TOKEN_LITERAL_U32";} break;
 
         case TOKEN_COLON: {return "TOKEN_COLON";} break;
         case TOKEN_DECLARATION: {return "TOKEN_DECLARATION";} break;
@@ -190,7 +227,22 @@ internal char *to_symbol(PEYOT_TOKEN_TYPE type, Token *token = 0) {
     switch (type){
         case TOKEN_NULL: {return "null";} break;
 
+        case TOKEN_CHAR: {return "char";} break;
+
+        case TOKEN_U8: {return "u8";} break;
+        case TOKEN_U16: {return "u16";} break;
         case TOKEN_U32: {return "u32";} break;
+        case TOKEN_U64: {return "u64";} break;
+
+        case TOKEN_S8: {return "s8";} break;
+        case TOKEN_S16: {return "s16";} break;
+        case TOKEN_S32: {return "s32";} break;
+        case TOKEN_S64: {return "s64";} break;
+
+        case TOKEN_F32: {return "f32";} break;
+        case TOKEN_F64: {return "f64";} break;
+
+        case TOKEN_BOOL: {return "bool";} break;
 
         case TOKEN_COLON: {return ":";} break;
         case TOKEN_DECLARATION: {return "::";} break;
@@ -250,7 +302,7 @@ internal char *to_symbol(PEYOT_TOKEN_TYPE type, Token *token = 0) {
             return name;
         } break;
 
-        case TOKEN_LITERAL_U32: {
+        case TOKEN_LITERAL_INTEGER: {
             char name[512];
             name[511] = 0;
             stbsp_snprintf(name, 512, "%llu", token->u64_value);

@@ -15,6 +15,7 @@ internal str get_name(Lexer *lexer) {
 
 internal void get_numeric_token(Lexer *lexer, Token *result) {
     u64 number = 0;
+    u64 decimal = 0;
     char c = get_char(lexer);
 
     while (is_numeric(c)) {
@@ -24,8 +25,29 @@ internal void get_numeric_token(Lexer *lexer, Token *result) {
         c = get_char(lexer);
     }
 
-    result->type = TOKEN_LITERAL_U32;
-    result->u64_value = number;
+    if (c == '.') {
+        result->type = TOKEN_LITERAL_FLOAT;
+        advance(lexer);
+        c = get_char(lexer);
+    } else {
+        result->type = TOKEN_LITERAL_INTEGER;
+    }
+
+    while (is_numeric(c)) {
+        decimal *= 10;
+        decimal += to_int(c);
+        advance(lexer);
+        c = get_char(lexer);
+    }
+
+    if (result->type == TOKEN_LITERAL_FLOAT) {
+        char scratch[64];
+        stbsp_snprintf(scratch, 64, "%d.%d", number, decimal);
+        f64 float_value = atof(scratch);
+        result->f64_value = float_value;
+    } else {
+        result->u64_value = number;
+    }
 }
 
 struct Keyword_match {
@@ -175,14 +197,14 @@ internal Token get_next_token(Lexer *lexer) {
         result.name = get_name(lexer);
 
         /* C keywords
-            [_] double
-            [_] int
-            [_] long
-            [_] char
-            [_] short
-            [_] float
-            [_] unsigned
-            [_] signed
+            [X] double
+            [X] int
+            [X] long
+            [X] char
+            [X] short
+            [X] float
+            [X] unsigned
+            [X] signed
             [_] void
 
             [_] auto
@@ -215,7 +237,23 @@ internal Token get_next_token(Lexer *lexer) {
             [_] sizeof
         */
         Keyword_match keywords[] = {
+            {STATIC_STR("char"), TOKEN_CHAR},
+
+            {STATIC_STR("u8"), TOKEN_U8},
+            {STATIC_STR("u16"), TOKEN_U16},
             {STATIC_STR("u32"), TOKEN_U32},
+            {STATIC_STR("u64"), TOKEN_U64},
+
+            {STATIC_STR("s8"), TOKEN_S8},
+            {STATIC_STR("s16"), TOKEN_S16},
+            {STATIC_STR("s32"), TOKEN_S32},
+            {STATIC_STR("s64"), TOKEN_S64},
+
+            {STATIC_STR("f32"), TOKEN_F32},
+            {STATIC_STR("f64"), TOKEN_F64},
+
+            {STATIC_STR("bool"), TOKEN_BOOL},
+
             {STATIC_STR("if"), TOKEN_IF},
             {STATIC_STR("else"), TOKEN_ELSE},
             {STATIC_STR("for"), TOKEN_FOR},

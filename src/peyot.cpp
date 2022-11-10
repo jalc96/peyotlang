@@ -460,6 +460,14 @@ s16 main(s16 arg_count, char **args) {
         }
     )PROGRAM";
 
+    char *program_new_native_types = R"PROGRAM(
+        main :: (in: u32) -> u32 {
+            a :u32 = 1;
+            c :f32 = 1.3425;
+            b :s32 = -1;
+        }
+    )PROGRAM";
+
 
     Memory_pool allocator = {};
 
@@ -469,7 +477,7 @@ s16 main(s16 arg_count, char **args) {
     Symbol_table *global_scope = new_symbol_table(&allocator);
 
     Parser *parser = new_parser(&allocator, type_table, global_scope);
-    Lexer lexer = create_lexer(program_error_variable_redefinition, parser, &allocator);
+    Lexer lexer = create_lexer(program_new_native_types, parser, &allocator);
 
 
     get_next_token(&lexer);

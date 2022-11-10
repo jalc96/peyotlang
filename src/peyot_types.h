@@ -135,7 +135,18 @@ internal Type_spec *get(Type_spec_table *table, str name) {
 
 internal bool is_type(Type_spec_table *table, Token token) {
     switch (token.type) {
-        case TOKEN_U32: {
+        case TOKEN_CHAR:
+        case TOKEN_U8:
+        case TOKEN_U16:
+        case TOKEN_U32:
+        case TOKEN_U64:
+        case TOKEN_S8:
+        case TOKEN_S16:
+        case TOKEN_S32:
+        case TOKEN_S64:
+        case TOKEN_F32:
+        case TOKEN_F64:
+        case TOKEN_BOOL: {
             return true;
         }
 
@@ -155,7 +166,23 @@ internal bool is_type(Type_spec_table *table, Token token) {
 internal void initialize_native_types(Type_spec_table *type_table) {
     str native_types[] = {
         STATIC_STR("none"),
+
+        STATIC_STR("char"),
+
+        STATIC_STR("u8"),
+        STATIC_STR("u16"),
         STATIC_STR("u32"),
+        STATIC_STR("u64"),
+
+        STATIC_STR("s8"),
+        STATIC_STR("s16"),
+        STATIC_STR("s32"),
+        STATIC_STR("s64"),
+
+        STATIC_STR("f32"),
+        STATIC_STR("f64"),
+
+        STATIC_STR("bool"),
     };
 
     sfor (native_types) {

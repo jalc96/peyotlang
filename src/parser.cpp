@@ -117,7 +117,6 @@ struct Call_parameter_list_creator {
     u32 parameter_count;
     Lexer *lexer;
     bool finished;
-    // TODO: check this positions
     Syntax_error_positions *positions;
 };
 
@@ -129,14 +128,12 @@ internal Call_parameter_list_creator iterate_parameter_list(Lexer *lexer, Syntax
     result.parameter_count = 0;
     result.lexer = lexer;
     result.positions = positions;
-    PEYOT_TOKEN_TYPE t = lexer->current_token.type;
+    Token t = lexer->current_token;
     // TODO: have a better check for this
     result.finished = (
-           (t == TOKEN_CLOSE_PARENTHESIS) 
-        || (
-               (t != TOKEN_LITERAL_U32)
-            && (t != TOKEN_NAME)
-           )
+           (t.type == TOKEN_CLOSE_PARENTHESIS) 
+        || (is_type(lexer->parser->type_table, t))
+        // TODO: maybe -expression is missing here
     );
 
     return result;
@@ -232,9 +229,15 @@ internal Ast_expression *parse_factor(Lexer *lexer, Ast_expression *result) {
             }
         } break;
 
-        case TOKEN_LITERAL_U32: {
-            leaf(result, AST_EXPRESSION_LITERAL_U32);
+        case TOKEN_LITERAL_INTEGER: {
+            leaf(result, AST_EXPRESSION_LITERAL_INTEGER);
             result->u64_value = token.u64_value;
+            get_next_token(lexer);
+        } break;
+
+        case TOKEN_LITERAL_FLOAT: {
+            leaf(result, AST_EXPRESSION_LITERAL_FLOAT);
+            result->f64_value = token.f64_value;
             get_next_token(lexer);
         } break;
 
@@ -471,29 +474,6 @@ internal Ast_expression *parse_binary_expression(Lexer *lexer, Ast_expression *r
         get_next_token(lexer);
         operator_tree->binary.right = parse_or_expression(lexer, 0);
         result = operator_tree;
-    }
-
-    return result;
-}
-
-
-internal Ast_expression *DEPRECATED_parse_basic_token(Token token, Ast_expression *result) {
-    if (!result) {
-        // result = new_ast_expression(lexer->allocator);
-    }
-
-    switch (token.type) {
-        case TOKEN_NAME: {
-            result->type = AST_EXPRESSION_NAME;
-            result->name = token.name;
-        } break;
-
-        case TOKEN_LITERAL_U32: {
-            result->type = AST_EXPRESSION_LITERAL_U32;
-            result->u64_value = token.u64_value;
-        } break;
-
-        invalid_default_case_msg("unable to parse basic token");
     }
 
     return result;
@@ -1117,7 +1097,7 @@ internal AST_STATEMENT_TYPE get_statement_type(Lexer *lexer) {
             result = AST_STATEMENT_IF;
         } break;
         case TOKEN_OPEN_PARENTHESIS:
-        case TOKEN_LITERAL_U32: {
+        case TOKEN_LITERAL_INTEGER: {
             result = AST_STATEMENT_EXPRESSION;
         } break;
         case TOKEN_NAME: {
@@ -1266,7 +1246,7 @@ internal void test_parser(Lexer *lexer) {
                 assert(token.name.count == (token.src_p.cf - token.src_p.c0), "the char offset selection in get_next_token is wrong");
             } break;
 
-            case TOKEN_LITERAL_U32: {
+            case TOKEN_LITERAL_INTEGER: {
                 printf("<%lld>", token.u64_value);
             } break;
         }

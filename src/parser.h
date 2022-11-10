@@ -59,7 +59,10 @@ internal bool type_errors(Parser *parser) {
 enum AST_EXPRESSION_TYPE {
     AST_NULL,
 
-    AST_EXPRESSION_LITERAL_U32,
+    AST_EXPRESSION_LITERAL_CHAR,
+    AST_EXPRESSION_LITERAL_INTEGER,
+    AST_EXPRESSION_LITERAL_FLOAT,
+    AST_EXPRESSION_LITERAL_BOOL,
     AST_EXPRESSION_NAME,
     AST_EXPRESSION_MEMBER,
     AST_EXPRESSION_FUNCTION_CALL,
@@ -134,6 +137,8 @@ struct Ast_expression {
     Src_position src_p;
 
     union {
+        char char_value;
+        bool bool_value;
         u64 u64_value;
         s64 s64_value;
         f64 f64_value;
@@ -164,14 +169,17 @@ internal void print(Ast_expression *ast, u32 indent=0, bool is_declaration=false
 
     switch (ast->type) {
         case AST_EXPRESSION_NAME:    {printf("%.*s", ast->name.count, ast->name.buffer);} break;
-        case AST_EXPRESSION_LITERAL_U32: {printf("%lld", ast->u64_value);} break;
+        case AST_EXPRESSION_LITERAL_CHAR: {printf("%c", ast->char_value);} break;
+        case AST_EXPRESSION_LITERAL_INTEGER: {printf("%lld", ast->u64_value);} break;
+        case AST_EXPRESSION_LITERAL_FLOAT: {printf("%f", ast->f64_value);} break;
+        case AST_EXPRESSION_LITERAL_BOOL: {printf("%s", ast->bool_value ? "true" : "false");} break;
         case AST_EXPRESSION_MEMBER: {
-            printf("%.*s", ast->name.count, ast->name.buffer);
+            printf("%.*s", STR_PRINT(ast->name));
             putchar('.');
-            printf("%.*s", ast->binary.right->name.count, ast->binary.right->name.buffer);
+            printf("%.*s", STR_PRINT(ast->binary.right->name));
         } break;
         case AST_EXPRESSION_FUNCTION_CALL: {
-            printf("%.*s(", ast->name.count, ast->name.buffer);
+            printf("%.*s(", STR_PRINT(ast->name));
 
             lfor (ast->function_call.parameter) {
                 print(it->parameter, 0, false, false);
@@ -251,7 +259,8 @@ internal bool is_unary(AST_EXPRESSION_TYPE type) {
 
 internal bool is_leaf(AST_EXPRESSION_TYPE type) {
     switch (type) {
-        case AST_EXPRESSION_LITERAL_U32:
+        case AST_EXPRESSION_LITERAL_INTEGER:
+        case AST_EXPRESSION_LITERAL_FLOAT:
         case AST_EXPRESSION_NAME:
         case AST_EXPRESSION_FUNCTION_CALL: {
             return true;

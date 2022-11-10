@@ -351,7 +351,41 @@ internal Type_spec *get_type(Lexer *lexer, str name) {
     return result;
 }
 
+internal bool is_unsigned(Type_spec *type) {
+    str unsigned_types[] = {
+        STATIC_STR("u8"),
+        STATIC_STR("u16"),
+        STATIC_STR("u32"),
+        STATIC_STR("u64"),
+    };
+
+    sfor (unsigned_types) {
+        if (equals(*it, type->name)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+internal Type_spec *to_signed(Type_spec_table *type_table, Type_spec *unsigned_type) {
+    Type_spec *result;
+
+    if (equals(STATIC_STR("u8"), unsigned_type->name)) {
+        result = get(type_table, STATIC_STR("s8"));
+    } else if (equals(STATIC_STR("u16"), unsigned_type->name)) {
+        result = get(type_table, STATIC_STR("s16"));
+    } else if (equals(STATIC_STR("u32"), unsigned_type->name)) {
+        result = get(type_table, STATIC_STR("s32"));
+    } else if (equals(STATIC_STR("u64"), unsigned_type->name)) {
+        result = get(type_table, STATIC_STR("s64"));
+    }
+
+    return result;
+}
+
 internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast) {
+    // TODO: have a table of inplicit casts and check here for those like asigning a u8 to an u32 variable or something like that
     Type_spec *result = 0;
     Parser *parser = lexer->parser;
     Symbol_table *current_scope = parser->current_scope;
@@ -359,9 +393,11 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast) {
 
     if (is_leaf(ast->type)) {
         switch (ast->type) {
-            case AST_EXPRESSION_LITERAL_U32: {
+            case AST_EXPRESSION_LITERAL_INTEGER: {
                 result = get(type_table, STATIC_STR("u32"));
-
+            } break;
+            case AST_EXPRESSION_LITERAL_FLOAT: {
+                result = get(type_table, STATIC_STR("f32"));
             } break;
             case AST_EXPRESSION_NAME: {
                 result = get_type(current_scope, type_table, ast->name);
@@ -401,9 +437,16 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast) {
         }
     } else if (is_unary(ast->type)) {
         Type_spec *r = get_type(lexer, ast->binary.right);
-        // TODO: all of the above
-        result = r;
 
+        if (type_errors(parser)) {return 0;}
+
+        if (ast->type == AST_EXPRESSION_UNARY_SUB) {
+            if (is_unsigned(r)) {
+                r = to_signed(lexer->parser->type_table, r);
+            }
+        }
+
+        result = r;
     }
 
     return result;
@@ -487,40 +530,6 @@ internal void type_check(Lexer *lexer, Ast_statement *ast) {
 
 internal void type_check(Lexer *lexer, Ast_expression *ast) {
     get_type(lexer, ast);
-    return;
-
-    // TODO: is all of this useless?
-    switch (ast->type) {
-        case AST_EXPRESSION_LITERAL_U32: {} break;
-        case AST_EXPRESSION_NAME: {} break;
-        case AST_EXPRESSION_MEMBER: {} break;
-        case AST_EXPRESSION_FUNCTION_CALL: {} break;
-        case AST_EXPRESSION_UNARY_SUB: {} break;
-        case AST_EXPRESSION_BINARY_ADD: {
-            Type_spec *l = get_type(lexer, ast->binary.left);
-            Type_spec *r = get_type(lexer, ast->binary.right);
-        } break;
-        case AST_EXPRESSION_BINARY_SUB: {} break;
-        case AST_EXPRESSION_BINARY_MUL: {} break;
-        case AST_EXPRESSION_BINARY_DIV: {} break;
-        case AST_EXPRESSION_BINARY_MOD: {} break;
-        case AST_EXPRESSION_BINARY_EQUALS: {} break;
-        case AST_EXPRESSION_BINARY_NOT_EQUALS: {} break;
-        case AST_EXPRESSION_BINARY_GREATER_THAN: {} break;
-        case AST_EXPRESSION_BINARY_GREATER_THAN_OR_EQUALS: {} break;
-        case AST_EXPRESSION_BINARY_LESS_THAN: {} break;
-        case AST_EXPRESSION_BINARY_LESS_THAN_OR_EQUALS: {} break;
-        case AST_EXPRESSION_UNARY_LOGICAL_NOT: {} break;
-        case AST_EXPRESSION_BINARY_LOGICAL_OR: {} break;
-        case AST_EXPRESSION_BINARY_LOGICAL_AND: {} break;
-        case AST_EXPRESSION_UNARY_BITWISE_NOT: {} break;
-        case AST_EXPRESSION_BINARY_BITWISE_OR: {} break;
-        case AST_EXPRESSION_BINARY_BITWISE_AND: {} break;
-        case AST_EXPRESSION_BINARY_ASSIGNMENT: {
-            Type_spec *l = get_type(lexer, ast->binary.left);
-            Type_spec *r = get_type(lexer, ast->binary.right);
-        } break;
-    }
 }
 
 internal void type_check(Lexer *lexer, Ast_if *ast) {
