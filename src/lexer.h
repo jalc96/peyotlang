@@ -4,6 +4,9 @@ enum PEYOT_TOKEN_TYPE {
     TOKEN_CHAR,
     TOKEN_LITERAL_CHAR,
 
+    TOKEN_STR,
+    TOKEN_LITERAL_STR,
+
     TOKEN_U8,
     TOKEN_U16,
     TOKEN_U32,
@@ -91,94 +94,89 @@ internal bool is_mul_operator(PEYOT_TOKEN_TYPE type) {
     return ((type == TOKEN_MUL) || (type == TOKEN_DIV) || (type == TOKEN_MOD));
 }
 
-internal char *to_string(PEYOT_TOKEN_TYPE type) {
+internal str to_string(PEYOT_TOKEN_TYPE type) {
+    str result = STATIC_STR("ERROR");
+
     switch (type){
-        case TOKEN_NULL: {return "TOKEN_NULL";} break;
+        case TOKEN_NULL: { result = STATIC_STR("TOKEN_NULL");} break;
 
-        case TOKEN_CHAR: {return "TOKEN_CHAR";} break;
-        case TOKEN_LITERAL_CHAR: {return "TOKEN_LITERAL_CHAR";} break;
+        case TOKEN_CHAR: { result = STATIC_STR("TOKEN_CHAR");} break;
+        case TOKEN_LITERAL_CHAR: { result = STATIC_STR("TOKEN_LITERAL_CHAR");} break;
 
-        case TOKEN_U8: {return "TOKEN_U8";} break;
-        case TOKEN_U16: {return "TOKEN_U16";} break;
-        case TOKEN_U32: {return "TOKEN_U32";} break;
-        case TOKEN_U64: {return "TOKEN_U64";} break;
+        case TOKEN_STR: { result = STATIC_STR("TOKEN_STR");} break;
+        case TOKEN_LITERAL_STR: { result = STATIC_STR("TOKEN_LITERAL_STR");} break;
 
-        case TOKEN_S8: {return "TOKEN_S8";} break;
-        case TOKEN_S16: {return "TOKEN_S16";} break;
-        case TOKEN_S32: {return "TOKEN_S32";} break;
-        case TOKEN_S64: {return "TOKEN_S64";} break;
-        case TOKEN_LITERAL_INTEGER: {return "TOKEN_LITERAL_INTEGER";} break;
+        case TOKEN_U8: { result = STATIC_STR("TOKEN_U8");} break;
+        case TOKEN_U16: { result = STATIC_STR("TOKEN_U16");} break;
+        case TOKEN_U32: { result = STATIC_STR("TOKEN_U32");} break;
+        case TOKEN_U64: { result = STATIC_STR("TOKEN_U64");} break;
 
-        case TOKEN_F32: {return "TOKEN_F32";} break;
-        case TOKEN_F64: {return "TOKEN_F64";} break;
-        case TOKEN_LITERAL_FLOAT: {return "TOKEN_LITERAL_FLOAT";} break;
+        case TOKEN_S8: { result = STATIC_STR("TOKEN_S8");} break;
+        case TOKEN_S16: { result = STATIC_STR("TOKEN_S16");} break;
+        case TOKEN_S32: { result = STATIC_STR("TOKEN_S32");} break;
+        case TOKEN_S64: { result = STATIC_STR("TOKEN_S64");} break;
+        case TOKEN_LITERAL_INTEGER: { result = STATIC_STR("TOKEN_LITERAL_INTEGER");} break;
 
-        case TOKEN_BOOL: {return "TOKEN_BOOL";} break;
-        case TOKEN_LITERAL_BOOL_TRUE: {return "TOKEN_LITERAL_BOOL_TRUE";} break;
-        case TOKEN_LITERAL_BOOL_FALSE: {return "TOKEN_LITERAL_BOOL_FALSE";} break;
+        case TOKEN_F32: { result = STATIC_STR("TOKEN_F32");} break;
+        case TOKEN_F64: { result = STATIC_STR("TOKEN_F64");} break;
+        case TOKEN_LITERAL_FLOAT: { result = STATIC_STR("TOKEN_LITERAL_FLOAT");} break;
 
-        case TOKEN_NAME: {return "TOKEN_NAME";} break;
+        case TOKEN_BOOL: { result = STATIC_STR("TOKEN_BOOL");} break;
+        case TOKEN_LITERAL_BOOL_TRUE: { result = STATIC_STR("TOKEN_LITERAL_BOOL_TRUE");} break;
+        case TOKEN_LITERAL_BOOL_FALSE: { result = STATIC_STR("TOKEN_LITERAL_BOOL_FALSE");} break;
 
-        case TOKEN_COLON: {return "TOKEN_COLON";} break;
-        case TOKEN_DECLARATION: {return "TOKEN_DECLARATION";} break;
-        case TOKEN_SEMICOLON: {return "TOKEN_SEMICOLON";} break;
-        case TOKEN_COMMA: {return "TOKEN_COMMA";} break;
-        case TOKEN_DOT: {return "TOKEN_DOT";} break;
+        case TOKEN_NAME: { result = STATIC_STR("TOKEN_NAME");} break;
+        case TOKEN_COLON: { result = STATIC_STR("TOKEN_COLON");} break;
+        case TOKEN_DECLARATION: { result = STATIC_STR("TOKEN_DECLARATION");} break;
+        case TOKEN_SEMICOLON: { result = STATIC_STR("TOKEN_SEMICOLON");} break;
+        case TOKEN_COMMA: { result = STATIC_STR("TOKEN_COMMA");} break;
+        case TOKEN_DOT: { result = STATIC_STR("TOKEN_DOT");} break;
+        case TOKEN_EOL: { result = STATIC_STR("TOKEN_EOL");} break;
+        case TOKEN_EOF: { result = STATIC_STR("TOKEN_EOF");} break;
 
-        case TOKEN_EOL: {return "TOKEN_EOL";} break;
-        case TOKEN_EOF: {return "TOKEN_EOF";} break;
+        case TOKEN_ASSIGNMENT: { result = STATIC_STR("TOKEN_ASSIGNMENT");} break;
+        case TOKEN_ADD: { result = STATIC_STR("TOKEN_ADD");} break;
+        case TOKEN_SUB: { result = STATIC_STR("TOKEN_SUB");} break;
+        case TOKEN_MUL: { result = STATIC_STR("TOKEN_MUL");} break;
+        case TOKEN_DIV: { result = STATIC_STR("TOKEN_DIV");} break;
+        case TOKEN_MOD: { result = STATIC_STR("TOKEN_MOD");} break;
 
-        case TOKEN_ASSIGNMENT: {return "TOKEN_ASSIGNMENT";} break;
+        case TOKEN_BINARY_EQUALS: { result = STATIC_STR("TOKEN_BINARY_EQUALS");} break;
+        case TOKEN_NOT_EQUALS: { result = STATIC_STR("TOKEN_NOT_EQUALS");} break;
+        case TOKEN_GREATER_THAN: { result = STATIC_STR("TOKEN_GREATER_THAN");} break;
+        case TOKEN_GREATER_THAN_OR_EQUALS: { result = STATIC_STR("TOKEN_GREATER_THAN_OR_EQUALS");} break;
+        case TOKEN_LESS_THAN: { result = STATIC_STR("TOKEN_LESS_THAN");} break;
+        case TOKEN_LESS_THAN_OR_EQUALS: { result = STATIC_STR("TOKEN_LESS_THAN_OR_EQUALS");} break;
 
-        case TOKEN_ADD: {return "TOKEN_ADD";} break;
-        case TOKEN_SUB: {return "TOKEN_SUB";} break;
-        case TOKEN_MUL: {return "TOKEN_MUL";} break;
-        case TOKEN_DIV: {return "TOKEN_DIV";} break;
-        case TOKEN_MOD: {return "TOKEN_MOD";} break;
+        case TOKEN_UNARY_BITWISE_NOT: { result = STATIC_STR("TOKEN_UNARY_BITWISE_NOT");} break;
+        case TOKEN_BITWISE_AND: { result = STATIC_STR("TOKEN_BITWISE_AND");} break;
+        case TOKEN_BITWISE_OR: { result = STATIC_STR("TOKEN_BITWISE_OR");} break;
 
-        case TOKEN_BINARY_EQUALS: {return "TOKEN_BINARY_EQUALS";} break;
-        case TOKEN_NOT_EQUALS: {return "TOKEN_NOT_EQUALS";} break;
-        case TOKEN_GREATER_THAN: {return "TOKEN_GREATER_THAN";} break;
-        case TOKEN_GREATER_THAN_OR_EQUALS: {return "TOKEN_GREATER_THAN_OR_EQUALS";} break;
-        case TOKEN_LESS_THAN: {return "TOKEN_LESS_THAN";} break;
-        case TOKEN_LESS_THAN_OR_EQUALS: {return "TOKEN_LESS_THAN_OR_EQUALS";} break;
+        case TOKEN_UNARY_LOGICAL_NOT: { result = STATIC_STR("TOKEN_UNARY_LOGICAL_NOT");} break;
+        case TOKEN_LOGICAL_AND: { result = STATIC_STR("TOKEN_LOGICAL_AND");} break;
+        case TOKEN_LOGICAL_OR: { result = STATIC_STR("TOKEN_LOGICAL_OR");} break;
 
-        case TOKEN_UNARY_BITWISE_NOT: {return "TOKEN_UNARY_BITWISE_NOT";} break;
-        case TOKEN_BITWISE_AND: {return "TOKEN_BITWISE_AND";} break;
-        case TOKEN_BITWISE_OR: {return "TOKEN_BITWISE_OR";} break;
-
-        case TOKEN_UNARY_LOGICAL_NOT: {return "TOKEN_UNARY_LOGICAL_NOT";} break;
-        case TOKEN_LOGICAL_AND: {return "TOKEN_LOGICAL_AND";} break;
-        case TOKEN_LOGICAL_OR: {return "TOKEN_LOGICAL_OR";} break;
-
-        case TOKEN_RETURN_ARROW: {return "TOKEN_RETURN_ARROW";} break;
-
-        case TOKEN_IF: {return "TOKEN_IF";} break;
-        case TOKEN_ELSE: {return "TOKEN_ELSE";} break;
-        case TOKEN_FOR: {return "TOKEN_FOR";} break;
-        case TOKEN_WHILE: {return "TOKEN_WHILE";} break;
-        case TOKEN_STRUCT: {return "TOKEN_STRUCT";} break;
-        case TOKEN_UNION: {return "TOKEN_UNION";} break;
-        case TOKEN_ENUM: {return "TOKEN_ENUM";} break;
-
-        case TOKEN_OPEN_BRACE: {return "TOKEN_OPEN_BRACE";} break;
-        case TOKEN_CLOSE_BRACE: {return "TOKEN_CLOSE_BRACE";} break;
-        case TOKEN_OPEN_PARENTHESIS: {return "TOKEN_OPEN_PARENTHESIS";} break;
-        case TOKEN_CLOSE_PARENTHESIS: {return "TOKEN_CLOSE_PARENTHESIS";} break;
-
-        case TOKEN_BREAK: {return "TOKEN_BREAK";} break;
-        case TOKEN_CONTINUE: {return "TOKEN_CONTINUE";} break;
-        case TOKEN_RETURN: {return "TOKEN_RETURN";} break;
-
-
-
-
-        case TOKEN_COUNT: {return "TOKEN_COUNT";} break;
+        case TOKEN_RETURN_ARROW: { result = STATIC_STR("TOKEN_RETURN_ARROW");} break;
+        case TOKEN_IF: { result = STATIC_STR("TOKEN_IF");} break;
+        case TOKEN_ELSE: { result = STATIC_STR("TOKEN_ELSE");} break;
+        case TOKEN_FOR: { result = STATIC_STR("TOKEN_FOR");} break;
+        case TOKEN_WHILE: { result = STATIC_STR("TOKEN_WHILE");} break;
+        case TOKEN_STRUCT: { result = STATIC_STR("TOKEN_STRUCT");} break;
+        case TOKEN_UNION: { result = STATIC_STR("TOKEN_UNION");} break;
+        case TOKEN_ENUM: { result = STATIC_STR("TOKEN_ENUM");} break;
+        case TOKEN_OPEN_BRACE: { result = STATIC_STR("TOKEN_OPEN_BRACE");} break;
+        case TOKEN_CLOSE_BRACE: { result = STATIC_STR("TOKEN_CLOSE_BRACE");} break;
+        case TOKEN_OPEN_PARENTHESIS: { result = STATIC_STR("TOKEN_OPEN_PARENTHESIS");} break;
+        case TOKEN_CLOSE_PARENTHESIS: { result = STATIC_STR("TOKEN_CLOSE_PARENTHESIS");} break;
+        case TOKEN_BREAK: { result = STATIC_STR("TOKEN_BREAK");} break;
+        case TOKEN_CONTINUE: { result = STATIC_STR("TOKEN_CONTINUE");} break;
+        case TOKEN_RETURN: { result = STATIC_STR("TOKEN_RETURN");} break;
+        case TOKEN_COUNT: { result = STATIC_STR("TOKEN_COUNT");} break;
 
         invalid_default_case_msg("missing PEYOT_TOKEN_TYPE in to_string");
     }
 
-    return "ERROR";
+    return result;
 }
 
 struct Src_position {
@@ -218,103 +216,122 @@ struct Token {
         u64 u64_value;
         s64 s64_value;
         f64 f64_value;
+        char char_value;
         str str_value;
         str name;
     };
 };
 
-internal char *to_symbol(PEYOT_TOKEN_TYPE type, Token *token = 0) {
+internal str to_symbol(PEYOT_TOKEN_TYPE type, Token *token = 0) {
+    str result = STATIC_STR("ERROR");
+
     switch (type){
-        case TOKEN_NULL: {return "null";} break;
+        case TOKEN_NULL: { result = STATIC_STR("null");} break;
 
-        case TOKEN_CHAR: {return "char";} break;
+        case TOKEN_CHAR: { result = STATIC_STR("char");} break;
+        case TOKEN_STR: { result = STATIC_STR("str");} break;
 
-        case TOKEN_U8: {return "u8";} break;
-        case TOKEN_U16: {return "u16";} break;
-        case TOKEN_U32: {return "u32";} break;
-        case TOKEN_U64: {return "u64";} break;
+        case TOKEN_U8: { result = STATIC_STR("u8");} break;
+        case TOKEN_U16: { result = STATIC_STR("u16");} break;
+        case TOKEN_U32: { result = STATIC_STR("u32");} break;
+        case TOKEN_U64: { result = STATIC_STR("u64");} break;
 
-        case TOKEN_S8: {return "s8";} break;
-        case TOKEN_S16: {return "s16";} break;
-        case TOKEN_S32: {return "s32";} break;
-        case TOKEN_S64: {return "s64";} break;
+        case TOKEN_S8: { result = STATIC_STR("s8");} break;
+        case TOKEN_S16: { result = STATIC_STR("s16");} break;
+        case TOKEN_S32: { result = STATIC_STR("s32");} break;
+        case TOKEN_S64: { result = STATIC_STR("s64");} break;
 
-        case TOKEN_F32: {return "f32";} break;
-        case TOKEN_F64: {return "f64";} break;
+        case TOKEN_F32: { result = STATIC_STR("f32");} break;
+        case TOKEN_F64: { result = STATIC_STR("f64");} break;
 
-        case TOKEN_BOOL: {return "bool";} break;
+        case TOKEN_BOOL: { result = STATIC_STR("bool");} break;
 
-        case TOKEN_COLON: {return ":";} break;
-        case TOKEN_DECLARATION: {return "::";} break;
-        case TOKEN_SEMICOLON: {return ";";} break;
-        case TOKEN_COMMA: {return ",";} break;
-        case TOKEN_DOT: {return ".";} break;
+        case TOKEN_COLON: { result = STATIC_STR( ":");} break;
+        case TOKEN_DECLARATION: { result = STATIC_STR( "::");} break;
+        case TOKEN_SEMICOLON: { result = STATIC_STR( ";");} break;
+        case TOKEN_COMMA: {result = STATIC_STR(",");} break;
+        case TOKEN_DOT: { result = STATIC_STR( ".");} break;
 
-        case TOKEN_EOL: {return "EOL";} break;
-        case TOKEN_EOF: {return "EOF";} break;
+        case TOKEN_EOL: { result = STATIC_STR("EOL");} break;
+        case TOKEN_EOF: { result = STATIC_STR("EOF");} break;
 
-        case TOKEN_ASSIGNMENT: {return "=";} break;
+        case TOKEN_ASSIGNMENT: { result = STATIC_STR( "=");} break;
 
-        case TOKEN_ADD: {return "+";} break;
-        case TOKEN_SUB: {return "-";} break;
-        case TOKEN_MUL: {return "*";} break;
-        case TOKEN_DIV: {return "/";} break;
-        case TOKEN_MOD: {return "%";} break;
+        case TOKEN_ADD: { result = STATIC_STR( "+");} break;
+        case TOKEN_SUB: { result = STATIC_STR( "-");} break;
+        case TOKEN_MUL: { result = STATIC_STR( "*");} break;
+        case TOKEN_DIV: { result = STATIC_STR( "/");} break;
+        case TOKEN_MOD: { result = STATIC_STR( "%");} break;
 
-        case TOKEN_BINARY_EQUALS: {return "==";} break;
-        case TOKEN_NOT_EQUALS: {return "!=";} break;
-        case TOKEN_GREATER_THAN: {return ">";} break;
-        case TOKEN_GREATER_THAN_OR_EQUALS: {return ">=";} break;
-        case TOKEN_LESS_THAN: {return "<";} break;
-        case TOKEN_LESS_THAN_OR_EQUALS: {return "<=";} break;
+        case TOKEN_BINARY_EQUALS: { result = STATIC_STR( "==");} break;
+        case TOKEN_NOT_EQUALS: { result = STATIC_STR( "!=");} break;
 
-        case TOKEN_UNARY_BITWISE_NOT: {return "~";} break;
-        case TOKEN_BITWISE_AND: {return "&";} break;
-        case TOKEN_BITWISE_OR: {return "|";} break;
+        case TOKEN_GREATER_THAN: { result = STATIC_STR( ">");} break;
+        case TOKEN_GREATER_THAN_OR_EQUALS: { result = STATIC_STR( ">=");} break;
+        case TOKEN_LESS_THAN: { result = STATIC_STR( "<");} break;
+        case TOKEN_LESS_THAN_OR_EQUALS: { result = STATIC_STR( "<=");} break;
 
-        case TOKEN_UNARY_LOGICAL_NOT: {return "!";} break;
-        case TOKEN_LOGICAL_AND: {return "&&";} break;
-        case TOKEN_LOGICAL_OR: {return "||";} break;
+        case TOKEN_UNARY_BITWISE_NOT: { result = STATIC_STR( "~");} break;
+        case TOKEN_BITWISE_AND: { result = STATIC_STR( "&");} break;
+        case TOKEN_BITWISE_OR: { result = STATIC_STR( "|");} break;
 
-        case TOKEN_RETURN_ARROW: {return "->";} break;
+        case TOKEN_UNARY_LOGICAL_NOT: { result = STATIC_STR( "!");} break;
+        case TOKEN_LOGICAL_AND: { result = STATIC_STR( "&&");} break;
+        case TOKEN_LOGICAL_OR: { result = STATIC_STR( "||");} break;
 
-        case TOKEN_IF: {return "if";} break;
-        case TOKEN_ELSE: {return "else";} break;
-        case TOKEN_FOR: {return "for";} break;
-        case TOKEN_WHILE: {return "while";} break;
-        case TOKEN_STRUCT: {return "struct";} break;
-        case TOKEN_UNION: {return "union";} break;
-        case TOKEN_ENUM: {return "enum";} break;
-
-        case TOKEN_OPEN_BRACE: {return "{";} break;
-        case TOKEN_CLOSE_BRACE: {return "}";} break;
-        case TOKEN_OPEN_PARENTHESIS: {return "(";} break;
-        case TOKEN_CLOSE_PARENTHESIS: {return ")";} break;
-
-        case TOKEN_BREAK: {return "break";} break;
-        case TOKEN_CONTINUE: {return "continue";} break;
-        case TOKEN_RETURN: {return "return";} break;
+        case TOKEN_RETURN_ARROW: { result = STATIC_STR( "->");} break;
+        case TOKEN_IF: { result = STATIC_STR("if");} break;
+        case TOKEN_ELSE: { result = STATIC_STR("else");} break;
+        case TOKEN_FOR: { result = STATIC_STR("for");} break;
+        case TOKEN_WHILE: { result = STATIC_STR("while");} break;
+        case TOKEN_STRUCT: { result = STATIC_STR("struct");} break;
+        case TOKEN_UNION: { result = STATIC_STR("union");} break;
+        case TOKEN_ENUM: { result = STATIC_STR("enum");} break;
+        case TOKEN_OPEN_BRACE: { result = STATIC_STR("{");} break;
+        case TOKEN_CLOSE_BRACE: { result = STATIC_STR( "}");} break;
+        case TOKEN_OPEN_PARENTHESIS: { result = STATIC_STR("(");} break;
+        case TOKEN_CLOSE_PARENTHESIS: { result = STATIC_STR(")");} break;
+        case TOKEN_BREAK: { result = STATIC_STR("break");} break;
+        case TOKEN_CONTINUE: { result = STATIC_STR("continue");} break;
+        case TOKEN_RETURN: { result = STATIC_STR("return");} break;
 
         case TOKEN_NAME: {
-            char name[512];
-            name[511] = 0;
-            stbsp_snprintf(name, 512, "%.*s", token->name.count, token->name.buffer);
-            return name;
+            char scratch[512];
+            scratch[511] = 0;
+            stbsp_snprintf(scratch, 512, "%.*s", token->name.count, token->name.buffer);
+            result = STR(scratch);
         } break;
 
         case TOKEN_LITERAL_INTEGER: {
-            char name[512];
-            name[511] = 0;
-            stbsp_snprintf(name, 512, "%llu", token->u64_value);
-            return name;
+            char scratch[512];
+            scratch[511] = 0;
+            stbsp_snprintf(scratch, 512, "%llu", token->u64_value);
+            result = STR(scratch);
         } break;
 
+        case TOKEN_LITERAL_FLOAT: {
+            char scratch[512];
+            scratch[511] = 0;
+            stbsp_snprintf(scratch, 512, "%f", token->f64_value);
+            result = STR(scratch);
+        } break;
+
+        case TOKEN_LITERAL_CHAR: {
+            char scratch[512];
+            scratch[511] = 0;
+            stbsp_snprintf(scratch, 512, "%c", token->char_value);
+            result = STR(scratch);
+        } break;
+
+        case TOKEN_LITERAL_STR: {
+            result = token->str_value;
+        } break;
 
 
         invalid_default_case_msg("missing PEYOT_TOKEN_TYPE in to_symbol");
     }
 
-    return "ERROR";
+    return result;
 }
 
 struct Parser;

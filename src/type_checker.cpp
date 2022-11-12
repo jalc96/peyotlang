@@ -393,6 +393,12 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast) {
 
     if (is_leaf(ast->type)) {
         switch (ast->type) {
+            case AST_EXPRESSION_LITERAL_CHAR: {
+                result = get(type_table, STATIC_STR("char"));
+            } break;
+            case AST_EXPRESSION_LITERAL_STR: {
+                result = get(type_table, STATIC_STR("str"));
+            } break;
             case AST_EXPRESSION_LITERAL_INTEGER: {
                 result = get(type_table, STATIC_STR("u32"));
             } break;

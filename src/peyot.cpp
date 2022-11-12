@@ -40,6 +40,7 @@
         }
     -link the break/continue/return statements to the closest previous loop/function (with a current_loop/current_function members in the parser maybe??)
     -illegal breaks/continue if no loop found
+    -lexical errors
 */
 
 #define STB_SPRINTF_IMPLEMENTATION
@@ -462,9 +463,11 @@ s16 main(s16 arg_count, char **args) {
 
     char *program_new_native_types = R"PROGRAM(
         main :: (in: u32) -> u32 {
+            e :str = "a long string of characters to see if this crap holds any water";
+            d :char = 'a';
             a :u32 = 1;
-            c :f32 = 1.3425;
             b :s32 = -1;
+            c :f32 = 1.3425;
         }
     )PROGRAM";
 

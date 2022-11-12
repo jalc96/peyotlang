@@ -67,7 +67,7 @@ internal void require_token_and_report_syntax_error(Lexer *lexer, Check_function
             if (line_count == last_valid_p.line) {
                 // this has to be in line relative space, not global source space as it is now
                 if (print_wrong_token_in_red) {
-                    log_error(eb, STATIC_RED("%s\n"), to_symbol(lexer->current_token.type, &lexer->current_token));
+                    log_error(eb, STATIC_RED("%s\n"), STR_PRINT(to_symbol(lexer->current_token.type, &lexer->current_token)));
                 }
                 u32 offset_to_the_last_valid_char = last_valid_p.cf - non_used_chars + line_show_count - 1;
 
@@ -75,7 +75,7 @@ internal void require_token_and_report_syntax_error(Lexer *lexer, Check_function
                     log_error(eb, " ");
                 }
 
-                log_error(eb, "^");
+                log_error(eb, "^\n");
             }
 
             non_used_chars += line.count;
@@ -241,6 +241,18 @@ internal Ast_expression *parse_factor(Lexer *lexer, Ast_expression *result) {
             get_next_token(lexer);
         } break;
 
+        case TOKEN_LITERAL_CHAR: {
+            leaf(result, AST_EXPRESSION_LITERAL_CHAR);
+            result->char_value = token.char_value;
+            get_next_token(lexer);
+        } break;
+
+        case TOKEN_LITERAL_STR: {
+            leaf(result, AST_EXPRESSION_LITERAL_STR);
+            result->str_value = token.str_value;
+            get_next_token(lexer);
+        } break;
+
         case TOKEN_OPEN_PARENTHESIS: {
             get_next_token(lexer);
             result = parse_binary_expression(lexer, result);
@@ -259,7 +271,7 @@ internal Ast_expression *parse_factor(Lexer *lexer, Ast_expression *result) {
             error_p.last_correct = lexer->previous_token.src_p;
 
             char msg[256];
-            stbsp_snprintf(msg, 256, "unexpected token found '%s'", to_symbol(token.type));
+            stbsp_snprintf(msg, 256, "unexpected token found '%s'", to_symbol(token.type, &token));
             require_token_and_report_syntax_error(lexer, always_false, TOKEN_NULL, error_p, msg, true);
         }
 
@@ -1238,7 +1250,7 @@ internal void test_parser(Lexer *lexer) {
     Token token = lexer->current_token;
 
     while (!lexer_finished(lexer)) {
-        printf("%d[%d:%d]: %s", token.src_p.line, token.src_p.c0, token.src_p.cf, to_string(token.type));
+        printf("%d[%d:%d]: %.*s", token.src_p.line, token.src_p.c0, token.src_p.cf, STR_PRINT(to_string(token.type)));
 
         switch (token.type) {
             case TOKEN_NAME: {

@@ -238,6 +238,7 @@ internal Token get_next_token(Lexer *lexer) {
         */
         Keyword_match keywords[] = {
             {STATIC_STR("char"), TOKEN_CHAR},
+            {STATIC_STR("str"), TOKEN_STR},
 
             {STATIC_STR("u8"), TOKEN_U8},
             {STATIC_STR("u16"), TOKEN_U16},
@@ -273,6 +274,40 @@ internal Token get_next_token(Lexer *lexer) {
         }
     } else if (is_numeric(c)) {
         get_numeric_token(lexer, &result);
+    } else if (c == '\'') {
+        result.type = TOKEN_LITERAL_CHAR;
+
+        advance(lexer);
+        c = get_char(lexer);
+
+        if (c == '\'') {
+            result.char_value = 0;
+            advance(lexer);
+            c = get_char(lexer);
+        } else {
+            result.char_value = c;
+            advance(lexer);
+            c = get_char(lexer);
+
+            assert(c == '\'', "char constant longer than 1 character");
+            advance(lexer);
+        }
+    } else if (c == '"') {
+        result.type = TOKEN_LITERAL_STR;
+
+        advance(lexer);
+        c = get_char(lexer);
+        u32 c0 = lexer->index;
+
+        while (c != '"' && lexer->index < length(lexer->source)) {
+            advance(lexer);
+            c = get_char(lexer);
+        }
+
+        u32 cf = lexer->index;
+
+        result.str_value = slice(lexer->source, c0, cf);
+        advance(lexer);
     } else {
         result.type = TOKEN_NULL;
         advance(lexer);
@@ -296,7 +331,7 @@ internal void require_token(Lexer *lexer, PEYOT_TOKEN_TYPE type, const char mess
     // TODO: handle here some parsing errors
     Token t = lexer->current_token;
     char m[128];
-    sprintf(m, "error in %s, <%s> expected, <%s> found", message, to_string(type), to_string(t.type));
+    sprintf(m, "error in %s, <%.*s> expected, <%.*s> found", message, STR_PRINT(to_string(type)), STR_PRINT(to_string(t.type)));
     assert(t.type == type, m);
     get_next_token(lexer);
 }

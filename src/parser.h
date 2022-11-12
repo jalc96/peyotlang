@@ -60,6 +60,7 @@ enum AST_EXPRESSION_TYPE {
     AST_NULL,
 
     AST_EXPRESSION_LITERAL_CHAR,
+    AST_EXPRESSION_LITERAL_STR,
     AST_EXPRESSION_LITERAL_INTEGER,
     AST_EXPRESSION_LITERAL_FLOAT,
     AST_EXPRESSION_LITERAL_BOOL,
@@ -169,7 +170,8 @@ internal void print(Ast_expression *ast, u32 indent=0, bool is_declaration=false
 
     switch (ast->type) {
         case AST_EXPRESSION_NAME:    {printf("%.*s", ast->name.count, ast->name.buffer);} break;
-        case AST_EXPRESSION_LITERAL_CHAR: {printf("%c", ast->char_value);} break;
+        case AST_EXPRESSION_LITERAL_CHAR: {printf("'%c'", ast->char_value);} break;
+        case AST_EXPRESSION_LITERAL_STR: {printf("\"%.*s\"", STR_PRINT(ast->str_value));} break;
         case AST_EXPRESSION_LITERAL_INTEGER: {printf("%lld", ast->u64_value);} break;
         case AST_EXPRESSION_LITERAL_FLOAT: {printf("%f", ast->f64_value);} break;
         case AST_EXPRESSION_LITERAL_BOOL: {printf("%s", ast->bool_value ? "true" : "false");} break;
@@ -188,7 +190,7 @@ internal void print(Ast_expression *ast, u32 indent=0, bool is_declaration=false
             putchar(')');
         } break;
 
-        case AST_EXPRESSION_UNARY_SUB:  {printf("-:"); print(ast->binary.right, indent+4); } break;
+        case AST_EXPRESSION_UNARY_SUB:  {printf("-:\n"); print(ast->binary.right, indent+4); } break;
         case AST_EXPRESSION_BINARY_ADD:  {printf("+:"); print(ast->binary.left, indent+4); print(ast->binary.right, indent+4); } break;
         case AST_EXPRESSION_BINARY_SUB:  {printf("-:"); print(ast->binary.left, indent+4); print(ast->binary.right, indent+4); } break;
         case AST_EXPRESSION_BINARY_MUL:  {printf("*:"); print(ast->binary.left, indent+4); print(ast->binary.right, indent+4); } break;
@@ -259,6 +261,8 @@ internal bool is_unary(AST_EXPRESSION_TYPE type) {
 
 internal bool is_leaf(AST_EXPRESSION_TYPE type) {
     switch (type) {
+        case AST_EXPRESSION_LITERAL_CHAR:
+        case AST_EXPRESSION_LITERAL_STR:
         case AST_EXPRESSION_LITERAL_INTEGER:
         case AST_EXPRESSION_LITERAL_FLOAT:
         case AST_EXPRESSION_NAME:

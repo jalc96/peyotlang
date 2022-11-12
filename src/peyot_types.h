@@ -136,6 +136,7 @@ internal Type_spec *get(Type_spec_table *table, str name) {
 internal bool is_type(Type_spec_table *table, Token token) {
     switch (token.type) {
         case TOKEN_CHAR:
+        case TOKEN_STR:
         case TOKEN_U8:
         case TOKEN_U16:
         case TOKEN_U32:
@@ -168,6 +169,7 @@ internal void initialize_native_types(Type_spec_table *type_table) {
         STATIC_STR("none"),
 
         STATIC_STR("char"),
+        STATIC_STR("str"),
 
         STATIC_STR("u8"),
         STATIC_STR("u16"),
