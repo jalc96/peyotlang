@@ -190,7 +190,7 @@ internal void print(Ast_expression *ast, u32 indent=0, bool is_declaration=false
             putchar(')');
         } break;
 
-        case AST_EXPRESSION_UNARY_SUB:  {printf("-:\n"); print(ast->binary.right, indent+4); } break;
+        case AST_EXPRESSION_UNARY_SUB:  {printf("-:"); print(ast->binary.right, indent+4); } break;
         case AST_EXPRESSION_BINARY_ADD:  {printf("+:"); print(ast->binary.left, indent+4); print(ast->binary.right, indent+4); } break;
         case AST_EXPRESSION_BINARY_SUB:  {printf("-:"); print(ast->binary.left, indent+4); print(ast->binary.right, indent+4); } break;
         case AST_EXPRESSION_BINARY_MUL:  {printf("*:"); print(ast->binary.left, indent+4); print(ast->binary.right, indent+4); } break;
@@ -266,6 +266,7 @@ internal bool is_leaf(AST_EXPRESSION_TYPE type) {
         case AST_EXPRESSION_LITERAL_INTEGER:
         case AST_EXPRESSION_LITERAL_FLOAT:
         case AST_EXPRESSION_NAME:
+        case AST_EXPRESSION_MEMBER:
         case AST_EXPRESSION_FUNCTION_CALL: {
             return true;
         }
@@ -411,7 +412,7 @@ struct Member {
 
     union {
         struct {
-            Type_spec *type;
+            str type_name;
             str name;
         };
         Compound *sub_compound;
@@ -423,8 +424,8 @@ struct Member {
 internal void print(Member *member, u32 indent=0) {
     if (member->member_type == MEMBER_SIMPLE) {
         print_indent(indent);
-        printf("%.*s ", member->name.count, member->name.buffer);
-        print(member->type);
+        printf("%.*s ", STR_PRINT(member->name));
+        printf("%.*s ", STR_PRINT(member->type_name));
     } else {
         print(member->sub_compound, indent+4);
     }

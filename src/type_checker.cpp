@@ -413,7 +413,18 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast) {
                     report_undeclared_identifier(lexer, ast->name, ast->src_p);
                 }
             } break;
-            case AST_EXPRESSION_MEMBER: {} break;
+            case AST_EXPRESSION_MEMBER: {
+                Symbol *s = get(current_scope, ast->name);
+                Type_spec *type = get(type_table, s->type_name);
+
+                if (type) {
+                    Member_info *member_info = get(type->member_info_table, ast->binary.right->name);
+
+                    if (member_info) {
+                        result = get(type_table, member_info->type_name);
+                    }
+                }
+            } break;
             case AST_EXPRESSION_FUNCTION_CALL: {} break;
         }
     } else if (is_binary(ast->type)) {
@@ -497,7 +508,7 @@ internal void type_check(Lexer *lexer, Ast_declaration *ast) {
                 put(parser->current_scope, it->name, it->type->name, it->src_p);
             }
 
-            // NOTE(Juan Antonio) 2022-11-09: false in chreate_scopre because in the case of a function the parameters in the header are in the same scope level as the first level scope inside the function body
+            // NOTE(Juan Antonio) 2022-11-09: false in create_scope because in the case of a function the parameters in the header are in the same scope level as the first level scope inside the function body
             type_check(lexer, ast->function.block, false);
             parser->current_scope = parser->current_scope->next;
             clear(&mp);

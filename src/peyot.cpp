@@ -471,6 +471,17 @@ s16 main(s16 arg_count, char **args) {
         }
     )PROGRAM";
 
+    char *program_type_checking_member = R"PROGRAM(
+        V2f :: struct {
+            x :f32;
+            y :f32;
+        }
+        main :: (in: u32) -> u32 {
+            p :V2f;
+            p.x = p.x + in;
+        }
+    )PROGRAM";
+
 
     Memory_pool allocator = {};
 
@@ -480,7 +491,7 @@ s16 main(s16 arg_count, char **args) {
     Symbol_table *global_scope = new_symbol_table(&allocator);
 
     Parser *parser = new_parser(&allocator, type_table, global_scope);
-    Lexer lexer = create_lexer(program_new_native_types, parser, &allocator);
+    Lexer lexer = create_lexer(program_type_checking_member, parser, &allocator);
 
 
     get_next_token(&lexer);

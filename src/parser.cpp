@@ -203,6 +203,7 @@ internal Ast_expression *parse_factor(Lexer *lexer, Ast_expression *result) {
                 result->binary.right = push_struct(lexer->allocator, Ast_expression);
                 leaf(result->binary.right, AST_EXPRESSION_NAME);
                 result->binary.right->name = token.name;
+                result->binary.right->src_p = token.src_p;
             } else if (token.type == TOKEN_OPEN_PARENTHESIS) {
                 result->type = AST_EXPRESSION_FUNCTION_CALL;
 
@@ -647,11 +648,12 @@ internal Compound_parsing_result parse_compound(Lexer *lexer, Src_position compo
                 if (lexer->parser->parsing_errors) return {};
 
                 t = lexer->current_token;
-                new_member->type = get(type_table(lexer), t.name);
+                new_member->type_name = t.name;
 
-                if (!new_member->type) {
-                    push_pending_type(lexer->parser, new_member, t.name, t.src_p);
-                }
+                // DONT NEED THIS IF NOT DEFINED THEN IN THE TYPECHECK THE ERROR WILL ARISE
+                // if (!new_member->type) {
+                //     push_pending_type(lexer->parser, new_member, t.name, t.src_p);
+                // }
 
                 get_next_token(lexer); // consume the type
 
@@ -815,7 +817,15 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
 
         result->compound = cpr.compound;
         result->compound->compound_type = compound_type;
-        put(type_table(lexer), result->name, TYPE_SPEC_COMPOUND, result->src_p, result->compound->member_count, result->compound->members);
+        Type_spec *new_type = put(type_table(lexer), result->name, TYPE_SPEC_COMPOUND, result->src_p, result->compound->member_count, result->compound->members);
+
+        sfor_count (result->compound->members, result->compound->member_count) {
+            if (it->member_type == MEMBER_SIMPLE) {
+                put(new_type->member_info_table, it->name, it->type_name, lexer->allocator);
+            } else if (it->member_type == MEMBER_COMPOUND) {
+
+            }
+        }
     } else if (declaration_type == AST_DECLARATION_ENUM) {
         // Consume the enum token
         get_next_token(lexer);

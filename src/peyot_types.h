@@ -18,11 +18,52 @@ internal char *to_string(TYPE_SPEC_TYPE type) {
 
 struct Member;
 
+#define MEMBER_TABLE_COUNT 16
+
+struct Member_info {
+    str member_name;
+    str type_name;
+    Member_info *next;
+};
+
+internal u32 get_member_index(str member_name) {
+    u32 result = hash(member_name);
+    result = result & (MEMBER_TABLE_COUNT - 1);
+    return result;
+}
+
+internal void put(Member_info **table, str member_name, str type_name, Memory_pool *allocator) {
+    u32 index = get_member_index(member_name);
+
+    Member_info *new_info = push_struct(allocator, Member_info);
+    new_info->member_name = member_name;
+    new_info->type_name = type_name;
+
+    new_info->next = table[index];
+    table[index] = new_info;
+}
+
+internal Member_info *get(Member_info **table, str member_name) {
+    Member_info *result = 0;
+
+    u32 index = get_member_index(member_name);
+
+    lfor (table[index]) {
+        if (equals(member_name, it->member_name)) {
+            result = it;
+            break;
+        }
+    }
+
+    return result;
+}
+
 struct Type_spec {
     u32 id;
     TYPE_SPEC_TYPE type;
     Src_position src_p;
     str name;
+    Member_info *member_info_table[MEMBER_TABLE_COUNT];
 
     union {
         struct {
