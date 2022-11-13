@@ -582,7 +582,12 @@ internal u32 get_param_count(Lexer *lexer, Syntax_error_positions positions) {
 
 
     // while ((t.type != TOKEN_CLOSE_PARENTHESIS) && (t.type != TOKEN_EOF)) {
-    while (1) {
+    bool finished = (
+           (lexer->current_token.type == TOKEN_CLOSE_PARENTHESIS)
+        || (lexer->current_token.type == TOKEN_EOF)
+    );
+
+    while (!finished) {
         Src_position last_correct = lexer->current_token.src_p;
         require_token_and_report_syntax_error(lexer, token_check, TOKEN_NAME, positions, "name expected in a function parameter declaration", false);
         if (lexer->parser->parsing_errors) break;
@@ -598,7 +603,7 @@ internal u32 get_param_count(Lexer *lexer, Syntax_error_positions positions) {
         if (lexer->parser->parsing_errors) break;
         positions.last_correct = last_correct;
 
-        bool finished = (
+        finished = (
                (lexer->current_token.type == TOKEN_CLOSE_PARENTHESIS)
             || (lexer->current_token.type == TOKEN_EOF)
         );

@@ -544,7 +544,7 @@ s16 main(s16 arg_count, char **args) {
     Symbol_table *global_scope = new_symbol_table(&allocator);
 
     Parser *parser = new_parser(&allocator, type_table, global_scope);
-    Lexer lexer = create_lexer(program_pre_post, parser, &allocator);
+    Lexer lexer = create_lexer(program_function_no_parameters, parser, &allocator);
 
 
     get_next_token(&lexer);
