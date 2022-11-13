@@ -67,7 +67,8 @@ internal void require_token_and_report_syntax_error(Lexer *lexer, Check_function
             if (line_count == last_valid_p.line) {
                 // this has to be in line relative space, not global source space as it is now
                 if (print_wrong_token_in_red) {
-                    log_error(eb, STATIC_RED("%s\n"), STR_PRINT(to_symbol(lexer->current_token.type, &lexer->current_token)));
+                    str symbol = to_symbol(lexer->current_token.type, &lexer->current_token);
+                    log_error(eb, STATIC_RED("%.*s\n"), STR_PRINT(symbol));
                 }
                 u32 offset_to_the_last_valid_char = last_valid_p.cf - non_used_chars + line_show_count - 1;
 
@@ -270,7 +271,8 @@ internal Ast_expression *parse_factor(Lexer *lexer, Ast_expression *result) {
             error_p.last_correct = lexer->previous_token.src_p;
 
             char msg[256];
-            stbsp_snprintf(msg, 256, "unexpected token found '%s'", to_symbol(token.type, &token));
+            str symbol = to_symbol(token.type, &token);
+            stbsp_snprintf(msg, 256, "unexpected token found '%.*s'", STR_PRINT(symbol));
             require_token_and_report_syntax_error(lexer, always_false, TOKEN_NULL, error_p, msg, true);
         }
 
@@ -290,20 +292,42 @@ internal Ast_expression *parse_unary_expression(Lexer *lexer, Ast_expression *re
     Token token = lexer->current_token;
     s32 sign = 1;
 
-    while (is_add_operator(token.type)) {
-        if (token.type == TOKEN_SUB) {
-            sign *= -1;
+    if (is_pre_post(token.type)) {
+        result->type = token.type == TOKEN_PLUS_PLUS ? AST_EXPRESSION_UNARY_PRE_INCREMENT : AST_EXPRESSION_UNARY_PRE_DECREMENT;
+        result->src_p = token.src_p;
+
+        get_next_token(lexer);
+
+        result->binary.right = parse_unary_expression(lexer, 0);
+    } else {
+        while (is_add_operator(token.type)) {
+            if (token.type == TOKEN_MINUS) {
+                sign *= -1;
+            }
+
+            token = get_next_token(lexer);
         }
 
-        token = get_next_token(lexer);
-    }
+        if (sign < 0) {
+            result->type = AST_EXPRESSION_UNARY_SUB;
+            result->src_p = token.src_p;
+            result->binary.right = parse_factor(lexer, 0);
+        } else {
+            result = parse_factor(lexer, result);
+        }
 
-    if (sign < 0) {
-        result->type = AST_EXPRESSION_UNARY_SUB;
-        result->src_p = token.src_p;
-        result->binary.right = parse_factor(lexer, 0);
-    } else {
-        result = parse_factor(lexer, result);
+        token = lexer->current_token;
+
+        while (is_pre_post(token.type)) {
+            Ast_expression *new_node = push_struct(lexer->allocator, Ast_expression);
+            new_node->type = token.type == TOKEN_PLUS_PLUS ? AST_EXPRESSION_UNARY_POST_INCREMENT : AST_EXPRESSION_UNARY_POST_DECREMENT;
+            new_node->src_p = token.src_p;
+            new_node->binary.right = result;
+
+            result = new_node;
+
+            token = get_next_token(lexer);
+        }
     }
 
     return result;
@@ -1126,13 +1150,18 @@ internal AST_STATEMENT_TYPE get_statement_type(Lexer *lexer) {
         case TOKEN_OPEN_BRACE: {
             result = AST_STATEMENT_BLOCK;
         } break;
+
         case TOKEN_IF: {
             result = AST_STATEMENT_IF;
         } break;
+
+        case TOKEN_PLUS_PLUS:
+        case TOKEN_MINUS_MINUS:
         case TOKEN_OPEN_PARENTHESIS:
         case TOKEN_LITERAL_INTEGER: {
             result = AST_STATEMENT_EXPRESSION;
         } break;
+
         case TOKEN_NAME: {
             // TODO: do something with the custom types here, the token will be TOKEN_NAME have an if (is_type(token)) that checks in the types hash table if that type exists
             result = AST_STATEMENT_EXPRESSION;
@@ -1142,19 +1171,24 @@ internal AST_STATEMENT_TYPE get_statement_type(Lexer *lexer) {
                 result = AST_STATEMENT_DECLARATION;
             }
         } break;
+
         case TOKEN_WHILE:
         case TOKEN_FOR: {
             result = AST_STATEMENT_LOOP;
         } break;
+
         case TOKEN_BREAK: {
             result = AST_STATEMENT_BREAK;
         } break;
+
         case TOKEN_CONTINUE: {
             result = AST_STATEMENT_CONTINUE;
         } break;
+
         case TOKEN_RETURN: {
             result = AST_STATEMENT_RETURN;
         } break;
+
         invalid_default_case_msg("get_statement_type unhandled type");
     }
 

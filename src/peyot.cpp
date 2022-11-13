@@ -519,6 +519,22 @@ s16 main(s16 arg_count, char **args) {
         }
     )PROGRAM";
 
+    char *program_pre_post = R"PROGRAM(
+        main :: (in :u32) -> u32 {
+             a :u32 = 1;
+             a++;
+             ++a;
+             a--;
+             --a;
+        }
+    )PROGRAM";
+
+    char *program_function_no_parameters = R"PROGRAM(
+        main :: () -> u32 {
+             a :u32 = 1;
+        }
+    )PROGRAM";
+
 
     Memory_pool allocator = {};
 
@@ -528,7 +544,7 @@ s16 main(s16 arg_count, char **args) {
     Symbol_table *global_scope = new_symbol_table(&allocator);
 
     Parser *parser = new_parser(&allocator, type_table, global_scope);
-    Lexer lexer = create_lexer(program_real_1, parser, &allocator);
+    Lexer lexer = create_lexer(program_pre_post, parser, &allocator);
 
 
     get_next_token(&lexer);
@@ -541,17 +557,35 @@ s16 main(s16 arg_count, char **args) {
     // Ast_block *ast = parse_block(&lexer, 0);
     // Ast_statement *ast = parse_statement(&lexer, 0);
     // Ast_declaration *ast = parse_declaration(&lexer, 0);
+#if DEVELOPMENT
+    printf("parse_program\n");
+#endif
     Ast_program *ast = parse_program(&lexer, 0);
+#if DEVELOPMENT
+    printf("parse_program\n");
+#endif
 
     if (lexer.parser->parsing_errors) {
         report_parsing_errors(&lexer);
     } else {
+#if DEVELOPMENT
+    printf("out_of_order_declaration\n");
+#endif
         out_of_order_declaration(lexer.parser);
+#if DEVELOPMENT
+    printf("out_of_order_declaration\n");
+#endif
 
         if (out_of_order_declaration_errors(lexer.parser)) {
             report_type_declaration_errors(&lexer);
         } else {
+#if DEVELOPMENT
+    printf("type_check\n");
             type_check(&lexer, ast);
+#endif
+#if DEVELOPMENT
+    printf("type_check\n");
+#endif
 
             if (type_errors(lexer.parser)) {
                 report_type_errors(&lexer);

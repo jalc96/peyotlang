@@ -453,6 +453,7 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast) {
             // TODO: check for correct types (left has to be s32 or u32 or something like that and right aswell)
         }
     } else if (is_unary(ast->type)) {
+        // TODO: check here if is a post/pre and only allow the right node to be a non pre/post to avoid a++++++++;
         Type_spec *r = get_type(lexer, ast->binary.right);
 
         if (type_errors(parser)) {return 0;}

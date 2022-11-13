@@ -47,11 +47,13 @@ enum PEYOT_TOKEN_TYPE {
     TOKEN_COMMA,
     TOKEN_DOT,
 
-    TOKEN_ADD,
-    TOKEN_SUB,
-    TOKEN_MUL,
-    TOKEN_DIV,
-    TOKEN_MOD,
+    TOKEN_PLUS,
+    TOKEN_PLUS_PLUS,
+    TOKEN_MINUS,
+    TOKEN_MINUS_MINUS,
+    TOKEN_STAR,
+    TOKEN_SLASH,
+    TOKEN_PERCENT,
 
     TOKEN_BINARY_EQUALS,
     TOKEN_NOT_EQUALS,
@@ -87,11 +89,15 @@ enum PEYOT_TOKEN_TYPE {
 };
 
 internal bool is_add_operator(PEYOT_TOKEN_TYPE type) {
-    return ((type == TOKEN_ADD) || (type == TOKEN_SUB));
+    return ((type == TOKEN_PLUS) || (type == TOKEN_MINUS));
 }
 
 internal bool is_mul_operator(PEYOT_TOKEN_TYPE type) {
-    return ((type == TOKEN_MUL) || (type == TOKEN_DIV) || (type == TOKEN_MOD));
+    return ((type == TOKEN_STAR) || (type == TOKEN_SLASH) || (type == TOKEN_PERCENT));
+}
+
+internal bool is_pre_post(PEYOT_TOKEN_TYPE type) {
+    return ((type == TOKEN_PLUS_PLUS) || (type == TOKEN_MINUS_MINUS));
 }
 
 internal str to_string(PEYOT_TOKEN_TYPE type) {
@@ -135,11 +141,13 @@ internal str to_string(PEYOT_TOKEN_TYPE type) {
         case TOKEN_EOF: { result = STATIC_STR("TOKEN_EOF");} break;
 
         case TOKEN_ASSIGNMENT: { result = STATIC_STR("TOKEN_ASSIGNMENT");} break;
-        case TOKEN_ADD: { result = STATIC_STR("TOKEN_ADD");} break;
-        case TOKEN_SUB: { result = STATIC_STR("TOKEN_SUB");} break;
-        case TOKEN_MUL: { result = STATIC_STR("TOKEN_MUL");} break;
-        case TOKEN_DIV: { result = STATIC_STR("TOKEN_DIV");} break;
-        case TOKEN_MOD: { result = STATIC_STR("TOKEN_MOD");} break;
+        case TOKEN_PLUS: { result = STATIC_STR("TOKEN_PLUS");} break;
+        case TOKEN_PLUS_PLUS: { result = STATIC_STR("TOKEN_PLUS_PLUS");} break;
+        case TOKEN_MINUS: { result = STATIC_STR("TOKEN_MINUS");} break;
+        case TOKEN_MINUS_MINUS: { result = STATIC_STR("TOKEN_MINUS");} break;
+        case TOKEN_STAR: { result = STATIC_STR("TOKEN_STAR");} break;
+        case TOKEN_SLASH: { result = STATIC_STR("TOKEN_SLASH");} break;
+        case TOKEN_PERCENT: { result = STATIC_STR("TOKEN_PERCENT");} break;
 
         case TOKEN_BINARY_EQUALS: { result = STATIC_STR("TOKEN_BINARY_EQUALS");} break;
         case TOKEN_NOT_EQUALS: { result = STATIC_STR("TOKEN_NOT_EQUALS");} break;
@@ -257,11 +265,13 @@ internal str to_symbol(PEYOT_TOKEN_TYPE type, Token *token = 0) {
 
         case TOKEN_ASSIGNMENT: { result = STATIC_STR( "=");} break;
 
-        case TOKEN_ADD: { result = STATIC_STR( "+");} break;
-        case TOKEN_SUB: { result = STATIC_STR( "-");} break;
-        case TOKEN_MUL: { result = STATIC_STR( "*");} break;
-        case TOKEN_DIV: { result = STATIC_STR( "/");} break;
-        case TOKEN_MOD: { result = STATIC_STR( "%");} break;
+        case TOKEN_PLUS: { result = STATIC_STR( "+");} break;
+        case TOKEN_PLUS_PLUS: { result = STATIC_STR( "++");} break;
+        case TOKEN_MINUS: { result = STATIC_STR( "-");} break;
+        case TOKEN_MINUS_MINUS: { result = STATIC_STR( "--");} break;
+        case TOKEN_STAR: { result = STATIC_STR( "*");} break;
+        case TOKEN_SLASH: { result = STATIC_STR( "/");} break;
+        case TOKEN_PERCENT: { result = STATIC_STR( "%");} break;
 
         case TOKEN_BINARY_EQUALS: { result = STATIC_STR( "==");} break;
         case TOKEN_NOT_EQUALS: { result = STATIC_STR( "!=");} break;

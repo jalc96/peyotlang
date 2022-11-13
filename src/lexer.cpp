@@ -97,15 +97,24 @@ internal Token get_next_token(Lexer *lexer) {
         result.type = TOKEN_DOT;
         advance(lexer);
     } else if (c == '+') {
-        result.type = TOKEN_ADD;
+        result.type = TOKEN_PLUS;
         advance(lexer);
+        c = get_char(lexer);
+
+        if (c == '+') {
+            advance(lexer);
+            result.type = TOKEN_PLUS_PLUS;
+        }
     } else if (c == '-') {
-        result.type = TOKEN_SUB;
+        result.type = TOKEN_MINUS;
         advance(lexer);
         c = get_char(lexer);
 
         if (c == '>') {
             result.type = TOKEN_RETURN_ARROW;
+            advance(lexer);
+        } else if (c == '-') {
+            result.type = TOKEN_MINUS_MINUS;
             advance(lexer);
         }
     } else if (c == '~') {
@@ -142,13 +151,13 @@ internal Token get_next_token(Lexer *lexer) {
             advance(lexer);
         }
     } else if (c == '*') {
-        result.type = TOKEN_MUL;
+        result.type = TOKEN_STAR;
         advance(lexer);
     } else if (c == '/') {
-        result.type = TOKEN_DIV;
+        result.type = TOKEN_SLASH;
         advance(lexer);
     } else if (c == '%') {
-        result.type = TOKEN_MOD;
+        result.type = TOKEN_PERCENT;
         advance(lexer);
     } else if (c == '<') {
         result.type = TOKEN_LESS_THAN;

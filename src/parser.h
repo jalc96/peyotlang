@@ -68,6 +68,10 @@ enum AST_EXPRESSION_TYPE {
     AST_EXPRESSION_MEMBER,
     AST_EXPRESSION_FUNCTION_CALL,
 
+    AST_EXPRESSION_UNARY_PRE_INCREMENT,
+    AST_EXPRESSION_UNARY_POST_INCREMENT,
+    AST_EXPRESSION_UNARY_PRE_DECREMENT,
+    AST_EXPRESSION_UNARY_POST_DECREMENT,
     AST_EXPRESSION_UNARY_SUB,
     AST_EXPRESSION_BINARY_ADD,
     AST_EXPRESSION_BINARY_SUB,
@@ -98,11 +102,11 @@ enum AST_EXPRESSION_TYPE {
 
 internal AST_EXPRESSION_TYPE token_type_to_operation(PEYOT_TOKEN_TYPE token_type) {
     switch (token_type) {
-        case TOKEN_ADD: return AST_EXPRESSION_BINARY_ADD;
-        case TOKEN_SUB: return AST_EXPRESSION_BINARY_SUB;
-        case TOKEN_MUL: return AST_EXPRESSION_BINARY_MUL;
-        case TOKEN_DIV: return AST_EXPRESSION_BINARY_DIV;
-        case TOKEN_MOD: return AST_EXPRESSION_BINARY_MOD;
+        case TOKEN_PLUS: return AST_EXPRESSION_BINARY_ADD;
+        case TOKEN_MINUS: return AST_EXPRESSION_BINARY_SUB;
+        case TOKEN_STAR: return AST_EXPRESSION_BINARY_MUL;
+        case TOKEN_SLASH: return AST_EXPRESSION_BINARY_DIV;
+        case TOKEN_PERCENT: return AST_EXPRESSION_BINARY_MOD;
 
         case TOKEN_BINARY_EQUALS: return AST_EXPRESSION_BINARY_EQUALS;
         case TOKEN_NOT_EQUALS: return AST_EXPRESSION_BINARY_NOT_EQUALS;
@@ -190,6 +194,11 @@ internal void print(Ast_expression *ast, u32 indent=0, bool is_declaration=false
             putchar(')');
         } break;
 
+
+        case AST_EXPRESSION_UNARY_PRE_INCREMENT: {printf("pre++"); print(ast->binary.right, indent+4);} break;
+        case AST_EXPRESSION_UNARY_POST_INCREMENT: {printf("post++"); print(ast->binary.right, indent+4);} break;
+        case AST_EXPRESSION_UNARY_PRE_DECREMENT: {printf("pre--"); print(ast->binary.right, indent+4);} break;
+        case AST_EXPRESSION_UNARY_POST_DECREMENT: {printf("post--"); print(ast->binary.right, indent+4);} break;
         case AST_EXPRESSION_UNARY_SUB:  {printf("-:"); print(ast->binary.right, indent+4); } break;
         case AST_EXPRESSION_BINARY_ADD:  {printf("+:"); print(ast->binary.left, indent+4); print(ast->binary.right, indent+4); } break;
         case AST_EXPRESSION_BINARY_SUB:  {printf("-:"); print(ast->binary.left, indent+4); print(ast->binary.right, indent+4); } break;
@@ -249,6 +258,10 @@ internal bool is_binary(AST_EXPRESSION_TYPE type) {
 internal bool is_unary(AST_EXPRESSION_TYPE type) {
     switch (type) {
         case AST_EXPRESSION_MEMBER:
+        case AST_EXPRESSION_UNARY_PRE_INCREMENT:
+        case AST_EXPRESSION_UNARY_POST_INCREMENT:
+        case AST_EXPRESSION_UNARY_PRE_DECREMENT:
+        case AST_EXPRESSION_UNARY_POST_DECREMENT:
         case AST_EXPRESSION_UNARY_SUB:
         case AST_EXPRESSION_UNARY_LOGICAL_NOT:
         case AST_EXPRESSION_UNARY_BITWISE_NOT: {
@@ -275,7 +288,7 @@ internal bool is_leaf(AST_EXPRESSION_TYPE type) {
     }
 }
 
-internal bool is_arithmetic(AST_EXPRESSION_TYPE type) {
+internal bool is_relational(AST_EXPRESSION_TYPE type) {
     switch(type) {
         case AST_EXPRESSION_BINARY_EQUALS:
         case AST_EXPRESSION_BINARY_NOT_EQUALS:
@@ -289,8 +302,12 @@ internal bool is_arithmetic(AST_EXPRESSION_TYPE type) {
     }
 }
 
-internal bool is_relational(AST_EXPRESSION_TYPE type) {
+internal bool is_arithmetic(AST_EXPRESSION_TYPE type) {
     switch(type) {
+        case AST_EXPRESSION_UNARY_PRE_INCREMENT:
+        case AST_EXPRESSION_UNARY_POST_INCREMENT:
+        case AST_EXPRESSION_UNARY_PRE_DECREMENT:
+        case AST_EXPRESSION_UNARY_POST_DECREMENT:
         case AST_EXPRESSION_UNARY_SUB:
         case AST_EXPRESSION_BINARY_ADD:
         case AST_EXPRESSION_BINARY_SUB:
