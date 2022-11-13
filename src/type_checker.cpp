@@ -414,8 +414,8 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast) {
                 }
             } break;
             case AST_EXPRESSION_MEMBER: {
-                Symbol *s = get(current_scope, ast->name);
-                Type_spec *type = get(type_table, s->type_name);
+                Symbol *symbol = get(current_scope, ast->name);
+                Type_spec *type = get(type_table, symbol->type_name);
 
                 if (type) {
                     Member_info *member_info = get(type->member_info_table, ast->binary.right->name);
@@ -512,6 +512,7 @@ internal void type_check(Lexer *lexer, Ast_declaration *ast) {
             type_check(lexer, ast->function.block, false);
             parser->current_scope = parser->current_scope->next;
             clear(&mp);
+            if (type_errors(lexer->parser)) {return;}
         } break;
         case AST_DECLARATION_COMPOUND: {} break;
         case AST_DECLARATION_ENUM: {} break;
@@ -543,6 +544,8 @@ internal void type_check(Lexer *lexer, Ast_statement *ast) {
 
         invalid_default_case_msg("ast_statement type_check missing type");
     }
+
+    if (type_errors(lexer->parser)) {return;}
 }
 
 internal void type_check(Lexer *lexer, Ast_expression *ast) {
@@ -552,9 +555,12 @@ internal void type_check(Lexer *lexer, Ast_expression *ast) {
 internal void type_check(Lexer *lexer, Ast_if *ast) {
     If *ifs = ast->ifs;
 
-    while (ifs) {
-        type_check(lexer, &ifs->condition);
-        type_check(lexer, &ifs->block, true);
+    lfor (ifs) {
+        type_check(lexer, &it->condition);
+        if (type_errors(lexer->parser)) {return;}
+
+        type_check(lexer, &it->block, true);
+        if (type_errors(lexer->parser)) {return;}
     }
 
     if (ast->else_block) {
@@ -565,12 +571,15 @@ internal void type_check(Lexer *lexer, Ast_if *ast) {
 internal void type_check(Lexer *lexer, Ast_loop *ast) {
     if (ast->pre) {
         type_check(lexer, ast->pre);
+        if (type_errors(lexer->parser)) {return;}
     }
 
     type_check(lexer, ast->condition);
+    if (type_errors(lexer->parser)) {return;}
 
     if (ast->post) {
         type_check(lexer, ast->post);
+        if (type_errors(lexer->parser)) {return;}
     }
 
     type_check(lexer, ast->block, true);
@@ -589,6 +598,7 @@ internal void type_check(Lexer *lexer, Ast_block *ast, bool create_scope) {
     while (ast) {
         sfor_count (ast->statements, ast->statement_count) {
             type_check(lexer, it);
+            if (type_errors(lexer->parser)) { return; }
         }
 
         ast = ast->next;
@@ -602,6 +612,7 @@ internal void type_check(Lexer *lexer, Ast_program *ast) {
     while (ast) {
         sfor_count (ast->declarations, ast->declaration_count) {
             type_check(lexer, it);
+            if (type_errors(lexer->parser)) {return;}
         }
 
         ast = ast->next;

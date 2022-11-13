@@ -23,7 +23,7 @@
     maybe expand the struct later to v2_u32 internally in the ast if v2<u32> is in the code and another like v2_f32 if v2<f32> is found, etc. These will just invoke to the create_type() thing or whatever i make for the structs, allow to check the type that was used in the T.
     -operator overload
     -before allocating the memory for the bytecode, calculate all of the constants sizes and take that into account
-    -do string pooling in the .data segment for constant strings
+    -do str pooling in the .data segment for constant strs
     -interface with the OS to get memory/open_files/etc
     -try Casey's idea for integers: dont have signed/unsigned types, have only integers and when type is important in an operation (multiply/divide/shift/etc) show an error and ask the user to specify someway (figure out this) which type is going to be used
     -show an error like c when a case in a switch statement is already used
@@ -482,6 +482,43 @@ s16 main(s16 arg_count, char **args) {
         }
     )PROGRAM";
 
+    char *program_real_1 = R"PROGRAM(
+        Entry_Loc :: struct {
+            directory_block: u32;
+            directory_index: u32;
+        }
+
+        str :: struct {
+            count :u32;
+            data :u32;
+        }
+
+
+        parse_path :: (path_str: str) -> str {
+            path: str;
+
+            if path_str.count {
+                length: u32 = 1;
+                for (i :u32= 0; i < 10; i = i + 1) {
+                    it :char;
+
+                    if it == '/' {
+                        new: str;
+                        new.data = path_str.data + i - length + 1;
+                        new.count = length - 1;
+                        length = 0;
+                    }
+
+                    length = length + 1;
+                }
+
+                new: str;
+                new.data = path_str.data + path_str.count - length + 1;
+                new.count = length - 1;
+            }
+        }
+    )PROGRAM";
+
 
     Memory_pool allocator = {};
 
@@ -491,7 +528,7 @@ s16 main(s16 arg_count, char **args) {
     Symbol_table *global_scope = new_symbol_table(&allocator);
 
     Parser *parser = new_parser(&allocator, type_table, global_scope);
-    Lexer lexer = create_lexer(program_type_checking_member, parser, &allocator);
+    Lexer lexer = create_lexer(program_real_1, parser, &allocator);
 
 
     get_next_token(&lexer);

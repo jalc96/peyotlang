@@ -262,8 +262,6 @@ internal Ast_expression *parse_factor(Lexer *lexer, Ast_expression *result) {
             positions.last_correct = pt.src_p;
             require_token_and_report_syntax_error(lexer, token_check, TOKEN_CLOSE_PARENTHESIS, positions, "missing close parenthesis ')' for expression", false);
             if (lexer->parser->parsing_errors) return 0;
-
-            result->u64_value = token.u64_value;
         } break;
 
         default: {
@@ -1002,10 +1000,11 @@ internal u32 parse_if_else(If_creation_iterator *it) {
     if (it->first_if) {
         If *new_if = push_struct(lexer->allocator, If);
 
-        require_token(lexer, TOKEN_IF, "parse_if");
+        // Consume the if keyword
+        get_next_token(lexer);
         it->first_if = false;
 
-            parse_or_expression(lexer, &new_if->condition);
+        parse_or_expression(lexer, &new_if->condition);
 
         parse_block(lexer, &new_if->block);
 
@@ -1026,9 +1025,7 @@ internal u32 parse_if_else(If_creation_iterator *it) {
 
                 get_next_token(lexer);
 
-                require_token(lexer, TOKEN_OPEN_PARENTHESIS, "parse_if");
-                    parse_binary_expression(lexer, &new_if->condition);
-                require_token(lexer, TOKEN_CLOSE_PARENTHESIS, "parse_if");
+                parse_binary_expression(lexer, &new_if->condition);
 
                 parse_block(lexer, &new_if->block);
 
@@ -1076,25 +1073,39 @@ internal Ast_loop *parse_loop(Lexer *lexer, Ast_loop *result=0) {
         result = new_ast_loop(lexer->allocator);
     }
 
+    Syntax_error_positions positions;
     Token loop = lexer->current_token;
     result->src_p = loop.src_p;
+    positions.start = result->src_p;
+    positions.last_correct = result->src_p;
+
     get_next_token(lexer);
-    require_token(lexer, TOKEN_OPEN_PARENTHESIS, "parse_loop");
+
+    require_token_and_report_syntax_error(lexer, token_check, TOKEN_OPEN_PARENTHESIS, positions, "expected open parenthesis '(' in loop condition", false);
+    if (lexer->parser->parsing_errors) return 0;
 
     if (loop.type == TOKEN_FOR) {
         result->pre = parse_declaration(lexer, 0);
-        result->condition = parse_binary_expression(lexer, 0);
-        require_token(lexer, TOKEN_SEMICOLON, "parse_loop");
-        result->post = parse_binary_expression(lexer, 0);
 
-        require_token(lexer, TOKEN_CLOSE_PARENTHESIS, "parse_loop");
+        result->condition = parse_binary_expression(lexer, 0);
+        positions.last_correct = lexer->previous_token.src_p;
+        require_token_and_report_syntax_error(lexer, token_check, TOKEN_SEMICOLON, positions, "expected semicolon ';' in loop condition", false);
+        if (lexer->parser->parsing_errors) return 0;
+
+        result->post = parse_binary_expression(lexer, 0);
+        positions.last_correct = lexer->previous_token.src_p;
+        require_token_and_report_syntax_error(lexer, token_check, TOKEN_CLOSE_PARENTHESIS, positions, "expected close parenthesis ')' in loop condition", false);
+        if (lexer->parser->parsing_errors) return 0;
+
         result->block = parse_block(lexer, 0);
     } else if (loop.type == TOKEN_WHILE) {
         result->pre = 0;
         result->condition = parse_binary_expression(lexer, 0);
         result->post = 0;
 
-        require_token(lexer, TOKEN_CLOSE_PARENTHESIS, "parse_loop");
+        positions.last_correct = lexer->previous_token.src_p;
+        require_token_and_report_syntax_error(lexer, token_check, TOKEN_CLOSE_PARENTHESIS, positions, "expected close parenthesis ')' in loop condition", false);
+
         result->block = parse_block(lexer, 0);
     }
 
