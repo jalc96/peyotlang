@@ -40,6 +40,10 @@ enum PEYOT_TOKEN_TYPE {
     TOKEN_CONTINUE,
     TOKEN_RETURN,
 
+    TOKEN_SIZEOF,
+    TOKEN_OFFSETOF,
+    TOKEN_TYPEOF,
+
     TOKEN_ASSIGNMENT,
     TOKEN_COLON,
     TOKEN_DECLARATION,
@@ -179,6 +183,12 @@ internal str to_string(PEYOT_TOKEN_TYPE type) {
         case TOKEN_BREAK: { result = STATIC_STR("TOKEN_BREAK");} break;
         case TOKEN_CONTINUE: { result = STATIC_STR("TOKEN_CONTINUE");} break;
         case TOKEN_RETURN: { result = STATIC_STR("TOKEN_RETURN");} break;
+        case TOKEN_SIZEOF: {result = STATIC_STR("TOKEN_SIZEOF");} break;
+        case TOKEN_OFFSETOF: {result = STATIC_STR("TOKEN_OFFSETOF");} break;
+        case TOKEN_TYPEOF: {result = STATIC_STR("TOKEN_TYPEOF");} break;
+
+
+
         case TOKEN_COUNT: { result = STATIC_STR("TOKEN_COUNT");} break;
 
         invalid_default_case_msg("missing PEYOT_TOKEN_TYPE in to_string");
@@ -304,6 +314,9 @@ internal str to_symbol(PEYOT_TOKEN_TYPE type, Token *token = 0) {
         case TOKEN_BREAK: { result = STATIC_STR("break");} break;
         case TOKEN_CONTINUE: { result = STATIC_STR("continue");} break;
         case TOKEN_RETURN: { result = STATIC_STR("return");} break;
+        case TOKEN_SIZEOF: {result = STATIC_STR("sizeof");} break;
+        case TOKEN_OFFSETOF: {result = STATIC_STR("offsetof");} break;
+        case TOKEN_TYPEOF: {result = STATIC_STR("type");} break;
 
         case TOKEN_NAME: {
             char scratch[512];

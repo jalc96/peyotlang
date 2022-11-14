@@ -327,6 +327,34 @@ internal void report_variable_redefinition(Lexer *lexer, Ast_declaration *ast, S
     log_error(eb, "%.*s\n", STR_PRINT(pd_post));
 }
 
+internal void report_not_compound_type(Lexer *lexer, Ast_expression *ast) {
+    lexer->parser->type_errors = true;
+    Str_buffer *eb = &lexer->parser->error_buffer;
+
+    Src_position src_p = ast->src_p;
+
+    u32 l0 = find_first_from_position(lexer->source, src_p.c0, '\n', true) + skip_new_line;
+    u32 lf = find_first_from_position(lexer->source, src_p.cf, '\n', false);
+
+    str line = slice(lexer->source, l0, lf);
+    Split_at a = split_at(line, src_p.c0 - l0);
+    str pre = a.p1;
+    Split_at b = split_at(a.p2, length(src_p));
+    str name = b.p1;
+    str post = b.p2;
+
+    log_error(eb, STATIC_RED("TYPE ERROR"));
+    log_error(eb, ": variable");
+    log_error(eb, STATIC_RED(" %.*s "), STR_PRINT(ast->name));
+    log_error(eb, "is not a compound type, it doesnt have");
+    log_error(eb, STATIC_RED(" %.*s "), STR_PRINT(ast->binary.right->name));
+    log_error(eb, "member\n");
+
+    log_error(eb, "    %d:%.*s", ast->src_p.line, STR_PRINT(pre));
+    log_error(eb, STATIC_RED("%.*s"), STR_PRINT(name));
+    log_error(eb, "%.*s\n", STR_PRINT(post));
+}
+
 internal void type_check(Lexer *lexer, Ast_declaration *ast);
 internal void type_check(Lexer *lexer, Ast_statement *ast);
 internal void type_check(Lexer *lexer, Ast_expression *ast);
@@ -422,7 +450,11 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast) {
 
                     if (member_info) {
                         result = get(type_table, member_info->type_name);
+                    } else {
+                        report_not_compound_type(lexer, ast);
                     }
+                } else {
+                    assert(false, "undefined type this should never trigger because of the out of order declaration checks");
                 }
             } break;
             case AST_EXPRESSION_FUNCTION_CALL: {} break;

@@ -205,12 +205,11 @@ internal bool is_type(Type_spec_table *table, Token token) {
     }
 }
 
-internal void initialize_native_types(Type_spec_table *type_table) {
+internal void initialize_native_types(Type_spec_table *type_table, Memory_pool *allocator) {
     str native_types[] = {
         STATIC_STR("none"),
 
         STATIC_STR("char"),
-        STATIC_STR("str"),
 
         STATIC_STR("u8"),
         STATIC_STR("u16"),
@@ -231,4 +230,8 @@ internal void initialize_native_types(Type_spec_table *type_table) {
     sfor (native_types) {
         put(type_table, *it, TYPE_SPEC_NAME, {});
     }
+
+    Type_spec *added = put(type_table, STATIC_STR("str"), TYPE_SPEC_NAME, {});
+    put(added->member_info_table, STATIC_STR("count"), STATIC_STR("u32"), allocator);
+    put(added->member_info_table, STATIC_STR("buffer"), STATIC_STR("char"), allocator);
 }

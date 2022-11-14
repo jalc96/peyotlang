@@ -636,6 +636,9 @@ enum AST_STATEMENT_TYPE {
     AST_STATEMENT_BREAK,
     AST_STATEMENT_CONTINUE,
     AST_STATEMENT_RETURN,
+    AST_STATEMENT_SIZEOF,
+    AST_STATEMENT_OFFSETOF,
+    AST_STATEMENT_TYPEOF,
 
     AST_STATEMENT_COUNT,
 };
@@ -650,6 +653,16 @@ struct Ast_statement {
         Ast_expression *expression_statement;
         Ast_declaration *declaration_statement;
         Ast_loop *loop_statement;
+        struct {
+            str name;
+        } sizeof_statement;
+        struct {
+            str type_name;
+            str name;
+        } offsetof_statement;
+        struct {
+            str name;
+        } type_statement;
     };
 };
 
@@ -795,6 +808,18 @@ internal void print(Ast_statement *ast, u32 indent) {
             print_indent(indent);
             printf("return\n");
         } break;
+        case AST_STATEMENT_SIZEOF: {
+            print_indent(indent);
+            printf("sizeof(%.*s)", STR_PRINT(ast->sizeof_statement.name));
+        }
+        case AST_STATEMENT_OFFSETOF: {
+            print_indent(indent);
+            printf("offsetof(%.*s, %.*s)", STR_PRINT(ast->offsetof_statement.type_name), STR_PRINT(ast->offsetof_statement.name));
+        }
+        case AST_STATEMENT_TYPEOF: {
+            print_indent(indent);
+            printf("type(%.*s)", STR_PRINT(ast->type_statement.name));
+        }
     }
 }
 

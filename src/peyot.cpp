@@ -12,10 +12,11 @@
     -you can set the stack size of the program and if overflowed an error is shown
     -debugger for the virtual machine, showing the content of the registers and the content of the stack, show a window of the code (like 11 lines of assembly, the current one, 5 above and 5 below)
     -function parsing is easier if a keyword is introduced for function declaration like "fn" or "func" "fn do_stuff(u32 a) -> u32 {return 2 * a;}" maybe "function" since a lot of languages use that
-    -add introspection for example have .type in structs to check for the type of structs and also be able to iterate over the members of structs, implement this with an integer, each time a struct is declare the type integer is incremented and that is asign to the struct, the basic types of the language are the first numbers. Add also something like typedef??
+    -add introspection for example have .type in structs to check for the type of structs and also be able to iterate over the members of structs, implement this with an integer, each time a struct is declare the type integer is incremented and that is asign to the struct, the basic types of the language are the first numbers. Add also something like typedef?? 2022-11-14 add this as a statement like sizeof() or offsetof(), also add the name() statement
+    -replace the introspection statements for their values in the ast after the typechecking
+    -add introspection, be able to check a struct type and iterate over struct members with members() statement or something like that, also i need to create a new type for iterating the members
     -add the hability to undefine variables with the keyword undef
     -arrays
-    -add introspection, be able to check a struct type and iterate over struct members
     -type checking in the ast
     -generics struct v2 <T> {
         T x, y;
@@ -41,6 +42,7 @@
     -link the break/continue/return statements to the closest previous loop/function (with a current_loop/current_function members in the parser maybe??)
     -illegal breaks/continue if no loop found
     -lexical errors
+    -get rid of crt: get stdout buffer from the OS and use stb_print for printing
 */
 
 #define STB_SPRINTF_IMPLEMENTATION
@@ -521,30 +523,56 @@ s16 main(s16 arg_count, char **args) {
 
     char *program_pre_post = R"PROGRAM(
         main :: (in :u32) -> u32 {
-             a :u32 = 1;
-             a++;
-             ++a;
-             a--;
-             --a;
+            a :u32 = 1;
+            a++;
+            ++a;
+            a--;
+            --a;
         }
     )PROGRAM";
 
     char *program_function_no_parameters = R"PROGRAM(
         main :: () -> u32 {
-             a :u32 = 1;
+            a :u32 = 1;
         }
     )PROGRAM";
 
+    char *program_compound_native_type = R"PROGRAM(
+        main :: () -> u32 {
+            a :str;
+            a.count;
+        }
+    )PROGRAM";
+
+    char *program_type_check_simple_type_member = R"PROGRAM(
+        main :: () -> u32 {
+            a :u32;
+            a.count;
+        }
+    )PROGRAM";
+
+    char *program_more_sentences = R"PROGRAM(
+        V2u :: struct {
+            x :u32;
+            y :u32;
+        }
+        main :: () -> u32 {
+            a :u32;
+            sizeof(a);
+            offsetof(V2u, x);
+            type(a);
+        }
+    )PROGRAM";
 
     Memory_pool allocator = {};
 
     Type_spec_table *type_table = new_type_spec_table(&allocator);
-    initialize_native_types(type_table);
+    initialize_native_types(type_table, &allocator);
 
     Symbol_table *global_scope = new_symbol_table(&allocator);
 
     Parser *parser = new_parser(&allocator, type_table, global_scope);
-    Lexer lexer = create_lexer(program_function_no_parameters, parser, &allocator);
+    Lexer lexer = create_lexer(program_more_sentences, parser, &allocator);
 
 
     get_next_token(&lexer);
