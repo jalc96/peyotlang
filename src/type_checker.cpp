@@ -16,6 +16,7 @@ internal void pop(Parser *parser, Pending_type *node) {
     node->next->previous = node->previous;
 }
 
+// TODO: do we really need this list??? maybe just store the type_name and then query it in the typecheck, then we dont need the out of order call
 internal void push_pending_type(Parser *parser, Ast_declaration *pending_to_type, str type_name, Src_position type_name_location) {
     Pending_type *new_node = new_pending_type(parser->allocator, type_name);
     new_node->type = PENDING_TYPE_DECLARATION;
@@ -327,11 +328,9 @@ internal void report_variable_redefinition(Lexer *lexer, Ast_declaration *ast, S
     log_error(eb, "%.*s\n", STR_PRINT(pd_post));
 }
 
-internal void report_not_compound_type(Lexer *lexer, Ast_expression *ast) {
+internal void report_member_not_found(Lexer *lexer, str type_name, str member_name, Src_position src_p, bool highlight_the_variable_name) {
     lexer->parser->type_errors = true;
     Str_buffer *eb = &lexer->parser->error_buffer;
-
-    Src_position src_p = ast->src_p;
 
     u32 l0 = find_first_from_position(lexer->source, src_p.c0, '\n', true) + skip_new_line;
     u32 lf = find_first_from_position(lexer->source, src_p.cf, '\n', false);
@@ -345,13 +344,19 @@ internal void report_not_compound_type(Lexer *lexer, Ast_expression *ast) {
 
     log_error(eb, STATIC_RED("TYPE ERROR"));
     log_error(eb, ": variable");
-    log_error(eb, STATIC_RED(" %.*s "), STR_PRINT(ast->name));
-    log_error(eb, "is not a compound type, it doesnt have");
-    log_error(eb, STATIC_RED(" %.*s "), STR_PRINT(ast->binary.right->name));
+    log_error(eb, STATIC_RED(" %.*s "), STR_PRINT(type_name));
+    log_error(eb, "doesnt have");
+    log_error(eb, STATIC_RED(" %.*s "), STR_PRINT(member_name));
     log_error(eb, "member\n");
 
-    log_error(eb, "    %d:%.*s", ast->src_p.line, STR_PRINT(pre));
-    log_error(eb, STATIC_RED("%.*s"), STR_PRINT(name));
+    log_error(eb, "    %d:%.*s", src_p.line, STR_PRINT(pre));
+
+    if (highlight_the_variable_name) {
+        log_error(eb, STATIC_RED("%.*s"), STR_PRINT(name));
+    } else {
+        log_error(eb, "%.*s", STR_PRINT(name));
+    }
+
     log_error(eb, "%.*s\n", STR_PRINT(post));
 }
 
@@ -451,9 +456,10 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast) {
                     if (member_info) {
                         result = get(type_table, member_info->type_name);
                     } else {
-                        report_not_compound_type(lexer, ast);
+                        report_member_not_found(lexer, ast->name, ast->binary.right->name, ast->src_p, true);
                     }
                 } else {
+                    // TODO: if i store the type_names instead of the typespecs then its here where the error should be reported
                     assert(false, "undefined type this should never trigger because of the out of order declaration checks");
                 }
             } break;
@@ -574,6 +580,37 @@ internal void type_check(Lexer *lexer, Ast_statement *ast) {
         case AST_STATEMENT_BREAK: {} break;
         case AST_STATEMENT_CONTINUE: {} break;
         case AST_STATEMENT_RETURN: {} break;
+
+        case AST_STATEMENT_SIZEOF: {
+            Type_spec *type = get(lexer->parser->type_table, ast->sizeof_statement.name);
+            Symbol *symbol = get(lexer->parser->current_scope, ast->sizeof_statement.name);
+
+            if (!type && !symbol) {
+                report_undeclared_identifier(lexer, ast->sizeof_statement.name, ast->sizeof_statement.name_src_p);
+            }
+        } break;
+        case AST_STATEMENT_OFFSETOF: {
+            Type_spec *type = get(lexer->parser->type_table, ast->offsetof_statement.type_name);
+
+            if (type) {
+                Member_info *member_info = get(type->member_info_table, ast->offsetof_statement.member_name);
+
+                if (member_info) {
+                } else {
+                    report_member_not_found(lexer, ast->offsetof_statement.type_name, ast->offsetof_statement.member_name, ast->offsetof_statement.member_src_p, false);
+                }
+            } else {
+                report_undeclared_identifier(lexer, ast->offsetof_statement.type_name, ast->offsetof_statement.type_src_p);
+            }
+        } break;
+        case AST_STATEMENT_TYPEOF: {
+            Type_spec *type = get(lexer->parser->type_table, ast->type_statement.name);
+            Symbol *symbol = get(lexer->parser->current_scope, ast->type_statement.name);
+
+            if (!type && !symbol) {
+                report_undeclared_identifier(lexer, ast->type_statement.name, ast->type_statement.name_src_p);
+            }
+        } break;
 
         invalid_default_case_msg("ast_statement type_check missing type");
     }

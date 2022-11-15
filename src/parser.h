@@ -655,13 +655,17 @@ struct Ast_statement {
         Ast_loop *loop_statement;
         struct {
             str name;
+            Src_position name_src_p;
         } sizeof_statement;
         struct {
             str type_name;
-            str name;
+            Src_position type_src_p;
+            str member_name;
+            Src_position member_src_p;
         } offsetof_statement;
         struct {
             str name;
+            Src_position name_src_p;
         } type_statement;
     };
 };
@@ -814,7 +818,7 @@ internal void print(Ast_statement *ast, u32 indent) {
         }
         case AST_STATEMENT_OFFSETOF: {
             print_indent(indent);
-            printf("offsetof(%.*s, %.*s)", STR_PRINT(ast->offsetof_statement.type_name), STR_PRINT(ast->offsetof_statement.name));
+            printf("offsetof(%.*s, %.*s)", STR_PRINT(ast->offsetof_statement.type_name), STR_PRINT(ast->offsetof_statement.member_name));
         }
         case AST_STATEMENT_TYPEOF: {
             print_indent(indent);

@@ -123,7 +123,7 @@ internal u32 length(char *buffer) {
 }
 
 internal bool match(str origin, str pattern) {
-    // assert(origin.count >= pattern.count, "pattern in string match must be smaller than the origin");
+    assert(origin.count >= pattern.count, "pattern in string match must be smaller than the origin");
     u32 i = 0;
 
     while ((i < origin.count) && (i < pattern.count)) {
@@ -222,6 +222,30 @@ internal u32 find_n_from_position(str source, u32 start, char match, u32 n, bool
 
 internal u32 find_first_from_position(str source, u32 start, char match, bool backwards) {
     return find_n_from_position(source, start, match, 1, backwards);
+}
+
+struct Find_result {
+    bool found;
+    u32 index;
+};
+
+internal Find_result find_first(str source, str pattern) {
+    Find_result result = {};
+
+    u32 i = 0;
+
+    while (length(source)) {
+        if (match(source, pattern)) {
+            result.found = true;
+            result.index = i;
+            break;
+        }
+
+        i++;
+        source = offset(source, 1);
+    }
+
+    return result;
 }
 
 struct Split_iterator {

@@ -14,7 +14,22 @@
     -function parsing is easier if a keyword is introduced for function declaration like "fn" or "func" "fn do_stuff(u32 a) -> u32 {return 2 * a;}" maybe "function" since a lot of languages use that
     -add introspection for example have .type in structs to check for the type of structs and also be able to iterate over the members of structs, implement this with an integer, each time a struct is declare the type integer is incremented and that is asign to the struct, the basic types of the language are the first numbers. Add also something like typedef?? 2022-11-14 add this as a statement like sizeof() or offsetof(), also add the name() statement
     -replace the introspection statements for their values in the ast after the typechecking
-    -add introspection, be able to check a struct type and iterate over struct members with members() statement or something like that, also i need to create a new type for iterating the members
+    -add introspection, be able to check a struct type and iterate over struct members with members() statement or something like that, also i need to create a new type for iterating the members, maybe create in the bytecode a static table with the requested members() and iterate over that memory, for example.
+        V2u :: struct {
+            x :f32;
+            y :f32;
+        }
+        ...
+        p :V2u;
+        for members(p) {
+            it.name;
+            it.type;
+            it.offset;
+            it.value; <---- THIS IS VERY IMPORTANT FOR CREATING EASY COMPARATIONS BETWEEN VARIABLES
+        }
+        ...
+        then in the bytecode something like this (this is pseudocode):
+        str(x)typespec(f32)0 and the value should be accessed other way
     -add the hability to undefine variables with the keyword undef
     -arrays
     -type checking in the ast
@@ -32,7 +47,7 @@
             case A: do_stuf();break;
             case A: <---this throws an error
         }
-    -entry point check
+    -entrypoint check
     -avoid infinitly big structs like:
         struct A {
             u32 x;
@@ -43,6 +58,7 @@
     -illegal breaks/continue if no loop found
     -lexical errors
     -get rid of crt: get stdout buffer from the OS and use stb_print for printing
+    -maybe have 2 types of errors hard error when we have to stop the process and soft errors where we can keep doing stuff for example in the type checker its useful to have all of the errors at once but when parsing into the ast once you find an error you dont know what is happening in the input so its better to stop
 */
 
 #define STB_SPRINTF_IMPLEMENTATION
@@ -559,8 +575,28 @@ s16 main(s16 arg_count, char **args) {
         main :: () -> u32 {
             a :u32;
             sizeof(a);
+            sizeof(u32);
+            sizeof(V2u);
             offsetof(V2u, x);
             type(a);
+            type(u32);
+        }
+    )PROGRAM";
+
+    char *program_type_check_more_sentences = R"PROGRAM(
+        V2u :: struct {
+            x :u32;
+            y :u32;
+        }
+        main :: () -> u32 {
+            a :u32;
+            sizeof(aa);
+            sizeof(u3s2);
+            sizeof(V2du);
+            offsetof(Vfg2u, x);
+            offsetof(V2u, asdf);
+            type(aa);
+            type(u3s2);
         }
     )PROGRAM";
 

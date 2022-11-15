@@ -1279,8 +1279,9 @@ internal Ast_statement *parse_statement(Lexer *lexer, Ast_statement *result) {
 
             Token name = lexer->current_token;
             result->sizeof_statement.name = name.name;
+            result->sizeof_statement.name_src_p = name.src_p;
             positions.last_correct = lexer->previous_token.src_p;
-            require_token_and_report_syntax_error(lexer, token_check, TOKEN_NAME, positions, "Missing name for sizeof statement", false);
+            require_token_and_report_syntax_error(lexer, type_name_check, TOKEN_NAME, positions, "Missing name for sizeof statement", false);
             if (lexer->parser->parsing_errors) return 0;
 
             positions.last_correct = lexer->previous_token.src_p;
@@ -1301,6 +1302,7 @@ internal Ast_statement *parse_statement(Lexer *lexer, Ast_statement *result) {
 
             Token name = lexer->current_token;
             result->offsetof_statement.type_name = name.name;
+            result->offsetof_statement.type_src_p = name.src_p;
             positions.last_correct = lexer->previous_token.src_p;
             require_token_and_report_syntax_error(lexer, token_check, TOKEN_NAME, positions, "Missing name for offsetof statement", false);
             if (lexer->parser->parsing_errors) return 0;
@@ -1310,7 +1312,8 @@ internal Ast_statement *parse_statement(Lexer *lexer, Ast_statement *result) {
             if (lexer->parser->parsing_errors) return 0;
 
             name = lexer->current_token;
-            result->offsetof_statement.name = name.name;
+            result->offsetof_statement.member_name = name.name;
+            result->offsetof_statement.member_src_p = name.src_p;
             positions.last_correct = lexer->previous_token.src_p;
             require_token_and_report_syntax_error(lexer, token_check, TOKEN_NAME, positions, "Missing name for offsetof statement", false);
             if (lexer->parser->parsing_errors) return 0;
@@ -1333,8 +1336,9 @@ internal Ast_statement *parse_statement(Lexer *lexer, Ast_statement *result) {
 
             Token name = lexer->current_token;
             result->type_statement.name = name.name;
+            result->type_statement.name_src_p = name.src_p;
             positions.last_correct = lexer->previous_token.src_p;
-            require_token_and_report_syntax_error(lexer, token_check, TOKEN_NAME, positions, "Missing name for type statement", false);
+            require_token_and_report_syntax_error(lexer, type_name_check, TOKEN_NAME, positions, "Missing name for type statement", false);
             if (lexer->parser->parsing_errors) return 0;
 
             positions.last_correct = lexer->previous_token.src_p;
