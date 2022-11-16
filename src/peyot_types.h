@@ -113,6 +113,17 @@ internal bool any_equals(Type_spec *a, Type_spec *b) {
     return false;
 }
 
+internal Type_spec *get_base(Type_spec *type) {
+    Type_spec *result = type;
+
+    while (type) {
+        result = type;
+        type = type->base;
+    }
+
+    return result;
+}
+
 internal void print(Type_spec *type, u32 indent=0) {
     printf("%.*s<id: %d>\n", type->name.count, type->name.buffer, type->id);
 }

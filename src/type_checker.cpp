@@ -451,7 +451,8 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast) {
                 Type_spec *type = get(type_table, symbol->type_name);
 
                 if (type) {
-                    Member_info *member_info = get(type->member_info_table, ast->binary.right->name);
+                    Type_spec *base = get_base(type);
+                    Member_info *member_info = get(base->member_info_table, ast->binary.right->name);
 
                     if (member_info) {
                         result = get(type_table, member_info->type_name);
@@ -594,7 +595,8 @@ internal void type_check(Lexer *lexer, Ast_statement *ast) {
             Type_spec *type = get(lexer->parser->type_table, ast->offsetof_statement.type_name);
 
             if (type) {
-                Member_info *member_info = get(type->member_info_table, ast->offsetof_statement.member_name);
+                Type_spec *base = get_base(type);
+                Member_info *member_info = get(base->member_info_table, ast->offsetof_statement.member_name);
 
                 if (member_info) {
                 } else {

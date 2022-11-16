@@ -612,6 +612,21 @@ s16 main(s16 arg_count, char **args) {
         }
     )PROGRAM";
 
+    char *program_type_check_typedef_compound = R"PROGRAM(
+        V2u :: struct {
+            x :u32;
+            y :u32;
+        }
+        Vector2 :: V2u
+
+        main :: () -> u32 {
+            p :V2u;
+            p2 :Vector2;
+            p2.x = p.x * 2;
+            offsetof(Vector2, x);
+        }
+    )PROGRAM";
+
     Memory_pool allocator = {};
 
     Type_spec_table *type_table = new_type_spec_table(&allocator);
@@ -620,7 +635,7 @@ s16 main(s16 arg_count, char **args) {
     Symbol_table *global_scope = new_symbol_table(&allocator);
 
     Parser *parser = new_parser(&allocator, type_table, global_scope);
-    Lexer lexer = create_lexer(program_type_check_typedef, parser, &allocator);
+    Lexer lexer = create_lexer(program_type_check_typedef_compound, parser, &allocator);
 
 
     get_next_token(&lexer);
