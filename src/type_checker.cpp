@@ -473,14 +473,14 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast) {
 
         if (is_arithmetic(ast->type) || is_relational(ast->type)) {
             // TODO: in the future check here if there is an operator that accepts these 2 types
-            if (equals(l, r)) {
+            if (any_equals(l, r)) {
                 result = l;
             } else {
                 report_binary_expression_missmatch_type_error(lexer, ast, l, r);
             }
         } else if (is_assignment(ast->type)) {
             // TODO: in the future check here if there is an operator that accepts these 2 types
-            if (equals(l, r)) {
+            if (any_equals(l, r)) {
                 result = l;
             } else {
                 report_binary_expression_missmatch_type_error(lexer, ast, l, r);
@@ -530,7 +530,7 @@ internal void type_check(Lexer *lexer, Ast_declaration *ast) {
 
                 if (type_errors(parser)) {return;}
 
-                if (!equals(variable, value)) {
+                if (!any_equals(variable, value)) {
                     report_declaration_missmatch_type_error(lexer, ast, variable, value);
                 }
             }
@@ -555,6 +555,7 @@ internal void type_check(Lexer *lexer, Ast_declaration *ast) {
         } break;
         case AST_DECLARATION_COMPOUND: {} break;
         case AST_DECLARATION_ENUM: {} break;
+        case AST_DECLARATION_TYPEDEF: {} break;
 
         invalid_default_case_msg("ast_declaration type_check missing type");
     }

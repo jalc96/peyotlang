@@ -64,6 +64,7 @@ struct Type_spec {
     Src_position src_p;
     str name;
     Member_info *member_info_table[MEMBER_TABLE_COUNT];
+    Type_spec *base;
 
     union {
         struct {
@@ -77,16 +78,39 @@ struct Type_spec {
 
 internal Type_spec *new_type_spec(u32 id, TYPE_SPEC_TYPE type, str name, Src_position src_p, Memory_pool *allocator) {
     Type_spec *result = push_struct(allocator, Type_spec);
+
     result->id = id;
     result->type = type;
     result->name = name;
     result->src_p = src_p;
     result->next = 0;
+    result->base = 0;
+
     return result;
 }
 
 internal bool equals(Type_spec *a, Type_spec *b) {
     return a->id == b->id;
+}
+
+internal bool any_equals(Type_spec *a, Type_spec *b) {
+    Type_spec *ai = a;
+
+    while (ai) {
+        Type_spec *bi = b;
+
+        while (bi) {
+            if (ai->id == bi->id) {
+                return true;
+            }
+
+            bi = bi->base;
+        }
+
+        ai = ai->base;
+    }
+
+    return false;
 }
 
 internal void print(Type_spec *type, u32 indent=0) {
@@ -136,10 +160,11 @@ internal u32 get_type_spec_index(str name) {
     return result;
 }
 
-internal Type_spec *put(Type_spec_table *table, str name, TYPE_SPEC_TYPE type, Src_position src_p) {
+internal Type_spec *put(Type_spec_table *table, str name, TYPE_SPEC_TYPE type, Src_position src_p, Type_spec *base=0) {
     u32 index = get_type_spec_index(name);
     // When creating types in several threads maybe assign id ranges to each thread so they dont stall in the same lock all the time
     Type_spec *result = new_type_spec(table->current_id++, type, name, src_p, table->allocator);
+    result->base = base;
     result->next = table->table[index];
     table->table[index] = result;
 

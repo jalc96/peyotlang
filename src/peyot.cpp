@@ -600,6 +600,18 @@ s16 main(s16 arg_count, char **args) {
         }
     )PROGRAM";
 
+    char *program_type_check_typedef = R"PROGRAM(
+        int :: u32
+        integer :: int
+
+        main :: () -> u32 {
+            a :u32;
+            b :int;
+            c :int = a + b;
+            d :integer = c + a * c + b;
+        }
+    )PROGRAM";
+
     Memory_pool allocator = {};
 
     Type_spec_table *type_table = new_type_spec_table(&allocator);
@@ -608,7 +620,7 @@ s16 main(s16 arg_count, char **args) {
     Symbol_table *global_scope = new_symbol_table(&allocator);
 
     Parser *parser = new_parser(&allocator, type_table, global_scope);
-    Lexer lexer = create_lexer(program_more_sentences, parser, &allocator);
+    Lexer lexer = create_lexer(program_type_check_typedef, parser, &allocator);
 
 
     get_next_token(&lexer);

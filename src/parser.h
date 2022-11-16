@@ -390,8 +390,8 @@ enum AST_DECLARATION_TYPE {
     AST_DECLARATION_FUNCTION,
     AST_DECLARATION_COMPOUND,
     AST_DECLARATION_ENUM,
+    AST_DECLARATION_TYPEDEF,
 /*
-    typedef
     import
 */
     AST_DECLARATION_COUNT,
@@ -533,6 +533,12 @@ struct Ast_declaration {
             Enum_item *items;
             Type_spec *enum_type;
         } _enum;
+        struct {
+            str new_type_name;
+            Src_position new_type_name_src_p;
+            str base_type_name;
+            Src_position base_type_name_src_p;
+        } _typedef;
     };
 };
 
@@ -814,15 +820,15 @@ internal void print(Ast_statement *ast, u32 indent) {
         } break;
         case AST_STATEMENT_SIZEOF: {
             print_indent(indent);
-            printf("sizeof(%.*s)", STR_PRINT(ast->sizeof_statement.name));
+            printf("sizeof(%.*s)\n", STR_PRINT(ast->sizeof_statement.name));
         }
         case AST_STATEMENT_OFFSETOF: {
             print_indent(indent);
-            printf("offsetof(%.*s, %.*s)", STR_PRINT(ast->offsetof_statement.type_name), STR_PRINT(ast->offsetof_statement.member_name));
+            printf("offsetof(%.*s, %.*s)\n", STR_PRINT(ast->offsetof_statement.type_name), STR_PRINT(ast->offsetof_statement.member_name));
         }
         case AST_STATEMENT_TYPEOF: {
             print_indent(indent);
-            printf("type(%.*s)", STR_PRINT(ast->type_statement.name));
+            printf("type(%.*s)\n", STR_PRINT(ast->type_statement.name));
         }
     }
 }

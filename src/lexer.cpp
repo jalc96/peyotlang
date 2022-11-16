@@ -243,7 +243,7 @@ internal Token get_next_token(Lexer *lexer) {
             [X] continue
             [X] return
 
-            [_] sizeof
+            [X] sizeof
         */
         Keyword_match keywords[] = {
             {STATIC_STR("char"), TOKEN_CHAR},

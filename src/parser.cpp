@@ -537,7 +537,8 @@ internal AST_DECLARATION_TYPE get_declaration_type(Lexer *lexer) {
         <name> :: union
         <name> :: enum
         <name> :: (...)
-        <name> : <type>
+        <name> :  <type>
+        <name> :: <type> typedef
     */
     AST_DECLARATION_TYPE result = AST_DECLARATION_NONE;
     Lexer_savepoint savepoint = create_savepoint(lexer);
@@ -550,12 +551,15 @@ internal AST_DECLARATION_TYPE get_declaration_type(Lexer *lexer) {
     error_p.start = t1.src_p;
 
     if (is_type(type_table(lexer), t3)) {
-        if (t2.type != TOKEN_COLON) {
+        if (t2.type == TOKEN_DECLARATION) {
+            result = AST_DECLARATION_TYPEDEF;
+        } else if (t2.type == TOKEN_COLON) {
+            result = AST_DECLARATION_VARIABLE;
+        } else {
             error_p.last_correct = t1.src_p;
-            require_token_and_report_syntax_error(lexer, always_false, TOKEN_NULL, error_p, "expected colon ':' after variable declaration", false);
+            require_token_and_report_syntax_error(lexer, always_false, TOKEN_NULL, error_p, "expected colon ':' after variable declaration or declaration token '::' after type declaration", false);
         }
 
-        result = AST_DECLARATION_VARIABLE;
     } else {
         if (t2.type != TOKEN_DECLARATION) {
             error_p.last_correct = t1.src_p;
@@ -733,35 +737,34 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
         result = push_struct(lexer->allocator, Ast_declaration);
     }
 
+    AST_DECLARATION_TYPE declaration_type = get_declaration_type(lexer);
+    if (lexer->parser->parsing_errors) return 0;
+
     Syntax_error_positions positions;
 
     Token name = lexer->current_token;
+    // consume the name
+    get_next_token(lexer);
     result->name = name.name;
     result->src_p = name.src_p;
 
     positions.start = result->src_p;
-
-    AST_DECLARATION_TYPE declaration_type = get_declaration_type(lexer);
-    if (lexer->parser->parsing_errors) return 0;
-
     result->type = declaration_type;
 
-    // Consume the name
-    get_next_token(lexer);
 
     // Consume the declaration or type in variable declaration
-    Token declaration_token_type = get_next_token(lexer);
-    COMPOUND_TYPE compound_type = token_type_to_compound_type(declaration_token_type.type);
+    Token declaration_token_or_type = get_next_token(lexer);
+    COMPOUND_TYPE compound_type = token_type_to_compound_type(declaration_token_or_type.type);
 
 
     if (declaration_type == AST_DECLARATION_VARIABLE) {
-        result->variable.variable_type = get(lexer->parser->type_table, declaration_token_type.name);
+        result->variable.variable_type = get(lexer->parser->type_table, declaration_token_or_type.name);
 
         if (!result->variable.variable_type) {
-            push_pending_type(lexer->parser, result, declaration_token_type.name, declaration_token_type.src_p);
+            push_pending_type(lexer->parser, result, declaration_token_or_type.name, declaration_token_or_type.src_p);
         }
 
-        // TODO: handle type inference if the declaration_token_type is an assignment
+        // TODO: handle type inference if the declaration_token_or_type is an assignment
         // Consume the type
         Token after_type = get_next_token(lexer);
         result->variable.expression = 0;
@@ -896,6 +899,17 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
         require_token_and_report_syntax_error(lexer, token_check, TOKEN_CLOSE_BRACE, positions, "missing close brace '}' in enum declaration", false);
         if (lexer->parser->parsing_errors) return 0;
         positions.last_correct = lexer->previous_token.src_p;
+    } else if (declaration_type == AST_DECLARATION_TYPEDEF) {
+        result->_typedef.new_type_name = name.name;
+        result->_typedef.new_type_name_src_p = name.src_p;
+
+        result->_typedef.base_type_name = declaration_token_or_type.name;
+        result->_typedef.base_type_name_src_p = declaration_token_or_type.src_p;
+
+        Type_spec *base = get(lexer->parser->type_table, result->_typedef.base_type_name);
+        put(lexer->parser->type_table, result->_typedef.new_type_name, base->type, result->_typedef.new_type_name_src_p, base);
+
+        get_next_token(lexer);
     } else {
         positions.last_correct = lexer->previous_token.src_p;
         require_token_and_report_syntax_error(lexer, always_false, TOKEN_NULL, positions, "unrecognized declaration", false);
@@ -1349,6 +1363,7 @@ internal Ast_statement *parse_statement(Lexer *lexer, Ast_statement *result) {
             require_token_and_report_syntax_error(lexer, token_check, TOKEN_SEMICOLON, positions, "Missing semicolon ';' at the end of statement", false);
             if (lexer->parser->parsing_errors) return 0;
         } break;
+
 
 
         invalid_default_case_msg("unrecognized statement");
