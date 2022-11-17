@@ -533,12 +533,13 @@ internal bool is_compound(PEYOT_TOKEN_TYPE type) {
 internal AST_DECLARATION_TYPE get_declaration_type(Lexer *lexer) {
     /*
           t1   t2  t3
-        <name> :: struct
-        <name> :: union
-        <name> :: enum
-        <name> :: (...)
-        <name> :  <type>
-        <name> :: <type> typedef
+        <name> :: struct  COMPOUND
+        <name> :: union   COMPOUND
+        <name> :: enum    ENUM
+        <name> :: (...)   FUNCTION
+        <name> :  <type>  VARIABLE
+        <name> :  =       VARIABLE
+        <name> :: <type>  TYPEDEF
     */
     AST_DECLARATION_TYPE result = AST_DECLARATION_NONE;
     Lexer_savepoint savepoint = create_savepoint(lexer);
@@ -550,29 +551,25 @@ internal AST_DECLARATION_TYPE get_declaration_type(Lexer *lexer) {
 
     error_p.start = t1.src_p;
 
-    if (is_type(type_table(lexer), t3)) {
-        if (t2.type == TOKEN_DECLARATION) {
+    if (t2.type == TOKEN_DECLARATION) {
+        if (is_type(type_table(lexer), t3)) {
             result = AST_DECLARATION_TYPEDEF;
-        } else if (t2.type == TOKEN_COLON) {
-            result = AST_DECLARATION_VARIABLE;
-        } else {
-            error_p.last_correct = t1.src_p;
-            require_token_and_report_syntax_error(lexer, always_false, TOKEN_NULL, error_p, "expected colon ':' after variable declaration or declaration token '::' after type declaration", false);
-        }
-
-    } else {
-        if (t2.type != TOKEN_DECLARATION) {
-            error_p.last_correct = t1.src_p;
-            require_token_and_report_syntax_error(lexer, always_false, TOKEN_NULL, error_p, "expected declaration token '::' after the name in the declaration", false);
-        }
-
-        if (is_compound(t3.type)) {
+        } else if (is_compound(t3.type)) {
             result = AST_DECLARATION_COMPOUND;
         } else if (t3.type == TOKEN_ENUM) {
             result = AST_DECLARATION_ENUM;
         } else if (t3.type == TOKEN_OPEN_PARENTHESIS) {
             result = AST_DECLARATION_FUNCTION;
+        } else if (is_constant_value(t3.type)) {
+            result = AST_DECLARATION_CONSTANT;
+        } else {
+            assert(false, "unhandled declaration");
         }
+    } else if (t2.type == TOKEN_COLON) {
+        result = AST_DECLARATION_VARIABLE;
+    } else {
+        error_p.last_correct = t1.src_p;
+        require_token_and_report_syntax_error(lexer, always_false, TOKEN_NULL, error_p, "expected colon ':' after variable declaration or declaration token '::' after type declaration", false);
     }
 
     rollback_lexer(savepoint);
@@ -758,20 +755,35 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
 
 
     if (declaration_type == AST_DECLARATION_VARIABLE) {
-        result->variable.variable_type = get(lexer->parser->type_table, declaration_token_or_type.name);
+        if (declaration_token_or_type.type == TOKEN_NAME) {
+            // a :u32
+            //    ^^^
+            result->variable.variable_type = get(lexer->parser->type_table, declaration_token_or_type.name);
+            result->variable.do_inference = false;
 
-        if (!result->variable.variable_type) {
-            push_pending_type(lexer->parser, result, declaration_token_or_type.name, declaration_token_or_type.src_p);
-        }
+            if (!result->variable.variable_type) {
+                push_pending_type(lexer->parser, result, declaration_token_or_type.name, declaration_token_or_type.src_p);
+            }
 
-        // TODO: handle type inference if the declaration_token_or_type is an assignment
-        // Consume the type
-        Token after_type = get_next_token(lexer);
-        result->variable.expression = 0;
+            // Consume the type
+            Token after_type = get_next_token(lexer);
+            result->variable.expression = 0;
 
-        if (after_type.type == TOKEN_ASSIGNMENT) {
-            // TODO: check this error a:u32 =;
-            get_next_token(lexer);
+            if (after_type.type == TOKEN_ASSIGNMENT) {
+                // a :u32 =
+                //        ^
+                // TODO: check this error a :u32 =;
+                get_next_token(lexer);
+                result->variable.expression = parse_binary_expression(lexer, 0);
+            }
+        } else {
+            positions.last_correct = lexer->previous_token.src_p;
+            require_token_and_report_syntax_error(lexer, token_check, TOKEN_ASSIGNMENT, positions, "Missing ", false);
+            if (lexer->parser->parsing_errors) return 0;
+            result->variable.do_inference = true;
+            // a :=
+            //    ^
+            // TODO: check this error a :=;
             result->variable.expression = parse_binary_expression(lexer, 0);
         }
 

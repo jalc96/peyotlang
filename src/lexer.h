@@ -104,6 +104,17 @@ internal bool is_pre_post(PEYOT_TOKEN_TYPE type) {
     return ((type == TOKEN_PLUS_PLUS) || (type == TOKEN_MINUS_MINUS));
 }
 
+internal bool is_constant_value(PEYOT_TOKEN_TYPE type) {
+    if (type == TOKEN_LITERAL_CHAR) return true;
+    if (type == TOKEN_LITERAL_STR) return true;
+    if (type == TOKEN_LITERAL_INTEGER) return true;
+    if (type == TOKEN_LITERAL_FLOAT) return true;
+    if (type == TOKEN_LITERAL_BOOL_TRUE) return true;
+    if (type == TOKEN_LITERAL_BOOL_FALSE) return true;
+
+    return false;
+}
+
 internal str to_string(PEYOT_TOKEN_TYPE type) {
     str result = STATIC_STR("ERROR");
 

@@ -627,6 +627,37 @@ s16 main(s16 arg_count, char **args) {
         }
     )PROGRAM";
 
+    char *program_type_inference = R"PROGRAM(
+        V2u :: struct {
+            x :f32;
+            y :f32;
+        }
+        main :: () -> u32 {
+            v :V2u;
+            p := v;
+            a := 1;
+        }
+    )PROGRAM";
+
+    char *program_constant_declarations = R"PROGRAM(
+        PI32 :: 3.141516
+        COUNT :: 23
+        CHARACTER :: 'a'
+        NAME :: "William Shakespeare"
+
+        main :: () -> u32 {
+            pi :f32 = PI32;
+            count :u32 = 23;
+            character :char = CHARACTER;
+            name :str = NAME;
+            ERRORS HERE
+            COUNT := 1;
+            COUNT = 1;
+        }
+    )PROGRAM";
+
+    // TODO: type(variable) == u32 or type(variable) == type(u32)????
+
     Memory_pool allocator = {};
 
     Type_spec_table *type_table = new_type_spec_table(&allocator);
@@ -635,7 +666,7 @@ s16 main(s16 arg_count, char **args) {
     Symbol_table *global_scope = new_symbol_table(&allocator);
 
     Parser *parser = new_parser(&allocator, type_table, global_scope);
-    Lexer lexer = create_lexer(program_type_check_typedef_compound, parser, &allocator);
+    Lexer lexer = create_lexer(program_type_inference, parser, &allocator);
 
 
     get_next_token(&lexer);

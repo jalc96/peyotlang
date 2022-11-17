@@ -514,6 +514,10 @@ internal void type_check(Lexer *lexer, Ast_declaration *ast) {
 
     switch (ast->type) {
         case AST_DECLARATION_VARIABLE: {
+            if (ast->variable.do_inference) {
+                ast->variable.variable_type = get_type(lexer, ast->variable.expression);
+            }
+
             Symbol *s = get(parser->current_scope, ast->name);
 
             if (s) {

@@ -391,6 +391,7 @@ enum AST_DECLARATION_TYPE {
     AST_DECLARATION_COMPOUND,
     AST_DECLARATION_ENUM,
     AST_DECLARATION_TYPEDEF,
+    AST_DECLARATION_CONSTANT,
 /*
     import
 */
@@ -519,6 +520,7 @@ struct Ast_declaration {
         struct {
             Type_spec *variable_type;
             Ast_expression *expression;
+            bool do_inference;
         } variable;
         struct {
             u32 param_count;
