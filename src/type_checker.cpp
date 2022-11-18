@@ -367,7 +367,7 @@ internal void type_check(Lexer *lexer, Ast_if *ast);
 internal void type_check(Lexer *lexer, Ast_loop *ast);
 internal void type_check(Lexer *lexer, Ast_block *ast, bool create_scope);
 
-internal Type_spec *get_type(Symbol_table *symbol_table, Type_spec_table *type_table, str name) {
+internal Type_spec *get_type_of_name(Symbol_table *symbol_table, Type_spec_table *type_table, str name) {
     Type_spec *result = {};
 
     Symbol *s = get(symbol_table, name);
@@ -379,8 +379,8 @@ internal Type_spec *get_type(Symbol_table *symbol_table, Type_spec_table *type_t
     return result;
 }
 
-internal Type_spec *get_type(Lexer *lexer, str name) {
-    Type_spec *result = get_type(lexer->parser->current_scope, lexer->parser->type_table, name);
+internal Type_spec *get_type_of_name(Lexer *lexer, str name) {
+    Type_spec *result = get_type_of_name(lexer->parser->current_scope, lexer->parser->type_table, name);
     return result;
 }
 
@@ -426,6 +426,9 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast) {
 
     if (is_leaf(ast->type)) {
         switch (ast->type) {
+            case AST_EXPRESSION_LITERAL_TYPE: {
+                result = get(type_table, ast->name);
+            } break;
             case AST_EXPRESSION_LITERAL_CHAR: {
                 result = get(type_table, STATIC_STR("char"));
             } break;
@@ -439,11 +442,16 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast) {
                 result = get(type_table, STATIC_STR("f32"));
             } break;
             case AST_EXPRESSION_NAME: {
-                result = get_type(current_scope, type_table, ast->name);
+                if (get(type_table, ast->name)) {
+                    result = get(type_table, STATIC_STR("u32"));
+                } else {
+                    // is a name
+                    result = get_type_of_name(current_scope, type_table, ast->name);
 
-                if (!result) {
-                    // NOTE(Juan Antonio) 2022-11-08: this has an inplicit call to the symbol table, so if 0 is return then the symbol doesnt exists
-                    report_undeclared_identifier(lexer, ast->name, ast->src_p);
+                    if (!result) {
+                        // NOTE(Juan Antonio) 2022-11-08: this has an inplicit call to the symbol table, so if 0 is return then the symbol doesnt exists
+                        report_undeclared_identifier(lexer, ast->name, ast->src_p);
+                    }
                 }
             } break;
             case AST_EXPRESSION_MEMBER: {
@@ -504,6 +512,45 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast) {
         }
 
         result = r;
+    } else if (ast->type == AST_EXPRESSION_TYPEOF) {
+        str name = ast->statement->type_statement.name;
+        Type_spec *type = get(lexer->parser->type_table, name);
+        Symbol *symbol = get(lexer->parser->current_scope, name);
+
+        if (!type && !symbol) {
+            report_undeclared_identifier(lexer, ast->name, ast->src_p);
+            result = 0;
+        } else {
+            result = get(type_table, STATIC_STR("u32"));
+        }
+    } else if (ast->type == AST_EXPRESSION_SIZEOF) {
+        str name = ast->statement->sizeof_statement.name;
+        Type_spec *type = get(lexer->parser->type_table, name);
+        Symbol *symbol = get(lexer->parser->current_scope, name);
+
+        if (!type && !symbol) {
+            report_undeclared_identifier(lexer, ast->name, ast->src_p);
+            result = 0;
+        } else {
+            result = get(type_table, STATIC_STR("u32"));
+        }
+    } else if (ast->type == AST_EXPRESSION_OFFSETOF) {
+        str type_name = ast->statement->offsetof_statement.type_name;
+        str member_name = ast->statement->offsetof_statement.member_name;
+        Type_spec *type = get(lexer->parser->type_table, type_name);
+
+        if (type) {
+            Type_spec *base = get_base(type);
+            Member_info *member_info = get(base->member_info_table, member_name);
+
+            if (member_info) {
+                result = get(type_table, STATIC_STR("u32"));
+            } else {
+                report_member_not_found(lexer, type_name, member_name, ast->statement->offsetof_statement.member_src_p, false);
+            }
+        } else {
+            report_undeclared_identifier(lexer, type_name, ast->statement->offsetof_statement.type_src_p);
+        }
     }
 
     return result;
@@ -530,7 +577,7 @@ internal void type_check(Lexer *lexer, Ast_declaration *ast) {
             put(parser->current_scope, ast->name, ast->variable.variable_type->name, ast->src_p);
 
             if (ast->variable.expression) {
-                Type_spec *variable = get_type(lexer, ast->name);
+                Type_spec *variable = get_type_of_name(lexer, ast->name);
                 Type_spec *value = get_type(lexer, ast->variable.expression);
 
                 if (type_errors(parser)) {return;}
@@ -588,35 +635,13 @@ internal void type_check(Lexer *lexer, Ast_statement *ast) {
         case AST_STATEMENT_RETURN: {} break;
 
         case AST_STATEMENT_SIZEOF: {
-            Type_spec *type = get(lexer->parser->type_table, ast->sizeof_statement.name);
-            Symbol *symbol = get(lexer->parser->current_scope, ast->sizeof_statement.name);
-
-            if (!type && !symbol) {
-                report_undeclared_identifier(lexer, ast->sizeof_statement.name, ast->sizeof_statement.name_src_p);
-            }
+            type_check(lexer, ast->sizeof_statement.expression);
         } break;
         case AST_STATEMENT_OFFSETOF: {
-            Type_spec *type = get(lexer->parser->type_table, ast->offsetof_statement.type_name);
-
-            if (type) {
-                Type_spec *base = get_base(type);
-                Member_info *member_info = get(base->member_info_table, ast->offsetof_statement.member_name);
-
-                if (member_info) {
-                } else {
-                    report_member_not_found(lexer, ast->offsetof_statement.type_name, ast->offsetof_statement.member_name, ast->offsetof_statement.member_src_p, false);
-                }
-            } else {
-                report_undeclared_identifier(lexer, ast->offsetof_statement.type_name, ast->offsetof_statement.type_src_p);
-            }
+            type_check(lexer, ast->offsetof_statement.expression);
         } break;
         case AST_STATEMENT_TYPEOF: {
-            Type_spec *type = get(lexer->parser->type_table, ast->type_statement.name);
-            Symbol *symbol = get(lexer->parser->current_scope, ast->type_statement.name);
-
-            if (!type && !symbol) {
-                report_undeclared_identifier(lexer, ast->type_statement.name, ast->type_statement.name_src_p);
-            }
+            type_check(lexer, ast->type_statement.expression);
         } break;
 
         invalid_default_case_msg("ast_statement type_check missing type");

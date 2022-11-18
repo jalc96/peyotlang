@@ -87,6 +87,8 @@ global_variable bool ASSERT_FOR_DEBUGGING = false;
 
 #include"symbol_table.h"
 
+global_variable Type_spec_table *global_type_table;
+
 struct Ast_declaration;
 struct Ast_statement;
 struct Ast_expression;
@@ -655,18 +657,55 @@ s16 main(s16 arg_count, char **args) {
             COUNT = 1;
         }
     )PROGRAM";
+    char *program_type_comparison = R"PROGRAM(
+        V2u :: struct {
+            x :u32;
+            y :u32;
+        }
 
-    // TODO: type(variable) == u32 or type(variable) == type(u32)????
+        main :: () -> u32 {
+            u32 == u32;
+            V2u == V2u;
+            a :u32;
+            type(a) == u32;
+            u32 == type(a);
+            p :V2u;
+            type(p) == V2u;
+            type(p.x) == u32;
+            t := u32;
+            type(t) == u32;
+        }
+    )PROGRAM";
+
+    make this work 
+    test all the programs
+    test more things of the sizeof type and offsetof statements
+    char *program_sizeof = R"PROGRAM(
+        V2u :: struct {
+            x :u32;
+            y :u32;
+        }
+
+        main :: () -> u32 {
+            a :u32 = sizeof(V2u) == sizeof(u32);
+            p :V2u;
+            sizeof(p);
+            sizeof(p.ax);
+        }
+    )PROGRAM";
+
+
 
     Memory_pool allocator = {};
 
     Type_spec_table *type_table = new_type_spec_table(&allocator);
+    global_type_table = type_table;
     initialize_native_types(type_table, &allocator);
 
     Symbol_table *global_scope = new_symbol_table(&allocator);
 
     Parser *parser = new_parser(&allocator, type_table, global_scope);
-    Lexer lexer = create_lexer(program_type_inference, parser, &allocator);
+    Lexer lexer = create_lexer(program_sizeof, parser, &allocator);
 
 
     get_next_token(&lexer);

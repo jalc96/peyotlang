@@ -173,6 +173,97 @@ internal void parse_parameter(Call_parameter_list_creator *it) {
     it->positions->last_correct = it->lexer->current_token.src_p;
 }
 
+internal Ast_expression *parse_factor(Lexer *lexer, Ast_expression *result);
+
+internal Ast_statement *parse_ast_expression_statement_with_result(Lexer *lexer, AST_STATEMENT_TYPE type, Syntax_error_positions positions, Ast_statement *result) {
+    if (lexer->parser->parsing_errors) return 0;
+
+    if (!result) {
+        result = push_struct(lexer->allocator, Ast_statement);
+    }
+
+    result->type = type;
+    // consume the keyword
+    get_next_token(lexer);
+
+    if (type == AST_STATEMENT_SIZEOF) {
+        positions.last_correct = lexer->previous_token.src_p;
+        require_token_and_report_syntax_error(lexer, token_check, TOKEN_OPEN_PARENTHESIS, positions, "Missing open parenthesis '(' for sizeof statement", false);
+        if (lexer->parser->parsing_errors) return 0;
+
+        Token name = lexer->current_token;
+        result->sizeof_statement.name = name.name;
+        result->sizeof_statement.name_src_p = name.src_p;
+        positions.last_correct = lexer->previous_token.src_p;
+        // require_token_and_report_syntax_error(lexer, type_name_check, TOKEN_NAME, positions, "Missing name for sizeof statement", false);
+        // if (lexer->parser->parsing_errors) return 0;
+        result->type_statement.expression = parse_factor(lexer, 0);
+
+        positions.last_correct = lexer->previous_token.src_p;
+        require_token_and_report_syntax_error(lexer, token_check, TOKEN_CLOSE_PARENTHESIS, positions, "Missing close parenthesis ')' for sizeof statement", false);
+        if (lexer->parser->parsing_errors) return 0;
+
+        // NOTE(Juan Antonio) 2022-11-17: here the statements are treated as factors so the semicolon is not needed
+        // positions.last_correct = lexer->previous_token.src_p;
+        // require_token_and_report_syntax_error(lexer, token_check, TOKEN_SEMICOLON, positions, "Missing semicolon ';' at the end of statement", false);
+        // if (lexer->parser->parsing_errors) return 0;
+    } else if (type == AST_STATEMENT_OFFSETOF) {
+        positions.last_correct = lexer->previous_token.src_p;
+        require_token_and_report_syntax_error(lexer, token_check, TOKEN_OPEN_PARENTHESIS, positions, "Missing open parenthesis '(' for offsetof statement", false);
+        if (lexer->parser->parsing_errors) return 0;
+
+        Token name = lexer->current_token;
+        result->offsetof_statement.type_name = name.name;
+        result->offsetof_statement.type_src_p = name.src_p;
+        positions.last_correct = lexer->previous_token.src_p;
+        require_token_and_report_syntax_error(lexer, token_check, TOKEN_NAME, positions, "Missing name for offsetof statement", false);
+        if (lexer->parser->parsing_errors) return 0;
+
+        positions.last_correct = lexer->previous_token.src_p;
+        require_token_and_report_syntax_error(lexer, token_check, TOKEN_COMMA, positions, "Missing comma ',' for offsetof statement", false);
+        if (lexer->parser->parsing_errors) return 0;
+
+        name = lexer->current_token;
+        result->offsetof_statement.member_name = name.name;
+        result->offsetof_statement.member_src_p = name.src_p;
+        positions.last_correct = lexer->previous_token.src_p;
+        require_token_and_report_syntax_error(lexer, token_check, TOKEN_NAME, positions, "Missing name for offsetof statement", false);
+        if (lexer->parser->parsing_errors) return 0;
+
+        positions.last_correct = lexer->previous_token.src_p;
+        require_token_and_report_syntax_error(lexer, token_check, TOKEN_CLOSE_PARENTHESIS, positions, "Missing close parenthesis ')' for offsetof statement", false);
+        if (lexer->parser->parsing_errors) return 0;
+
+        // NOTE(Juan Antonio) 2022-11-17: here the statements are treated as factors so the semicolon is not needed
+        // positions.last_correct = lexer->previous_token.src_p;
+        // require_token_and_report_syntax_error(lexer, token_check, TOKEN_SEMICOLON, positions, "Missing semicolon ';' at the end of statement", false);
+        // if (lexer->parser->parsing_errors) return 0;
+    } else if (type == AST_STATEMENT_TYPEOF) {
+        positions.last_correct = lexer->previous_token.src_p;
+        require_token_and_report_syntax_error(lexer, token_check, TOKEN_OPEN_PARENTHESIS, positions, "Missing open parenthesis '(' for type statement", false);
+        if (lexer->parser->parsing_errors) return 0;
+
+        Token name = lexer->current_token;
+        result->type_statement.name = name.name;
+        result->type_statement.name_src_p = name.src_p;
+        positions.last_correct = lexer->previous_token.src_p;
+        // require_token_and_report_syntax_error(lexer, type_name_check, TOKEN_NAME, positions, "Missing name for type statement", false);
+        // if (lexer->parser->parsing_errors) return 0;
+        result->type_statement.expression = parse_factor(lexer, 0);
+
+        positions.last_correct = lexer->previous_token.src_p;
+        require_token_and_report_syntax_error(lexer, token_check, TOKEN_CLOSE_PARENTHESIS, positions, "Missing close parenthesis ')' for type statement", false);
+        if (lexer->parser->parsing_errors) return 0;
+
+        // NOTE(Juan Antonio) 2022-11-17: here the statements are treated as factors so the semicolon is not needed
+        // positions.last_correct = lexer->previous_token.src_p;
+        // require_token_and_report_syntax_error(lexer, token_check, TOKEN_SEMICOLON, positions, "Missing semicolon ';' at the end of statement", false);
+        // if (lexer->parser->parsing_errors) return 0;
+    }
+
+    return result;
+}
+
 internal Ast_expression *parse_factor(Lexer *lexer, Ast_expression *result) {
     if (lexer->parser->parsing_errors) return 0;
 
@@ -265,15 +356,36 @@ internal Ast_expression *parse_factor(Lexer *lexer, Ast_expression *result) {
             if (lexer->parser->parsing_errors) return 0;
         } break;
 
-        default: {
-            Syntax_error_positions error_p;
-            error_p.start = lexer->previous_token.src_p;
-            error_p.last_correct = lexer->previous_token.src_p;
+        case TOKEN_SIZEOF: {
+            result->type = AST_EXPRESSION_SIZEOF;
+            result->statement = parse_ast_expression_statement_with_result(lexer, AST_STATEMENT_SIZEOF, positions, 0);
+        } break;
 
-            char msg[256];
-            str symbol = to_symbol(token.type, &token);
-            stbsp_snprintf(msg, 256, "unexpected token found '%.*s'", STR_PRINT(symbol));
-            require_token_and_report_syntax_error(lexer, always_false, TOKEN_NULL, error_p, msg, true);
+        case TOKEN_OFFSETOF: {
+            result->type = AST_EXPRESSION_OFFSETOF;
+            result->statement = parse_ast_expression_statement_with_result(lexer,AST_STATEMENT_OFFSETOF, positions, 0);
+        } break;
+
+        case TOKEN_TYPEOF: {
+            result->type = AST_EXPRESSION_TYPEOF;
+            result->statement = parse_ast_expression_statement_with_result(lexer, AST_STATEMENT_TYPEOF, positions, 0);
+        } break;
+
+        default: {
+            if (is_native_type(token)) {
+                leaf(result, AST_EXPRESSION_LITERAL_TYPE);
+                result->name = to_symbol(token.type);
+                get_next_token(lexer);
+            } else {
+                Syntax_error_positions error_p;
+                error_p.start = lexer->previous_token.src_p;
+                error_p.last_correct = lexer->previous_token.src_p;
+
+                char msg[256];
+                str symbol = to_symbol(token.type, &token);
+                stbsp_snprintf(msg, 256, "unexpected token found '%.*s'", STR_PRINT(symbol));
+                require_token_and_report_syntax_error(lexer, always_false, TOKEN_NULL, error_p, msg, true);
+            }
         }
 
         // invalid_default_case_msg("create a error in parse_factor()");
@@ -755,7 +867,7 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
 
 
     if (declaration_type == AST_DECLARATION_VARIABLE) {
-        if (declaration_token_or_type.type == TOKEN_NAME) {
+        if (is_type(lexer->parser->type_table, declaration_token_or_type)) {
             // a :u32
             //    ^^^
             result->variable.variable_type = get(lexer->parser->type_table, declaration_token_or_type.name);
@@ -778,7 +890,7 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
             }
         } else {
             positions.last_correct = lexer->previous_token.src_p;
-            require_token_and_report_syntax_error(lexer, token_check, TOKEN_ASSIGNMENT, positions, "Missing ", false);
+            require_token_and_report_syntax_error(lexer, token_check, TOKEN_ASSIGNMENT, positions, "Missing assignment token '=' to inferenced declaration", false);
             if (lexer->parser->parsing_errors) return 0;
             result->variable.do_inference = true;
             // a :=
@@ -1177,6 +1289,11 @@ internal AST_STATEMENT_TYPE get_statement_type(Lexer *lexer) {
     Lexer_savepoint savepoint = create_savepoint(lexer);
     Token t1 = lexer->current_token;
 
+    if (is_native_type(t1)) {
+        result = AST_STATEMENT_EXPRESSION;
+        goto end_get_statement_type;
+    }
+
     switch (t1.type) {
         case TOKEN_OPEN_BRACE: {
             result = AST_STATEMENT_BLOCK;
@@ -1236,6 +1353,7 @@ internal AST_STATEMENT_TYPE get_statement_type(Lexer *lexer) {
         invalid_default_case_msg("get_statement_type unhandled type");
     }
 
+end_get_statement_type:
     rollback_lexer(savepoint);
 
     return result;
@@ -1297,83 +1415,105 @@ internal Ast_statement *parse_statement(Lexer *lexer, Ast_statement *result) {
         } break;
 
         case AST_STATEMENT_SIZEOF: {
-            get_next_token(lexer);
+            if (1) {
+                result->sizeof_statement.expression = parse_or_expression(lexer, 0);
 
-            positions.last_correct = lexer->previous_token.src_p;
-            require_token_and_report_syntax_error(lexer, token_check, TOKEN_OPEN_PARENTHESIS, positions, "Missing open parenthesis '(' for sizeof statement", false);
-            if (lexer->parser->parsing_errors) return 0;
+                positions.last_correct = lexer->previous_token.src_p;
+                require_token_and_report_syntax_error(lexer, token_check, TOKEN_SEMICOLON, positions, "Missing semicolon ';' at the end of a break statement", false);
+            } else {
+                get_next_token(lexer);
 
-            Token name = lexer->current_token;
-            result->sizeof_statement.name = name.name;
-            result->sizeof_statement.name_src_p = name.src_p;
-            positions.last_correct = lexer->previous_token.src_p;
-            require_token_and_report_syntax_error(lexer, type_name_check, TOKEN_NAME, positions, "Missing name for sizeof statement", false);
-            if (lexer->parser->parsing_errors) return 0;
+                positions.last_correct = lexer->previous_token.src_p;
+                require_token_and_report_syntax_error(lexer, token_check, TOKEN_OPEN_PARENTHESIS, positions, "Missing open parenthesis '(' for sizeof statement", false);
+                if (lexer->parser->parsing_errors) return 0;
 
-            positions.last_correct = lexer->previous_token.src_p;
-            require_token_and_report_syntax_error(lexer, token_check, TOKEN_CLOSE_PARENTHESIS, positions, "Missing close parenthesis ')' for sizeof statement", false);
-            if (lexer->parser->parsing_errors) return 0;
+                Token name = lexer->current_token;
+                result->sizeof_statement.name = name.name;
+                result->sizeof_statement.name_src_p = name.src_p;
+                positions.last_correct = lexer->previous_token.src_p;
+                require_token_and_report_syntax_error(lexer, type_name_check, TOKEN_NAME, positions, "Missing name for sizeof statement", false);
+                if (lexer->parser->parsing_errors) return 0;
 
-            positions.last_correct = lexer->previous_token.src_p;
-            require_token_and_report_syntax_error(lexer, token_check, TOKEN_SEMICOLON, positions, "Missing semicolon ';' at the end of statement", false);
-            if (lexer->parser->parsing_errors) return 0;
+                positions.last_correct = lexer->previous_token.src_p;
+                require_token_and_report_syntax_error(lexer, token_check, TOKEN_CLOSE_PARENTHESIS, positions, "Missing close parenthesis ')' for sizeof statement", false);
+                if (lexer->parser->parsing_errors) return 0;
+
+                positions.last_correct = lexer->previous_token.src_p;
+                require_token_and_report_syntax_error(lexer, token_check, TOKEN_SEMICOLON, positions, "Missing semicolon ';' at the end of statement", false);
+                if (lexer->parser->parsing_errors) return 0;
+            }
         } break;
 
         case AST_STATEMENT_OFFSETOF: {
-            get_next_token(lexer);
+            if (1) {
+                result->offsetof_statement.expression = parse_or_expression(lexer, 0);
 
-            positions.last_correct = lexer->previous_token.src_p;
-            require_token_and_report_syntax_error(lexer, token_check, TOKEN_OPEN_PARENTHESIS, positions, "Missing open parenthesis '(' for offsetof statement", false);
-            if (lexer->parser->parsing_errors) return 0;
+                positions.last_correct = lexer->previous_token.src_p;
+                require_token_and_report_syntax_error(lexer, token_check, TOKEN_SEMICOLON, positions, "Missing semicolon ';' at the end of a break statement", false);
+            } else {
+                get_next_token(lexer);
 
-            Token name = lexer->current_token;
-            result->offsetof_statement.type_name = name.name;
-            result->offsetof_statement.type_src_p = name.src_p;
-            positions.last_correct = lexer->previous_token.src_p;
-            require_token_and_report_syntax_error(lexer, token_check, TOKEN_NAME, positions, "Missing name for offsetof statement", false);
-            if (lexer->parser->parsing_errors) return 0;
+                positions.last_correct = lexer->previous_token.src_p;
+                require_token_and_report_syntax_error(lexer, token_check, TOKEN_OPEN_PARENTHESIS, positions, "Missing open parenthesis '(' for offsetof statement", false);
+                if (lexer->parser->parsing_errors) return 0;
 
-            positions.last_correct = lexer->previous_token.src_p;
-            require_token_and_report_syntax_error(lexer, token_check, TOKEN_COMMA, positions, "Missing comma ',' for offsetof statement", false);
-            if (lexer->parser->parsing_errors) return 0;
+                Token name = lexer->current_token;
+                result->offsetof_statement.type_name = name.name;
+                result->offsetof_statement.type_src_p = name.src_p;
+                positions.last_correct = lexer->previous_token.src_p;
+                require_token_and_report_syntax_error(lexer, token_check, TOKEN_NAME, positions, "Missing name for offsetof statement", false);
+                if (lexer->parser->parsing_errors) return 0;
 
-            name = lexer->current_token;
-            result->offsetof_statement.member_name = name.name;
-            result->offsetof_statement.member_src_p = name.src_p;
-            positions.last_correct = lexer->previous_token.src_p;
-            require_token_and_report_syntax_error(lexer, token_check, TOKEN_NAME, positions, "Missing name for offsetof statement", false);
-            if (lexer->parser->parsing_errors) return 0;
+                positions.last_correct = lexer->previous_token.src_p;
+                require_token_and_report_syntax_error(lexer, token_check, TOKEN_COMMA, positions, "Missing comma ',' for offsetof statement", false);
+                if (lexer->parser->parsing_errors) return 0;
 
-            positions.last_correct = lexer->previous_token.src_p;
-            require_token_and_report_syntax_error(lexer, token_check, TOKEN_CLOSE_PARENTHESIS, positions, "Missing close parenthesis ')' for offsetof statement", false);
-            if (lexer->parser->parsing_errors) return 0;
+                name = lexer->current_token;
+                result->offsetof_statement.member_name = name.name;
+                result->offsetof_statement.member_src_p = name.src_p;
+                positions.last_correct = lexer->previous_token.src_p;
+                require_token_and_report_syntax_error(lexer, token_check, TOKEN_NAME, positions, "Missing name for offsetof statement", false);
+                if (lexer->parser->parsing_errors) return 0;
 
-            positions.last_correct = lexer->previous_token.src_p;
-            require_token_and_report_syntax_error(lexer, token_check, TOKEN_SEMICOLON, positions, "Missing semicolon ';' at the end of statement", false);
-            if (lexer->parser->parsing_errors) return 0;
+                positions.last_correct = lexer->previous_token.src_p;
+                require_token_and_report_syntax_error(lexer, token_check, TOKEN_CLOSE_PARENTHESIS, positions, "Missing close parenthesis ')' for offsetof statement", false);
+                if (lexer->parser->parsing_errors) return 0;
+
+                positions.last_correct = lexer->previous_token.src_p;
+                require_token_and_report_syntax_error(lexer, token_check, TOKEN_SEMICOLON, positions, "Missing semicolon ';' at the end of statement", false);
+                if (lexer->parser->parsing_errors) return 0;
+            }
         } break;
 
         case AST_STATEMENT_TYPEOF: {
-            get_next_token(lexer);
+            if (1) {
+                result->type_statement.expression = parse_or_expression(lexer, 0);
 
-            positions.last_correct = lexer->previous_token.src_p;
-            require_token_and_report_syntax_error(lexer, token_check, TOKEN_OPEN_PARENTHESIS, positions, "Missing open parenthesis '(' for type statement", false);
-            if (lexer->parser->parsing_errors) return 0;
+                positions.last_correct = lexer->previous_token.src_p;
+                require_token_and_report_syntax_error(lexer, token_check, TOKEN_SEMICOLON, positions, "Missing semicolon ';' at the end of a break statement", false);
+            } else {
+                get_next_token(lexer);
 
-            Token name = lexer->current_token;
-            result->type_statement.name = name.name;
-            result->type_statement.name_src_p = name.src_p;
-            positions.last_correct = lexer->previous_token.src_p;
-            require_token_and_report_syntax_error(lexer, type_name_check, TOKEN_NAME, positions, "Missing name for type statement", false);
-            if (lexer->parser->parsing_errors) return 0;
+                positions.last_correct = lexer->previous_token.src_p;
+                require_token_and_report_syntax_error(lexer, token_check, TOKEN_OPEN_PARENTHESIS, positions, "Missing open parenthesis '(' for type statement", false);
+                if (lexer->parser->parsing_errors) return 0;
 
-            positions.last_correct = lexer->previous_token.src_p;
-            require_token_and_report_syntax_error(lexer, token_check, TOKEN_CLOSE_PARENTHESIS, positions, "Missing close parenthesis ')' for type statement", false);
-            if (lexer->parser->parsing_errors) return 0;
+                Token name = lexer->current_token;
+                result->type_statement.name = name.name;
+                result->type_statement.name_src_p = name.src_p;
+                positions.last_correct = lexer->previous_token.src_p;
+                require_token_and_report_syntax_error(lexer, type_name_check, TOKEN_NAME, positions, "Missing name for type statement", false);
+                if (lexer->parser->parsing_errors) return 0;
 
-            positions.last_correct = lexer->previous_token.src_p;
-            require_token_and_report_syntax_error(lexer, token_check, TOKEN_SEMICOLON, positions, "Missing semicolon ';' at the end of statement", false);
-            if (lexer->parser->parsing_errors) return 0;
+
+                positions.last_correct = lexer->previous_token.src_p;
+                require_token_and_report_syntax_error(lexer, token_check, TOKEN_CLOSE_PARENTHESIS, positions, "Missing close parenthesis ')' for type statement", false);
+                if (lexer->parser->parsing_errors) return 0;
+
+                positions.last_correct = lexer->previous_token.src_p;
+                require_token_and_report_syntax_error(lexer, token_check, TOKEN_SEMICOLON, positions, "Missing semicolon ';' at the end of statement", false);
+                if (lexer->parser->parsing_errors) return 0;
+            }
         } break;
 
 

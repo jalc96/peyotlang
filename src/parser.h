@@ -1,4 +1,4 @@
-internal void print(Ast_statement *ast, u32 indent=0);
+internal void print(Ast_statement *ast, u32 indent=0, bool print_leaf=false);
 internal void print(Ast_block *block, u32 indent=0);
 
 #define log_error(eb, format, ...) eb->head += stbsp_snprintf(get_buffer(eb), eb->size, format, __VA_ARGS__)
@@ -59,6 +59,12 @@ internal bool type_errors(Parser *parser) {
 enum AST_EXPRESSION_TYPE {
     AST_NULL,
 
+
+    AST_EXPRESSION_SIZEOF,
+    AST_EXPRESSION_OFFSETOF,
+    AST_EXPRESSION_TYPEOF,
+
+    AST_EXPRESSION_LITERAL_TYPE,
     AST_EXPRESSION_LITERAL_CHAR,
     AST_EXPRESSION_LITERAL_STR,
     AST_EXPRESSION_LITERAL_INTEGER,
@@ -137,6 +143,8 @@ struct Call_parameter {
     Call_parameter *next;
 };
 
+struct Ast_statement;
+
 struct Ast_expression {
     AST_EXPRESSION_TYPE type;
     Src_position src_p;
@@ -160,6 +168,7 @@ struct Ast_expression {
             u32 parameter_count;
             Call_parameter *parameter;
         } function_call;
+        Ast_statement *statement;
     };
 };
 
@@ -174,6 +183,13 @@ internal void print(Ast_expression *ast, u32 indent=0, bool is_declaration=false
 
     switch (ast->type) {
         case AST_EXPRESSION_NAME:    {printf("%.*s", ast->name.count, ast->name.buffer);} break;
+        case AST_EXPRESSION_LITERAL_TYPE: {
+            Type_spec *type = get(global_type_table, ast->name);
+            printf("%.*s", STR_PRINT(type->name));
+        } break;
+        case AST_EXPRESSION_SIZEOF: {print(ast->statement, indent, true);} break;
+        case AST_EXPRESSION_OFFSETOF: {print(ast->statement, indent, true);} break;
+        case AST_EXPRESSION_TYPEOF: {print(ast->statement, indent, true);} break;
         case AST_EXPRESSION_LITERAL_CHAR: {printf("'%c'", ast->char_value);} break;
         case AST_EXPRESSION_LITERAL_STR: {printf("\"%.*s\"", STR_PRINT(ast->str_value));} break;
         case AST_EXPRESSION_LITERAL_INTEGER: {printf("%lld", ast->u64_value);} break;
@@ -274,6 +290,7 @@ internal bool is_unary(AST_EXPRESSION_TYPE type) {
 
 internal bool is_leaf(AST_EXPRESSION_TYPE type) {
     switch (type) {
+        case AST_EXPRESSION_LITERAL_TYPE:
         case AST_EXPRESSION_LITERAL_CHAR:
         case AST_EXPRESSION_LITERAL_STR:
         case AST_EXPRESSION_LITERAL_INTEGER:
@@ -547,11 +564,14 @@ struct Ast_declaration {
 internal void print(Ast_declaration *ast, u32 indent=0) {
     switch (ast->type) {
         case AST_DECLARATION_VARIABLE: {
+            print_indent(indent);
             printf(ast->name);
 
             if (ast->variable.expression) {
                 print(ast->variable.expression, indent, true);
             }
+
+            putchar('\n');
         } break;
         case AST_DECLARATION_FUNCTION: {
             printf(ast->name);
@@ -664,16 +684,19 @@ struct Ast_statement {
         struct {
             str name;
             Src_position name_src_p;
+            Ast_expression *expression;
         } sizeof_statement;
         struct {
             str type_name;
             Src_position type_src_p;
             str member_name;
             Src_position member_src_p;
+            Ast_expression *expression;
         } offsetof_statement;
         struct {
             str name;
             Src_position name_src_p;
+            Ast_expression *expression;
         } type_statement;
     };
 };
@@ -791,7 +814,7 @@ internal void print(Ast_if *ast, u32 indent=0) {
     }
 }
 
-internal void print(Ast_statement *ast, u32 indent) {
+internal void print(Ast_statement *ast, u32 indent, bool print_leaf) {
     switch (ast->type) {
         case AST_STATEMENT_BLOCK: {
             print(ast->block_statement, indent);
@@ -821,17 +844,29 @@ internal void print(Ast_statement *ast, u32 indent) {
             printf("return\n");
         } break;
         case AST_STATEMENT_SIZEOF: {
-            print_indent(indent);
-            printf("sizeof(%.*s)\n", STR_PRINT(ast->sizeof_statement.name));
-        }
+            if (print_leaf) {
+                print_indent(indent);
+                printf("sizeof(%.*s)\n", STR_PRINT(ast->sizeof_statement.name));
+            } else {
+                print(ast->sizeof_statement.expression);
+            }
+        } break;
         case AST_STATEMENT_OFFSETOF: {
-            print_indent(indent);
-            printf("offsetof(%.*s, %.*s)\n", STR_PRINT(ast->offsetof_statement.type_name), STR_PRINT(ast->offsetof_statement.member_name));
-        }
+            if (print_leaf) {
+                print_indent(indent);
+                printf("offsetof(%.*s, %.*s)\n", STR_PRINT(ast->offsetof_statement.type_name), STR_PRINT(ast->offsetof_statement.member_name));
+            } else {
+                print(ast->offsetof_statement.expression);
+            }
+        } break;
         case AST_STATEMENT_TYPEOF: {
-            print_indent(indent);
-            printf("type(%.*s)\n", STR_PRINT(ast->type_statement.name));
-        }
+            if (print_leaf) {
+                print_indent(indent);
+                printf("type(%.*s)\n", STR_PRINT(ast->type_statement.name));
+            } else {
+                print(ast->type_statement.expression);
+            }
+        } break;
     }
 }
 
