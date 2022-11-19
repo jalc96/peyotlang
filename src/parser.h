@@ -846,7 +846,9 @@ internal void print(Ast_statement *ast, u32 indent, bool print_leaf) {
         case AST_STATEMENT_SIZEOF: {
             if (print_leaf) {
                 print_indent(indent);
-                printf("sizeof(%.*s)\n", STR_PRINT(ast->sizeof_statement.name));
+                printf("sizeof(");
+                print(ast->sizeof_statement.expression);
+                printf(")\n");
             } else {
                 print(ast->sizeof_statement.expression);
             }
@@ -862,7 +864,9 @@ internal void print(Ast_statement *ast, u32 indent, bool print_leaf) {
         case AST_STATEMENT_TYPEOF: {
             if (print_leaf) {
                 print_indent(indent);
-                printf("type(%.*s)\n", STR_PRINT(ast->type_statement.name));
+                printf("type(");
+                print(ast->type_statement.expression);
+                printf(")\n");
             } else {
                 print(ast->type_statement.expression);
             }

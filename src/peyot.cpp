@@ -270,7 +270,7 @@ s16 main(s16 arg_count, char **args) {
 
             THING_SMALL,
             THING_BIG=2,
-        };
+        }
     )PROGRAM";
 
     char *program_error_1 = R"PROGRAM(
@@ -449,6 +449,7 @@ s16 main(s16 arg_count, char **args) {
         }
     )PROGRAM";
 
+    // TODO: this one is not implemented
     char *program_type_checking_function = R"PROGRAM(
         V2u :: struct {
             x :u32;
@@ -677,9 +678,6 @@ s16 main(s16 arg_count, char **args) {
         }
     )PROGRAM";
 
-    make this work 
-    test all the programs
-    test more things of the sizeof type and offsetof statements
     char *program_sizeof = R"PROGRAM(
         V2u :: struct {
             x :u32;
@@ -689,6 +687,7 @@ s16 main(s16 arg_count, char **args) {
         main :: () -> u32 {
             a :u32 = sizeof(V2u) == sizeof(u32);
             p :V2u;
+            type(p.x) == u32;
             sizeof(p);
             sizeof(p.ax);
         }
@@ -753,7 +752,7 @@ s16 main(s16 arg_count, char **args) {
             } else {
                 print(ast);
                 rollback_lexer(lexer_savepoint);
-                test_parser(&lexer);
+                // test_parser(&lexer);
                 BOLD(ITALIC(UNDERLINE(GREEN("\n\n\nfinished correctly\n"))));
 
                 debug(lexer.current_line);

@@ -122,23 +122,30 @@ internal void out_of_order_declaration(Parser *parser) {
                 } else if (ast->type == AST_DECLARATION_ENUM) {
 
                 }
-            }break;
+            } break;
 
             case PENDING_TYPE_STATEMENT: {
                 Ast_statement *node_statement;
-            }break;
+            } break;
 
             case PENDING_TYPE_EXPRESSION: {
                 Ast_expression *node_expression;
-            }break;
+            } break;
 
             case PENDING_TYPE_IF: {
                 Ast_if *node_if;
-            }break;
+            } break;
 
             case PENDING_TYPE_LOOP: {
                 Ast_loop *node_loop;
-            }break;
+            } break;
+
+            case PENDING_TYPE_FUNCTION_PARAMETER: {
+                Parameter *parameter = it->node_parameter;
+                parameter->type = type;
+            } break;
+
+            invalid_default_case_msg("missing out of order declaration pending type");
         }
 
         pop(parser, it);
@@ -514,22 +521,48 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast) {
         result = r;
     } else if (ast->type == AST_EXPRESSION_TYPEOF) {
         str name = ast->statement->type_statement.name;
-        Type_spec *type = get(lexer->parser->type_table, name);
-        Symbol *symbol = get(lexer->parser->current_scope, name);
+        Ast_expression *e = ast->statement->type_statement.expression;
+        Type_spec *type = 0;
+        Symbol *symbol = 0;
+
+        if (e->type == AST_EXPRESSION_MEMBER) {
+            type = get_type(lexer, e);
+        } else if (e->type == AST_EXPRESSION_LITERAL_TYPE) {
+            type = get(type_table, name);
+        } else {
+            assert(e->type == AST_EXPRESSION_NAME, "MAKE ERROR type() argument can only be a member of a struct or a name or a type");
+            type = get(type_table, e->name);
+            symbol = get(current_scope, e->name);
+        }
+
+        if (type_errors(lexer->parser)) {return 0;}
 
         if (!type && !symbol) {
-            report_undeclared_identifier(lexer, ast->name, ast->src_p);
+            report_undeclared_identifier(lexer, name, e->src_p);
             result = 0;
         } else {
             result = get(type_table, STATIC_STR("u32"));
         }
     } else if (ast->type == AST_EXPRESSION_SIZEOF) {
         str name = ast->statement->sizeof_statement.name;
-        Type_spec *type = get(lexer->parser->type_table, name);
-        Symbol *symbol = get(lexer->parser->current_scope, name);
+        Ast_expression *e = ast->statement->sizeof_statement.expression;
+        Type_spec *type = 0;
+        Symbol *symbol = 0;
+
+        if (e->type == AST_EXPRESSION_MEMBER) {
+            type = get_type(lexer, e);
+        } else if (e->type == AST_EXPRESSION_LITERAL_TYPE) {
+            type = get(type_table, name);
+        } else {
+            assert(e->type == AST_EXPRESSION_NAME, "MAKE ERROR sizeof() argument can only be a member of a struct or a name or a type");
+            type = get(type_table, e->name);
+            symbol = get(current_scope, e->name);
+        }
+
+        if (type_errors(lexer->parser)) {return 0;}
 
         if (!type && !symbol) {
-            report_undeclared_identifier(lexer, ast->name, ast->src_p);
+            report_undeclared_identifier(lexer, name, e->src_p);
             result = 0;
         } else {
             result = get(type_table, STATIC_STR("u32"));
