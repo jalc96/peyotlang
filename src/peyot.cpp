@@ -59,6 +59,9 @@
     -lexical errors
     -get rid of crt: get stdout buffer from the OS and use stb_print for printing
     -maybe have 2 types of errors hard error when we have to stop the process and soft errors where we can keep doing stuff for example in the type checker its useful to have all of the errors at once but when parsing into the ast once you find an error you dont know what is happening in the input so its better to stop
+    -arrays
+    -pointers
+    -compound initializers
 */
 
 #define STB_SPRINTF_IMPLEMENTATION
@@ -693,6 +696,26 @@ s16 main(s16 arg_count, char **args) {
         }
     )PROGRAM";
 
+    char *program_sizes = R"PROGRAM(
+        Quad :: struct {
+            min :V2u;
+            max :V2u;
+            is_thing : bool;
+        }
+        V2u :: struct {
+            x :f32;
+            y :f32;
+            z :f32;
+            w :f32;
+            a :f32;
+            s :f32;
+            sf :f32;
+        }
+
+        main :: () -> u32 {
+            a := 3;
+        }
+    )PROGRAM";
 
 
     Memory_pool allocator = {};
@@ -704,8 +727,12 @@ s16 main(s16 arg_count, char **args) {
     Symbol_table *global_scope = new_symbol_table(&allocator);
 
     Parser *parser = new_parser(&allocator, type_table, global_scope);
-    Lexer lexer = create_lexer(program_sizeof, parser, &allocator);
+    Lexer lexer = create_lexer(program_sizes, parser, &allocator);
 
+    // link returns with functions
+    // implicit return for void returning functions
+    // typecheck return type
+    // link continue/break with closest for
 
     get_next_token(&lexer);
     Lexer_savepoint lexer_savepoint = create_savepoint(&lexer);

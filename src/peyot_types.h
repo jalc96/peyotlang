@@ -18,7 +18,11 @@ internal char *to_string(TYPE_SPEC_TYPE type) {
 
 struct Member;
 
+#if DEVELOPMENT
+#define MEMBER_TABLE_COUNT 2
+#else
 #define MEMBER_TABLE_COUNT 16
+#endif
 
 struct Member_info {
     str member_name;
@@ -63,6 +67,7 @@ struct Type_spec {
     TYPE_SPEC_TYPE type;
     Src_position src_p;
     str name;
+    u32 size;
     Member_info *member_info_table[MEMBER_TABLE_COUNT];
     Type_spec *base;
 
@@ -124,14 +129,14 @@ internal Type_spec *get_base(Type_spec *type) {
     return result;
 }
 
-internal void print(Type_spec *type, u32 indent=0) {
-    printf("%.*s<id: %d>\n", type->name.count, type->name.buffer, type->id);
+internal void print(Type_spec *type) {
+    printf("%.*s<id: %d>[size: %d]\n", STR_PRINT(type->name), type->id, type->size);
 }
 
 internal void print_entire_list(Type_spec *type, u32 indent=0) {
     lfor(type) {
         print_indent(indent);
-        printf("%.*s<%d>\n", it->name.count, it->name.buffer, it->id);
+        print(it);
         indent += 2;
     }
 }
@@ -171,12 +176,13 @@ internal u32 get_type_spec_index(str name) {
     return result;
 }
 
-internal Type_spec *put(Type_spec_table *table, str name, TYPE_SPEC_TYPE type, Src_position src_p, Type_spec *base=0) {
+internal Type_spec *put(Type_spec_table *table, str name, TYPE_SPEC_TYPE type, Src_position src_p, Type_spec *base=0, u32 size=0) {
     u32 index = get_type_spec_index(name);
     // When creating types in several threads maybe assign id ranges to each thread so they dont stall in the same lock all the time
     Type_spec *result = new_type_spec(table->current_id++, type, name, src_p, table->allocator);
     result->base = base;
     result->next = table->table[index];
+    result->size = size;
     table->table[index] = result;
 
     return result;
@@ -265,33 +271,40 @@ internal bool is_type(Type_spec_table *table, Token token) {
     }
 }
 
+struct Native_types_init {
+    str name;
+    u32 size;
+};
+
 internal void initialize_native_types(Type_spec_table *type_table, Memory_pool *allocator) {
-    str native_types[] = {
-        STATIC_STR("none"),
+    Native_types_init native_types[] = {
+        {STATIC_STR("none"), 0},
 
-        STATIC_STR("char"),
+        {STATIC_STR("void"), 0},
 
-        STATIC_STR("u8"),
-        STATIC_STR("u16"),
-        STATIC_STR("u32"),
-        STATIC_STR("u64"),
+        {STATIC_STR("char"), 1},
 
-        STATIC_STR("s8"),
-        STATIC_STR("s16"),
-        STATIC_STR("s32"),
-        STATIC_STR("s64"),
+        {STATIC_STR("u8"), 1},
+        {STATIC_STR("u16"), 2},
+        {STATIC_STR("u32"), 4},
+        {STATIC_STR("u64"), 8},
 
-        STATIC_STR("f32"),
-        STATIC_STR("f64"),
+        {STATIC_STR("s8"), 1},
+        {STATIC_STR("s16"), 2},
+        {STATIC_STR("s32"), 4},
+        {STATIC_STR("s64"), 8},
 
-        STATIC_STR("bool"),
+        {STATIC_STR("f32"), 4},
+        {STATIC_STR("f64"), 8},
+
+        {STATIC_STR("bool"), 1},
     };
 
     sfor (native_types) {
-        put(type_table, *it, TYPE_SPEC_NAME, {});
+        put(type_table, it->name, TYPE_SPEC_NAME, {}, 0, it->size);
     }
 
-    Type_spec *added = put(type_table, STATIC_STR("str"), TYPE_SPEC_NAME, {});
-    put(added->member_info_table, STATIC_STR("count"), STATIC_STR("u32"), allocator);
-    put(added->member_info_table, STATIC_STR("buffer"), STATIC_STR("char"), allocator);
+    // Type_spec *added = put(type_table, STATIC_STR("str"), TYPE_SPEC_NAME, {});
+    // put(added->member_info_table, STATIC_STR("count"), STATIC_STR("u32"), allocator);
+    // put(added->member_info_table, STATIC_STR("buffer"), STATIC_STR("char"), allocator);
 }

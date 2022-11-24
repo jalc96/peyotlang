@@ -589,8 +589,63 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast) {
     return result;
 }
 
+
+
+// struct Member {
+//     MEMBER_SIMPLE,
+//     MEMBER_COMPOUND,
+//     MEMBER_TYPE member_type;
+//     Src_position src_p;
+
+//     union {
+//         struct {
+//             str type_name;
+//             str name;
+//         };
+//         Compound *sub_compound;
+//     };
+
+//     Member *next;
+// };
+
+
+// struct Compound {
+//     COMPOUND_STRUCT,
+//     COMPOUND_UNION,
+//     COMPOUND_TYPE compound_type;
+//     Src_position src_p;
+//     u32 member_count;
+//     Member *members;
+// };
+
+internal u32 get_compound_size(Type_spec_table *type_table, str type_name) {
+    u32 result = 0;
+    Type_spec *compound = get(type_table, type_name);
+
+    sfor (compound->member_info_table) {
+        // TODO: should this loop be made with the members array of the ast_declaration.compound????
+        Member_info *inner = *it;
+
+        while (inner) {
+            Type_spec *member = get(type_table, inner->type_name);
+
+            if (member->type == TYPE_SPEC_NAME) {
+                result += member->size;
+            } else if (member->type == TYPE_SPEC_COMPOUND) {
+                result += get_compound_size(type_table, member->name);
+            }
+
+            inner = inner->next;
+        }
+    }
+
+    return result;
+}
+
 internal void type_check(Lexer *lexer, Ast_declaration *ast) {
     Parser *parser = lexer->parser;
+    Symbol_table *current_scope = parser->current_scope;
+    Type_spec_table *type_table = parser->type_table;
 
     switch (ast->type) {
         case AST_DECLARATION_VARIABLE: {
@@ -598,7 +653,7 @@ internal void type_check(Lexer *lexer, Ast_declaration *ast) {
                 ast->variable.variable_type = get_type(lexer, ast->variable.expression);
             }
 
-            Symbol *s = get(parser->current_scope, ast->name);
+            Symbol *s = get(current_scope, ast->name);
 
             if (s) {
                 // TODO: do something here for variable shadowing maybe in the get function above have a flag bool only_in_current_scope and allow to redeclare variables in deeper scopes just check for redefinitions in the same scope level
@@ -607,7 +662,7 @@ internal void type_check(Lexer *lexer, Ast_declaration *ast) {
 
             if (type_errors(parser)) {return;}
 
-            put(parser->current_scope, ast->name, ast->variable.variable_type->name, ast->src_p);
+            put(current_scope, ast->name, ast->variable.variable_type->name, ast->src_p);
 
             if (ast->variable.expression) {
                 Type_spec *variable = get_type_of_name(lexer, ast->name);
@@ -621,24 +676,30 @@ internal void type_check(Lexer *lexer, Ast_declaration *ast) {
             }
         } break;
         case AST_DECLARATION_FUNCTION: {
-            put(parser->current_scope, ast->name, ast->function.return_type->name, ast->src_p);
+            put(current_scope, ast->name, ast->function.return_type->name, ast->src_p);
 
             Memory_pool mp = {};
             Symbol_table *new_scope = new_symbol_table(&mp);
-            new_scope->next = parser->current_scope;
-            parser->current_scope = new_scope;
+            new_scope->next = current_scope;
+            current_scope = new_scope;
 
             sfor_count (ast->function.params, ast->function.param_count) {
-                put(parser->current_scope, it->name, it->type->name, it->src_p);
+                put(current_scope, it->name, it->type->name, it->src_p);
             }
 
             // NOTE(Juan Antonio) 2022-11-09: false in create_scope because in the case of a function the parameters in the header are in the same scope level as the first level scope inside the function body
             type_check(lexer, ast->function.block, false);
-            parser->current_scope = parser->current_scope->next;
+            current_scope = current_scope->next;
             clear(&mp);
             if (type_errors(lexer->parser)) {return;}
         } break;
-        case AST_DECLARATION_COMPOUND: {} break;
+        case AST_DECLARATION_COMPOUND: {
+            if (equals(ast->name, STATIC_STR("V2u"))) {
+                auto break_here = 12;
+            }
+            Type_spec *compound = get(type_table, ast->name);
+            compound->size = get_compound_size(type_table, ast->name);
+        } break;
         case AST_DECLARATION_ENUM: {} break;
         case AST_DECLARATION_TYPEDEF: {} break;
 
