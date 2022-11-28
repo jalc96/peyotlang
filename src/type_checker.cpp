@@ -589,37 +589,22 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast) {
     return result;
 }
 
+internal Member *get_member(Member *members, str name) {
+    Member *result = 0;
 
+    lfor (members) {
+        if (equals(it->name, name)) {
+            result = it;
+            break;
+        }
+    }
 
-// struct Member {
-//     MEMBER_SIMPLE,
-//     MEMBER_COMPOUND,
-//     MEMBER_TYPE member_type;
-//     Src_position src_p;
+    return result;
+}
 
-//     union {
-//         struct {
-//             str type_name;
-//             str name;
-//         };
-//         Compound *sub_compound;
-//     };
-
-//     Member *next;
-// };
-
-
-// struct Compound {
-//     COMPOUND_STRUCT,
-//     COMPOUND_UNION,
-//     COMPOUND_TYPE compound_type;
-//     Src_position src_p;
-//     u32 member_count;
-//     Member *members;
-// };
-
-internal u32 get_compound_size(Type_spec_table *type_table, str type_name) {
+internal u32 get_compound_size(Type_spec_table *type_table, str type_name, Ast_declaration *ast=0) {
     u32 result = 0;
+    bool is_union = ast && (ast->compound->compound_type == COMPOUND_UNION);
     Type_spec *compound = get(type_table, type_name);
 
     sfor (compound->member_info_table) {
@@ -630,9 +615,19 @@ internal u32 get_compound_size(Type_spec_table *type_table, str type_name) {
             Type_spec *member = get(type_table, inner->type_name);
 
             if (member->type == TYPE_SPEC_NAME) {
-                result += member->size;
+                if (is_union) {
+                    result = al_max(result, member->size);
+                } else {
+                    result += member->size;
+                }
             } else if (member->type == TYPE_SPEC_COMPOUND) {
-                result += get_compound_size(type_table, member->name);
+                Member *ast_member = get_member(ast->compound->members, member->name);
+
+                if (is_union) {
+                    result = al_max(result, get_compound_size(type_table, member->name));
+                } else {
+                    result += get_compound_size(type_table, member->name);
+                }
             }
 
             inner = inner->next;
@@ -698,7 +693,7 @@ internal void type_check(Lexer *lexer, Ast_declaration *ast) {
                 auto break_here = 12;
             }
             Type_spec *compound = get(type_table, ast->name);
-            compound->size = get_compound_size(type_table, ast->name);
+            compound->size = get_compound_size(type_table, ast->name, ast);
         } break;
         case AST_DECLARATION_ENUM: {} break;
         case AST_DECLARATION_TYPEDEF: {} break;

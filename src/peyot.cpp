@@ -705,11 +705,36 @@ s16 main(s16 arg_count, char **args) {
         V2u :: struct {
             x :f32;
             y :f32;
-            z :f32;
-            w :f32;
+        }
+
+        main :: () -> u32 {
+            a := 3;
+        }
+    )PROGRAM";
+
+    char *program_sizes_union = R"PROGRAM(
+        Thing :: union {
             a :f32;
-            s :f32;
-            sf :f32;
+            b :bool;
+            c :bool;
+        }
+
+        main :: () -> u32 {
+            a := 3;
+        }
+    )PROGRAM";
+
+    // TODO: annonymous structs and nesting with unions doesnt work
+    char *program_sizes_union_this_doesnt_work = R"PROGRAM(
+        A_thing :: union {
+            struct {
+                a :f32;
+                b :f32;
+            };
+            struct {
+                c :f32;
+                d :f32;
+            };
         }
 
         main :: () -> u32 {
@@ -727,7 +752,7 @@ s16 main(s16 arg_count, char **args) {
     Symbol_table *global_scope = new_symbol_table(&allocator);
 
     Parser *parser = new_parser(&allocator, type_table, global_scope);
-    Lexer lexer = create_lexer(program_sizes, parser, &allocator);
+    Lexer lexer = create_lexer(program_sizes_union, parser, &allocator);
 
     // link returns with functions
     // implicit return for void returning functions
