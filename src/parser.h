@@ -545,6 +545,8 @@ struct Ast_declaration {
             Type_spec *return_type;
             Src_position return_src_p;
             Ast_block *block;
+            bool needs_explicit_return;
+            bool has_explicit_return;
         } function;
         Compound *compound; // STRUCT/UNION
         struct {
@@ -680,6 +682,11 @@ struct Ast_statement {
         Ast_if *if_statement;
         Ast_expression *expression_statement;
         Ast_declaration *declaration_statement;
+        Ast_statement *break_continue_loop;
+        struct {
+            Ast_declaration *function;
+            Ast_expression *return_expression;
+        } return_statement;
         Ast_loop *loop_statement;
         struct {
             str name;

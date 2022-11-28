@@ -954,7 +954,7 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
         positions.last_correct = lexer->previous_token.src_p;
 
         result->function.return_type = get(lexer->parser->type_table, return_type.name);
-        result->function.return_src_p = lexer->current_token.src_p;
+        result->function.return_src_p = return_type.src_p;
 
         if (!result->function.return_type) {
             push_pending_type(lexer->parser, result, return_type.name, return_type.src_p);
@@ -1410,8 +1410,13 @@ internal Ast_statement *parse_statement(Lexer *lexer, Ast_statement *result) {
             require_token_and_report_syntax_error(lexer, token_check, TOKEN_SEMICOLON, positions, "Missing semicolon ';' at the end of continue statement", false);
         } break;
         case AST_STATEMENT_RETURN: {
-            // TODO: do something with return
-            not_implemented
+            Token t = lexer->current_token;
+            assert(t.type == TOKEN_RETURN, "expected token continue. This assert should not fire");
+            t = get_next_token(lexer);
+
+            result->return_statement.return_expression = t.type == TOKEN_SEMICOLON ? 0 : parse_or_expression(lexer, 0);
+            positions.last_correct = lexer->previous_token.src_p;
+            require_token_and_report_syntax_error(lexer, token_check, TOKEN_SEMICOLON, positions, "Missing semicolon ';' at the end of continue statement", false);
         } break;
 
         case AST_STATEMENT_SIZEOF: {

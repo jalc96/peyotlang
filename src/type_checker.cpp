@@ -262,6 +262,51 @@ internal void report_declaration_missmatch_type_error(Lexer *lexer, Ast_declarat
     log_error(eb, "%.*s\n", STR_PRINT(rest));
 }
 
+internal void report_missmatched_return_types(Lexer *lexer, Ast_statement *ast, Type_spec *function_type, Type_spec *return_type) {
+    lexer->parser->type_errors = true;
+    Str_buffer *eb = &lexer->parser->error_buffer;
+
+    Src_position lp = ast->return_statement.function->function.return_src_p;
+    Src_position rp = get_sub_tree_width(ast->return_statement.return_expression);
+
+
+
+    // THIS PART DOWN HERE LOOKS THAT ITS INDEPENDANT FROM THE TOP, DO MORE REPORT FUNCTIONS AND UNIFY IF ITS THE SAME
+
+    u32 l0 = find_first_from_position(lexer->source, lp.c0, '\n', true) + skip_new_line;
+    u32 lf = find_first_from_position(lexer->source, rp.cf, '\n', false);
+
+    str line = slice(lexer->source, l0, lf);
+
+    Split_at a = split_at(line, lp.c0 - l0);
+    str prev = a.p1;
+
+    Split_at b = split_at(a.p2, length(lp));
+    str first_type = b.p1;
+
+    u32 base = l0 + length(prev) + length(first_type);
+    Split_at c = split_at(b.p2, rp.c0 - base);
+    str operand = c.p1;
+    Split_at d = split_at(c.p2, length(rp));
+    str second_type = d.p1;
+    str rest = d.p2;
+
+    // TODO: handle multiline expressions
+
+
+    log_error(eb, STATIC_RED("TYPE ERROR"), 0);
+    log_error(eb, ": missmatch in return type, function is ");
+    log_error(eb, STATIC_COLOR("%.*s", 100, 255, 100), STR_PRINT(function_type->name));
+    log_error(eb, " and return type is ");
+    log_error(eb, STATIC_COLOR("%.*s\n", 100, 100, 255), STR_PRINT(return_type->name));
+
+    log_error(eb, "    %d:%.*s", lp.line, STR_PRINT(prev));
+    log_error(eb, STATIC_COLOR("%.*s", 100, 255, 100), STR_PRINT(first_type));
+    log_error(eb, "%.*s", STR_PRINT(operand));
+    log_error(eb, STATIC_COLOR("%.*s", 100, 100, 255), STR_PRINT(second_type));
+    log_error(eb, "%.*s\n", STR_PRINT(rest));
+}
+
 internal void report_undeclared_identifier(Lexer *lexer, str name, Src_position src_p) {
     lexer->parser->type_errors = true;
     Str_buffer *eb = &lexer->parser->error_buffer;
@@ -368,11 +413,11 @@ internal void report_member_not_found(Lexer *lexer, str type_name, str member_na
 }
 
 internal void type_check(Lexer *lexer, Ast_declaration *ast);
-internal void type_check(Lexer *lexer, Ast_statement *ast);
+internal void type_check(Lexer *lexer, Ast_statement *ast, Ast_declaration *ast_function);
 internal void type_check(Lexer *lexer, Ast_expression *ast);
-internal void type_check(Lexer *lexer, Ast_if *ast);
-internal void type_check(Lexer *lexer, Ast_loop *ast);
-internal void type_check(Lexer *lexer, Ast_block *ast, bool create_scope);
+internal void type_check(Lexer *lexer, Ast_if *ast, Ast_declaration *ast_function);
+internal void type_check(Lexer *lexer, Ast_loop *ast, Ast_declaration *ast_function);
+internal void type_check(Lexer *lexer, Ast_block *ast, bool create_scope, Ast_declaration *ast_function);
 
 internal Type_spec *get_type_of_name(Symbol_table *symbol_table, Type_spec_table *type_table, str name) {
     Type_spec *result = {};
@@ -683,7 +728,7 @@ internal void type_check(Lexer *lexer, Ast_declaration *ast) {
             }
 
             // NOTE(Juan Antonio) 2022-11-09: false in create_scope because in the case of a function the parameters in the header are in the same scope level as the first level scope inside the function body
-            type_check(lexer, ast->function.block, false);
+            type_check(lexer, ast->function.block, false, ast);
             current_scope = current_scope->next;
             clear(&mp);
             if (type_errors(lexer->parser)) {return;}
@@ -702,16 +747,16 @@ internal void type_check(Lexer *lexer, Ast_declaration *ast) {
     }
 }
 
-internal void type_check(Lexer *lexer, Ast_statement *ast) {
+internal void type_check(Lexer *lexer, Ast_statement *ast, Ast_declaration *ast_function) {
     switch (ast->type) {
         case AST_STATEMENT_BLOCK: {
-            type_check(lexer, ast->block_statement, true);
+            type_check(lexer, ast->block_statement, true, ast_function);
         } break;
         case AST_STATEMENT_IF: {
-            type_check(lexer, ast->if_statement);
+            type_check(lexer, ast->if_statement, ast_function);
         } break;
         case AST_STATEMENT_LOOP: {
-            type_check(lexer, ast->loop_statement);
+            type_check(lexer, ast->loop_statement, ast_function);
         } break;
         case AST_STATEMENT_EXPRESSION: {
             type_check(lexer, ast->expression_statement);
@@ -721,7 +766,32 @@ internal void type_check(Lexer *lexer, Ast_statement *ast) {
         } break;
         case AST_STATEMENT_BREAK: {} break;
         case AST_STATEMENT_CONTINUE: {} break;
-        case AST_STATEMENT_RETURN: {} break;
+        case AST_STATEMENT_RETURN: {
+            ast->return_statement.function = ast_function;
+            // checks
+            // f() -> void  and no return;
+            // f() -> void  and return ;
+            // f() -> void  and return 1;
+            // f() -> u32  and no return;
+            // f() -> u32  and return;
+            // f() -> u32  and return 1;
+            // f() -> u32  and return 1.2;
+            Type_spec *function_return_type = ast_function->function.return_type;
+            Type_spec *return_type = get_type(lexer, ast->return_statement.return_expression);
+            // bool needs_explicit_return;
+            // bool has_explicit_return;
+            if (ast_function->function.needs_explicit_return) {
+                // -> name
+                if (!equals(return_type, function_return_type)) {
+                    report_missmatched_return_types(lexer, ast, function_return_type, return_type);
+                }
+            } else {
+                // -> void
+                if (!equals(return_type, function_return_type)) {
+                    report_missmatched_return_types(lexer, ast, function_return_type, return_type);
+                }
+            }
+        } break;
 
         case AST_STATEMENT_SIZEOF: {
             type_check(lexer, ast->sizeof_statement.expression);
@@ -743,23 +813,23 @@ internal void type_check(Lexer *lexer, Ast_expression *ast) {
     get_type(lexer, ast);
 }
 
-internal void type_check(Lexer *lexer, Ast_if *ast) {
+internal void type_check(Lexer *lexer, Ast_if *ast, Ast_declaration *ast_function) {
     If *ifs = ast->ifs;
 
     lfor (ifs) {
         type_check(lexer, &it->condition);
         if (type_errors(lexer->parser)) {return;}
 
-        type_check(lexer, &it->block, true);
+        type_check(lexer, &it->block, true, ast_function);
         if (type_errors(lexer->parser)) {return;}
     }
 
     if (ast->else_block) {
-        type_check(lexer, ast->else_block, true);
+        type_check(lexer, ast->else_block, true, ast_function);
     }
 }
 
-internal void type_check(Lexer *lexer, Ast_loop *ast) {
+internal void type_check(Lexer *lexer, Ast_loop *ast, Ast_declaration *ast_function) {
     if (ast->pre) {
         type_check(lexer, ast->pre);
         if (type_errors(lexer->parser)) {return;}
@@ -773,10 +843,10 @@ internal void type_check(Lexer *lexer, Ast_loop *ast) {
         if (type_errors(lexer->parser)) {return;}
     }
 
-    type_check(lexer, ast->block, true);
+    type_check(lexer, ast->block, true, ast_function);
 }
 
-internal void type_check(Lexer *lexer, Ast_block *ast, bool create_scope) {
+internal void type_check(Lexer *lexer, Ast_block *ast, bool create_scope, Ast_declaration *ast_function) {
     // NOTE(Juan Antonio) 2022-11-09: the create_scope parameter is actually for the function parameters to have them in the same scope as the variables in the function block to not allow to shadow the parameters in the first level of the function scope
     Memory_pool mp = {};
 
@@ -788,7 +858,7 @@ internal void type_check(Lexer *lexer, Ast_block *ast, bool create_scope) {
 
     while (ast) {
         sfor_count (ast->statements, ast->statement_count) {
-            type_check(lexer, it);
+            type_check(lexer, it, ast_function);
             if (type_errors(lexer->parser)) { return; }
         }
 
