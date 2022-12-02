@@ -196,6 +196,7 @@ internal str slice(str source, u32 c0, u32 cf) {
 }
 
 internal u32 find_n_from_position(str source, u32 start, char match, u32 n, bool backwards) {
+    // backwards -> right to left
     s32 d = 1 + ((s32)backwards * (-2));
     s32 finish = backwards ? 0: source.count;
     u32 result = finish;
@@ -221,6 +222,7 @@ internal u32 find_n_from_position(str source, u32 start, char match, u32 n, bool
 }
 
 internal u32 find_first_from_position(str source, u32 start, char match, bool backwards) {
+    // backwards -> right to left
     return find_n_from_position(source, start, match, 1, backwards);
 }
 

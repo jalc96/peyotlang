@@ -262,12 +262,63 @@ internal void report_declaration_missmatch_type_error(Lexer *lexer, Ast_declarat
     log_error(eb, "%.*s\n", STR_PRINT(rest));
 }
 
+internal void report_no_return_for_function(Lexer *lexer, Ast_declaration *ast) {
+    // TODO: Handle multiline function declaration for this error
+    lexer->parser->type_errors = true;
+    Str_buffer *eb = &lexer->parser->error_buffer;
+
+    Src_position src_p = ast->src_p;
+    u32 l0 = find_first_from_position(lexer->source, src_p.c0, '\n', true) + skip_new_line;
+    u32 lf = find_first_from_position(lexer->source, src_p.cf, '\n', false);
+
+    str line = slice(lexer->source, l0, lf);
+    str rt_name = ast->function.return_type->name;
+
+    Split_at a = split_at(line, src_p.c0 - l0);
+    str prev = a.p1;
+
+    Split_at b = split_at(a.p2, length(src_p));
+    str f_name = b.p1;
+
+    u32 return_type_p_rebased = ast->function.return_src_p.c0 - (l0 + length(a.p1) + length(b.p1));
+    Split_at c = split_at(b.p2, return_type_p_rebased);
+    str name_to_return = c.p1;
+
+    Split_at d = split_at(c.p2, length(rt_name));
+    str return_type = d.p1;
+    str rest = d.p2;
+
+
+    log_error(eb, STATIC_RED("TYPE ERROR"), 0);
+    log_error(eb, ": ");
+    log_error(eb, STATIC_COLOR("%.*s", 100, 255, 100), STR_PRINT(ast->name));
+    log_error(eb, " must return a ");
+    log_error(eb, STATIC_COLOR("%.*s", 100, 100, 255), STR_PRINT(rt_name));
+    log_error(eb, " value\n");
+
+
+    log_error(eb, "    %d:%.*s", src_p.line, STR_PRINT(prev));
+    log_error(eb, STATIC_COLOR("%.*s", 100, 255, 100), STR_PRINT(f_name));
+    log_error(eb, "%.*s", STR_PRINT(name_to_return));
+    log_error(eb, STATIC_COLOR("%.*s", 100, 100, 255), STR_PRINT(return_type));
+    log_error(eb, "%.*s\n", STR_PRINT(rest));
+}
+
 internal void report_missmatched_return_types(Lexer *lexer, Ast_statement *ast, Type_spec *function_type, Type_spec *return_type) {
     lexer->parser->type_errors = true;
     Str_buffer *eb = &lexer->parser->error_buffer;
 
     Src_position lp = ast->return_statement.function->function.return_src_p;
-    Src_position rp = get_sub_tree_width(ast->return_statement.return_expression);
+    Src_position rp = {};
+
+    if (ast->return_statement.return_expression) {
+        // return <NAME>;
+        rp = get_sub_tree_width(ast->return_statement.return_expression);
+    } else {
+        // return;
+        rp = ast->src_p;
+        rp.cf = rp.c0;
+    }
 
 
 
@@ -295,9 +346,9 @@ internal void report_missmatched_return_types(Lexer *lexer, Ast_statement *ast, 
 
 
     log_error(eb, STATIC_RED("TYPE ERROR"), 0);
-    log_error(eb, ": missmatch in return type, function is ");
+    log_error(eb, ": missmatch in return type, function return type is ");
     log_error(eb, STATIC_COLOR("%.*s", 100, 255, 100), STR_PRINT(function_type->name));
-    log_error(eb, " and return type is ");
+    log_error(eb, " and returned type is ");
     log_error(eb, STATIC_COLOR("%.*s\n", 100, 100, 255), STR_PRINT(return_type->name));
 
     log_error(eb, "    %d:%.*s", lp.line, STR_PRINT(prev));
@@ -731,6 +782,11 @@ internal void type_check(Lexer *lexer, Ast_declaration *ast) {
             type_check(lexer, ast->function.block, false, ast);
             current_scope = current_scope->next;
             clear(&mp);
+
+            if (ast->function.needs_explicit_return && !ast->function.has_explicit_return) {
+                report_no_return_for_function(lexer, ast);
+            }
+
             if (type_errors(lexer->parser)) {return;}
         } break;
         case AST_DECLARATION_COMPOUND: {
@@ -748,6 +804,8 @@ internal void type_check(Lexer *lexer, Ast_declaration *ast) {
 }
 
 internal void type_check(Lexer *lexer, Ast_statement *ast, Ast_declaration *ast_function) {
+    Type_spec_table *type_table = lexer->parser->type_table;
+
     switch (ast->type) {
         case AST_STATEMENT_BLOCK: {
             type_check(lexer, ast->block_statement, true, ast_function);
@@ -768,18 +826,17 @@ internal void type_check(Lexer *lexer, Ast_statement *ast, Ast_declaration *ast_
         case AST_STATEMENT_CONTINUE: {} break;
         case AST_STATEMENT_RETURN: {
             ast->return_statement.function = ast_function;
-            // checks
-            // f() -> void  and no return;
-            // f() -> void  and return ;
-            // f() -> void  and return 1;
-            // f() -> u32  and no return;
-            // f() -> u32  and return;
-            // f() -> u32  and return 1;
-            // f() -> u32  and return 1.2;
+            ast_function->function.has_explicit_return = true;
+
             Type_spec *function_return_type = ast_function->function.return_type;
-            Type_spec *return_type = get_type(lexer, ast->return_statement.return_expression);
-            // bool needs_explicit_return;
-            // bool has_explicit_return;
+            Type_spec *return_type;
+
+            if (ast->return_statement.return_expression) {
+                return_type = get_type(lexer, ast->return_statement.return_expression);
+            } else {
+                return_type = get(type_table, STATIC_STR("void"));
+            }
+
             if (ast_function->function.needs_explicit_return) {
                 // -> name
                 if (!equals(return_type, function_return_type)) {

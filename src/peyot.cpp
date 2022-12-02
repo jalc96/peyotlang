@@ -745,7 +745,6 @@ s16 main(s16 arg_count, char **args) {
     // TODO: annonymous structs and nesting with unions doesnt work
     char *program_continue_break_link = R"PROGRAM(
         main :: () -> u32 {
-            return "asdf";
         }
     )PROGRAM";
 
@@ -761,9 +760,6 @@ s16 main(s16 arg_count, char **args) {
     Parser *parser = new_parser(&allocator, type_table, global_scope);
     Lexer lexer = create_lexer(program_continue_break_link, parser, &allocator);
 
-    // link returns with functions
-    // implicit return for void returning functions
-    // typecheck return type
     // link continue/break with closest for
 
     get_next_token(&lexer);

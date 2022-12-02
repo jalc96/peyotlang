@@ -955,6 +955,8 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
 
         result->function.return_type = get(lexer->parser->type_table, return_type.name);
         result->function.return_src_p = return_type.src_p;
+        result->function.needs_explicit_return = !equals(return_type.name, STATIC_STR("void"));
+        result->function.has_explicit_return = false;
 
         if (!result->function.return_type) {
             push_pending_type(lexer->parser, result, return_type.name, return_type.src_p);
@@ -1115,7 +1117,7 @@ internal Ast_block *parse_block(Lexer *lexer, Ast_block *result) {
 
     Block_parser parser;
     parser.lexer = lexer;
-    parser.finished = false;
+    parser.finished = lexer->current_token.type == TOKEN_CLOSE_BRACE;
     Ast_block_creation_iterator it = iterate(result, lexer->allocator);
 
     while (parsing_block(&parser)) {
@@ -1414,6 +1416,7 @@ internal Ast_statement *parse_statement(Lexer *lexer, Ast_statement *result) {
             assert(t.type == TOKEN_RETURN, "expected token continue. This assert should not fire");
             t = get_next_token(lexer);
 
+            // This is to allow implicit void type for "return;" statements
             result->return_statement.return_expression = t.type == TOKEN_SEMICOLON ? 0 : parse_or_expression(lexer, 0);
             positions.last_correct = lexer->previous_token.src_p;
             require_token_and_report_syntax_error(lexer, token_check, TOKEN_SEMICOLON, positions, "Missing semicolon ';' at the end of continue statement", false);
