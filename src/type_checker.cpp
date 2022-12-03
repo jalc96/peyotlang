@@ -116,7 +116,9 @@ internal void out_of_order_declaration(Parser *parser) {
                 if (ast->type == AST_DECLARATION_VARIABLE) {
 
                 } else if (ast->type == AST_DECLARATION_FUNCTION) {
-                    ast->function.return_type = type;
+                    ast->_operator.declaration->return_type = type;
+                } else if (ast->type == AST_DECLARATION_FUNCTION) {
+                    ast->function->return_type = type;
                 } else if (ast->type == AST_DECLARATION_COMPOUND) {
 
                 } else if (ast->type == AST_DECLARATION_ENUM) {
@@ -272,7 +274,7 @@ internal void report_no_return_for_function(Lexer *lexer, Ast_declaration *ast) 
     u32 lf = find_first_from_position(lexer->source, src_p.cf, '\n', false);
 
     str line = slice(lexer->source, l0, lf);
-    str rt_name = ast->function.return_type->name;
+    str rt_name = ast->function->return_type->name;
 
     Split_at a = split_at(line, src_p.c0 - l0);
     str prev = a.p1;
@@ -280,7 +282,7 @@ internal void report_no_return_for_function(Lexer *lexer, Ast_declaration *ast) 
     Split_at b = split_at(a.p2, length(src_p));
     str f_name = b.p1;
 
-    u32 return_type_p_rebased = ast->function.return_src_p.c0 - (l0 + length(a.p1) + length(b.p1));
+    u32 return_type_p_rebased = ast->function->return_src_p.c0 - (l0 + length(a.p1) + length(b.p1));
     Split_at c = split_at(b.p2, return_type_p_rebased);
     str name_to_return = c.p1;
 
@@ -343,7 +345,7 @@ internal void report_missmatched_return_types(Lexer *lexer, Ast_statement *ast, 
     lexer->parser->type_errors = true;
     Str_buffer *eb = &lexer->parser->error_buffer;
 
-    Src_position lp = ast->return_statement.function->function.return_src_p;
+    Src_position lp = ast->return_statement.function->function->return_src_p;
     Src_position rp = {};
 
     if (ast->return_statement.return_expression) {
@@ -620,6 +622,7 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast) {
 
         if (is_arithmetic(ast->type) || is_relational(ast->type)) {
             // TODO: in the future check here if there is an operator that accepts these 2 types
+            // TODO: revise the equality between operators
             if (any_equals(l, r)) {
                 result = l;
             } else {
@@ -629,6 +632,15 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast) {
             // TODO: in the future check here if there is an operator that accepts these 2 types
             if (any_equals(l, r)) {
                 result = l;
+
+                // TODO: operator check here
+                // TODO: do the hash only by names and the operator
+                // TODO: use the new_stack_operator
+                // if (get(parser->operator_table, l, r)) {
+
+                // } else {
+                //     report_operator_not_found(lexer, ast, l, r);
+                // }
             } else {
                 report_binary_expression_missmatch_type_error(lexer, ast, l, r);
             }
@@ -768,6 +780,27 @@ internal u32 get_compound_size(Type_spec_table *type_table, str type_name, Ast_d
     return result;
 }
 
+internal void type_check(Lexer *lexer, Function *function, Ast_declaration *ast_function) {
+    Parser *parser = lexer->parser;
+    Memory_pool mp = {};
+    Symbol_table *new_scope = new_symbol_table(&mp);
+    new_scope->next = parser->current_scope;
+    parser->current_scope = new_scope;
+
+    sfor_count (function->params, function->param_count) {
+        put(parser->current_scope, it->name, it->type->name, it->src_p);
+    }
+
+    // NOTE(Juan Antonio) 2022-11-09: false in create_scope because in the case of a function the parameters in the header are in the same scope level as the first level scope inside the function body
+    type_check(lexer, function->block, false, ast_function, 0);
+    parser->current_scope = parser->current_scope->next;
+    clear(&mp);
+
+    if (function->needs_explicit_return && !function->has_explicit_return) {
+        report_no_return_for_function(lexer, ast_function);
+    }
+}
+
 internal void type_check(Lexer *lexer, Ast_declaration *ast) {
     Parser *parser = lexer->parser;
     Symbol_table *current_scope = parser->current_scope;
@@ -801,33 +834,22 @@ internal void type_check(Lexer *lexer, Ast_declaration *ast) {
                 }
             }
         } break;
+        case AST_DECLARATION_OPERATOR: {
+            Operator_table *operator_table = parser->operator_table;
+            Function *f = ast->_operator.declaration;
+            str op1 = f->params[0].type->name;
+            str op2 = f->params[1].type->name;
+            Operator *op = new_operator(lexer->allocator, ast->_operator.operator_token, op1, op2, f->return_type_name);
+            put(operator_table, op);
+            type_check(lexer, ast->_operator.declaration, ast);
+            if (type_errors(lexer->parser)) {return;}
+        } break;
         case AST_DECLARATION_FUNCTION: {
-            put(current_scope, ast->name, ast->function.return_type->name, ast->src_p);
-
-            Memory_pool mp = {};
-            Symbol_table *new_scope = new_symbol_table(&mp);
-            new_scope->next = current_scope;
-            current_scope = new_scope;
-
-            sfor_count (ast->function.params, ast->function.param_count) {
-                put(current_scope, it->name, it->type->name, it->src_p);
-            }
-
-            // NOTE(Juan Antonio) 2022-11-09: false in create_scope because in the case of a function the parameters in the header are in the same scope level as the first level scope inside the function body
-            type_check(lexer, ast->function.block, false, ast, 0);
-            current_scope = current_scope->next;
-            clear(&mp);
-
-            if (ast->function.needs_explicit_return && !ast->function.has_explicit_return) {
-                report_no_return_for_function(lexer, ast);
-            }
-
+            put(current_scope, ast->name, ast->function->return_type->name, ast->src_p);
+            type_check(lexer, ast->function, ast);
             if (type_errors(lexer->parser)) {return;}
         } break;
         case AST_DECLARATION_COMPOUND: {
-            if (equals(ast->name, STATIC_STR("V2u"))) {
-                auto break_here = 12;
-            }
             Type_spec *compound = get(type_table, ast->name);
             compound->size = get_compound_size(type_table, ast->name, ast);
         } break;
@@ -867,9 +889,18 @@ internal void type_check(Lexer *lexer, Ast_statement *ast, Ast_declaration *ast_
         } break;
         case AST_STATEMENT_RETURN: {
             ast->return_statement.function = ast_function;
-            ast_function->function.has_explicit_return = true;
+            Function *function;
 
-            Type_spec *function_return_type = ast_function->function.return_type;
+            if (ast_function->type == AST_DECLARATION_FUNCTION) {
+                function = ast_function->function;
+            } else {
+                assert(ast_function->type == AST_DECLARATION_OPERATOR, "this should never fire, ast_function->type must be FUNCTION or OPERATOR in the return statement");
+                function = ast_function->_operator.declaration;
+            }
+
+            function->has_explicit_return = true;
+
+            Type_spec *function_return_type = function->return_type;
             Type_spec *return_type;
 
             if (ast->return_statement.return_expression) {
@@ -878,7 +909,7 @@ internal void type_check(Lexer *lexer, Ast_statement *ast, Ast_declaration *ast_
                 return_type = get(type_table, STATIC_STR("void"));
             }
 
-            if (ast_function->function.needs_explicit_return) {
+            if (function->needs_explicit_return) {
                 // -> name
                 if (!equals(return_type, function_return_type)) {
                     report_missmatched_return_types(lexer, ast, function_return_type, return_type);
@@ -963,7 +994,10 @@ internal void type_check(Lexer *lexer, Ast_block *ast, bool create_scope, Ast_de
         ast = ast->next;
     }
 
-    lexer->parser->current_scope = lexer->parser->current_scope->next;
+    if (create_scope) {
+        lexer->parser->current_scope = lexer->parser->current_scope->next;
+    }
+
     clear(&mp);
 }
 

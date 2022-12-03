@@ -12,6 +12,8 @@ struct Parser {
     Symbol_table *first_free_table;
     Symbol *first_free_symbol;
 
+    Operator_table *operator_table;
+
     bool parsing_errors;
     bool type_errors;
     Str_buffer error_buffer;
@@ -20,11 +22,12 @@ struct Parser {
     Pending_type sentinel;
 };
 
-internal Parser *new_parser(Memory_pool *allocator, Type_spec_table *type_table, Symbol_table *symbol_table) {
+internal Parser *new_parser(Memory_pool *allocator, Type_spec_table *type_table, Symbol_table *symbol_table, Operator_table *operator_table) {
     Parser *result = push_struct(allocator, Parser);
 
     result->type_table = type_table;
     result->current_scope = symbol_table;
+    result->operator_table = operator_table;
     result->parsing_errors = false;
     result->error_buffer = new_str_buffer(allocator, 65536);
     result->allocator = allocator;
@@ -409,6 +412,7 @@ enum AST_DECLARATION_TYPE {
     AST_DECLARATION_ENUM,
     AST_DECLARATION_TYPEDEF,
     AST_DECLARATION_CONSTANT,
+    AST_DECLARATION_OPERATOR,
 /*
     import
 */
@@ -422,11 +426,11 @@ internal char *to_string(AST_DECLARATION_TYPE type) {
     }
 }
 
-// NOTE: Paramater and Member will probably be different
 struct Parameter {
     Type_spec *type;
     Src_position src_p;
     str name;
+    Parameter *next;
 };
 
 enum MEMBER_TYPE {
@@ -528,6 +532,17 @@ struct Enum_item {
     Ast_expression *value;
 };
 
+struct Function {
+    u32 param_count;
+    Parameter *params;
+    Type_spec *return_type;
+    str return_type_name;
+    Src_position return_src_p;
+    Ast_block *block;
+    bool needs_explicit_return;
+    bool has_explicit_return;
+};
+
 struct Ast_declaration {
     AST_DECLARATION_TYPE type;
     Src_position src_p;
@@ -539,15 +554,11 @@ struct Ast_declaration {
             Ast_expression *expression;
             bool do_inference;
         } variable;
+        Function *function;
         struct {
-            u32 param_count;
-            Parameter *params;
-            Type_spec *return_type;
-            Src_position return_src_p;
-            Ast_block *block;
-            bool needs_explicit_return;
-            bool has_explicit_return;
-        } function;
+            PEYOT_TOKEN_TYPE operator_token;
+            Function *declaration;
+        } _operator;
         Compound *compound; // STRUCT/UNION
         struct {
             u32 item_count;
@@ -578,16 +589,31 @@ internal void print(Ast_declaration *ast, u32 indent=0) {
         case AST_DECLARATION_FUNCTION: {
             printf(ast->name);
             printf(" -> ");
-            printf(ast->function.return_type->name);
+            printf(ast->function->return_type->name);
             putchar('\n');
             print_indent(indent);
 
-            sfor_count(ast->function.params, ast->function.param_count) {
+            sfor_count(ast->function->params, ast->function->param_count) {
                 printf("%.*s, ", it->name.count, it->name.buffer);
             }
 
             putchar('\n');
-            print(ast->function.block);
+            print(ast->function->block);
+        } break;
+        case AST_DECLARATION_OPERATOR: {
+            Function *function = ast->_operator.declaration;
+            printf(to_symbol(ast->_operator.operator_token));
+            printf(" -> ");
+            printf(function->return_type->name);
+            putchar('\n');
+            print_indent(indent);
+
+            sfor_count(function->params, function->param_count) {
+                printf("%.*s, ", it->name.count, it->name.buffer);
+            }
+
+            putchar('\n');
+            print(function->block);
         } break;
         case AST_DECLARATION_COMPOUND: {
             Compound *c = ast->compound;
@@ -619,6 +645,7 @@ internal void print(Ast_declaration *ast, u32 indent=0) {
             putchar('}');
             putchar('\n');
         } break;
+        invalid_default_case_msg("missing print ast_declaration type");
     }
 }
 

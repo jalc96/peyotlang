@@ -36,6 +36,8 @@ enum PEYOT_TOKEN_TYPE {
     TOKEN_UNION,
     TOKEN_ENUM,
 
+    TOKEN_OPERATOR,
+
     TOKEN_BREAK,
     TOKEN_CONTINUE,
     TOKEN_RETURN,
@@ -194,6 +196,7 @@ internal str to_string(PEYOT_TOKEN_TYPE type) {
         case TOKEN_BREAK: { result = STATIC_STR("TOKEN_BREAK");} break;
         case TOKEN_CONTINUE: { result = STATIC_STR("TOKEN_CONTINUE");} break;
         case TOKEN_RETURN: { result = STATIC_STR("TOKEN_RETURN");} break;
+        case TOKEN_OPERATOR: { result = STATIC_STR("TOKEN_OPERATOR");} break;
         case TOKEN_SIZEOF: {result = STATIC_STR("TOKEN_SIZEOF");} break;
         case TOKEN_OFFSETOF: {result = STATIC_STR("TOKEN_OFFSETOF");} break;
         case TOKEN_TYPEOF: {result = STATIC_STR("TOKEN_TYPEOF");} break;
@@ -325,6 +328,7 @@ internal str to_symbol(PEYOT_TOKEN_TYPE type, Token *token = 0) {
         case TOKEN_BREAK: { result = STATIC_STR("break");} break;
         case TOKEN_CONTINUE: { result = STATIC_STR("continue");} break;
         case TOKEN_RETURN: { result = STATIC_STR("return");} break;
+        case TOKEN_OPERATOR: { result = STATIC_STR("operator");} break;
         case TOKEN_SIZEOF: {result = STATIC_STR("sizeof");} break;
         case TOKEN_OFFSETOF: {result = STATIC_STR("offsetof");} break;
         case TOKEN_TYPEOF: {result = STATIC_STR("type");} break;

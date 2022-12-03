@@ -630,10 +630,6 @@ internal Ast_expression *parse_binary_expression(Lexer *lexer, Ast_expression *r
 // DECLARATIONS
 //
 
-internal Type_spec_table *type_table(Lexer *lexer) {
-    return lexer->parser->type_table;
-}
-
 internal bool is_compound(PEYOT_TOKEN_TYPE type) {
     bool result = (
            type == TOKEN_STRUCT
@@ -644,14 +640,15 @@ internal bool is_compound(PEYOT_TOKEN_TYPE type) {
 
 internal AST_DECLARATION_TYPE get_declaration_type(Lexer *lexer) {
     /*
-          t1   t2  t3
-        <name> :: struct  COMPOUND
-        <name> :: union   COMPOUND
-        <name> :: enum    ENUM
-        <name> :: (...)   FUNCTION
-        <name> :  <type>  VARIABLE
-        <name> :  =       VARIABLE
-        <name> :: <type>  TYPEDEF
+          t1     t2  t3
+        <name>   :: struct  COMPOUND
+        <name>   :: union   COMPOUND
+        <name>   :: enum    ENUM
+        <name>   :: (...)   FUNCTION
+        <name>   :  <type>  VARIABLE
+        <name>   :  =       VARIABLE
+        <name>   :: <type>  TYPEDEF
+        operator +  ::
     */
     AST_DECLARATION_TYPE result = AST_DECLARATION_NONE;
     Lexer_savepoint savepoint = create_savepoint(lexer);
@@ -662,9 +659,10 @@ internal AST_DECLARATION_TYPE get_declaration_type(Lexer *lexer) {
     Token t3 = get_next_token(lexer);
 
     error_p.start = t1.src_p;
+    Type_spec_table *type_table = lexer->parser->type_table;
 
     if (t2.type == TOKEN_DECLARATION) {
-        if (is_type(type_table(lexer), t3)) {
+        if (is_type(type_table, t3)) {
             result = AST_DECLARATION_TYPEDEF;
         } else if (is_compound(t3.type)) {
             result = AST_DECLARATION_COMPOUND;
@@ -679,6 +677,8 @@ internal AST_DECLARATION_TYPE get_declaration_type(Lexer *lexer) {
         }
     } else if (t2.type == TOKEN_COLON) {
         result = AST_DECLARATION_VARIABLE;
+    } else if (t1.type == TOKEN_OPERATOR) {
+        result = AST_DECLARATION_OPERATOR;
     } else {
         error_p.last_correct = t1.src_p;
         require_token_and_report_syntax_error(lexer, always_false, TOKEN_NULL, error_p, "expected colon ':' after variable declaration or declaration token '::' after type declaration", false);
@@ -839,6 +839,71 @@ internal u32 get_enum_items_count(Lexer *lexer) {
 
 internal Ast_block *parse_block(Lexer *lexer, Ast_block *result);
 
+internal Function *parse_function(Lexer *lexer, Syntax_error_positions positions) {
+    Function *result = push_struct(lexer->allocator, Function);
+
+    Type_spec_table *type_table = lexer->parser->type_table;
+
+    require_token_and_report_syntax_error(lexer, token_check, TOKEN_OPEN_PARENTHESIS, positions, "Missing open parenthesis '(' in a header of a function declaration", false);
+    if (lexer->parser->parsing_errors) return 0;
+    positions.last_correct = lexer->previous_token.src_p;
+        result->param_count = get_param_count(lexer, positions);
+        if (lexer->parser->parsing_errors) return 0;
+        result->params = push_array(lexer->allocator, Parameter, result->param_count);
+
+        sfor_count(result->params, result->param_count) {
+            Token t = lexer->current_token;
+            it->name = t.name;
+            it->src_p = t.src_p;
+
+            t = get_next_token(lexer);
+            // At this point this is syntax checked, so this assert should NEVER TRIGGER, keep it as an assert
+            assert(t.type == TOKEN_COLON, "this should never trigger. Token after a name in the header of a function declaration must be a colon");
+
+            t = get_next_token(lexer);
+            it->type = get(type_table, t.name);
+
+            if (!it->type) {
+                push_pending_type(lexer->parser, it, t.name, t.src_p);
+            }
+
+            get_next_token(lexer);
+
+            // +1 because arrays start at 0 and there are (param_count - 1) number of commas so we have to check (param_count - 1) times
+            if ((i + 1) < result->param_count) {
+                // At this point this is syntax checked, so this assert should NEVER TRIGGER, keep it as an assert
+                assert(lexer->current_token.type == TOKEN_COMMA, "this should never trigger. Parameters in a function declarations must be separated by commas ','");
+                get_next_token(lexer);
+            }
+
+            positions.last_correct = lexer->current_token.src_p;
+        }
+    require_token_and_report_syntax_error(lexer, token_check, TOKEN_CLOSE_PARENTHESIS, positions, "missing close parenthesis ')' in the header of a function declaration", false);
+    if (lexer->parser->parsing_errors) return 0;
+    positions.last_correct = lexer->previous_token.src_p;
+
+    require_token_and_report_syntax_error(lexer, token_check, TOKEN_RETURN_ARROW, positions, "missing return arrow '->' in the header of a function declaration", false);
+    if (lexer->parser->parsing_errors) return 0;
+    positions.last_correct = lexer->previous_token.src_p;
+
+    Token return_type = lexer->current_token;
+
+    require_token_and_report_syntax_error(lexer, type_name_check, TOKEN_NAME, positions, "missing return type in the header of a function declaration", false);
+    if (lexer->parser->parsing_errors) return 0;
+    positions.last_correct = lexer->previous_token.src_p;
+
+    result->return_type = get(type_table, return_type.name);
+    result->return_type_name = return_type.name;
+    result->return_src_p = return_type.src_p;
+    result->needs_explicit_return = !equals(return_type.name, STATIC_STR("void"));
+    result->has_explicit_return = false;
+
+    // TODO: Maybe do here the check for open brace to say that a its expected for a function body or something like that
+    result->block = parse_block(lexer, 0);
+
+    return result;
+}
+
 internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *result) {
     if (lexer->parser->parsing_errors) return 0;
 
@@ -851,26 +916,35 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
 
     Syntax_error_positions positions;
 
+    Type_spec_table *type_table = lexer->parser->type_table;
+
     Token name = lexer->current_token;
-    // consume the name
-    get_next_token(lexer);
     result->name = name.name;
-    result->src_p = name.src_p;
-
-    positions.start = result->src_p;
     result->type = declaration_type;
+    result->src_p = name.src_p;
+    positions.start = result->src_p;
+    Token overloaded_operator = {};
 
+    // consume the name
+    if (declaration_type == AST_DECLARATION_OPERATOR) {
+        // currently on "operator" keyword
+        overloaded_operator = get_next_token(lexer);
+        // now on the operator token
+        get_next_token(lexer);
+    } else {
+        get_next_token(lexer);
+    }
 
-    // Consume the declaration or type in variable declaration
+    // Consume the TOKEN_DECLARATION (::) or TOKEN_NAME (the type in variable declaration)
     Token declaration_token_or_type = get_next_token(lexer);
     COMPOUND_TYPE compound_type = token_type_to_compound_type(declaration_token_or_type.type);
 
 
     if (declaration_type == AST_DECLARATION_VARIABLE) {
-        if (is_type(lexer->parser->type_table, declaration_token_or_type)) {
+        if (is_type(type_table, declaration_token_or_type)) {
             // a :u32
             //    ^^^
-            result->variable.variable_type = get(lexer->parser->type_table, declaration_token_or_type.name);
+            result->variable.variable_type = get(type_table, declaration_token_or_type.name);
             result->variable.do_inference = false;
 
             if (!result->variable.variable_type) {
@@ -905,65 +979,22 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
     } else if (declaration_type == AST_DECLARATION_FUNCTION) {
         positions.last_correct = positions.start;
 
-        require_token_and_report_syntax_error(lexer, token_check, TOKEN_OPEN_PARENTHESIS, positions, "Missing open parenthesis '(' in a header of a function declaration", false);
-        if (lexer->parser->parsing_errors) return 0;
-        positions.last_correct = lexer->previous_token.src_p;
-            result->function.param_count = get_param_count(lexer, positions);
-            if (lexer->parser->parsing_errors) return 0;
-            result->function.params = push_array(lexer->allocator, Parameter, result->function.param_count);
+        Function *function = parse_function(lexer, positions);
+        result->function = function;
 
-            sfor_count(result->function.params, result->function.param_count) {
-                Token t = lexer->current_token;
-                it->name = t.name;
-                it->src_p = t.src_p;
-
-                t = get_next_token(lexer);
-                // At this point this is syntax checked, so this assert should NEVER TRIGGER, keep it as an assert
-                assert(t.type == TOKEN_COLON, "this should never trigger. Token after a name in the header of a function declaration must be a colon");
-
-                t = get_next_token(lexer);
-                it->type = get(type_table(lexer), t.name);
-
-                if (!it->type) {
-                    push_pending_type(lexer->parser, it, t.name, t.src_p);
-                }
-
-                get_next_token(lexer);
-
-                // +1 because arrays start at 0 and there are (param_count - 1) number of commas so we have to check (param_count - 1) times
-                if ((i + 1) < result->function.param_count) {
-                    // At this point this is syntax checked, so this assert should NEVER TRIGGER, keep it as an assert
-                    assert(lexer->current_token.type == TOKEN_COMMA, "this should never trigger. Parameters in a function declarations must be separated by commas ','");
-                    get_next_token(lexer);
-                }
-
-                positions.last_correct = lexer->current_token.src_p;
-            }
-        require_token_and_report_syntax_error(lexer, token_check, TOKEN_CLOSE_PARENTHESIS, positions, "missing close parenthesis ')' in the header of a function declaration", false);
-        if (lexer->parser->parsing_errors) return 0;
-        positions.last_correct = lexer->previous_token.src_p;
-
-        require_token_and_report_syntax_error(lexer, token_check, TOKEN_RETURN_ARROW, positions, "missing return arrow '->' in the header of a function declaration", false);
-        if (lexer->parser->parsing_errors) return 0;
-        positions.last_correct = lexer->previous_token.src_p;
-
-        Token return_type = lexer->current_token;
-
-        require_token_and_report_syntax_error(lexer, type_name_check, TOKEN_NAME, positions, "missing return type in the header of a function declaration", false);
-        if (lexer->parser->parsing_errors) return 0;
-        positions.last_correct = lexer->previous_token.src_p;
-
-        result->function.return_type = get(lexer->parser->type_table, return_type.name);
-        result->function.return_src_p = return_type.src_p;
-        result->function.needs_explicit_return = !equals(return_type.name, STATIC_STR("void"));
-        result->function.has_explicit_return = false;
-
-        if (!result->function.return_type) {
-            push_pending_type(lexer->parser, result, return_type.name, return_type.src_p);
+        if (!result->function->return_type) {
+            push_pending_type(lexer->parser, result, function->return_type_name, function->return_src_p);
         }
+    } else if (declaration_type == AST_DECLARATION_OPERATOR) {
+        positions.last_correct = positions.start;
 
-        // TODO: Maybe do here the check for open brace to say that a its expected for a function body or something like that
-        result->function.block = parse_block(lexer, 0);
+        Function *function = parse_function(lexer, positions);
+        result->_operator.operator_token = overloaded_operator.type;
+        result->_operator.declaration = function;
+
+        if (!function->return_type) {
+            push_pending_type(lexer->parser, result, function->return_type_name, function->return_src_p);
+        }
     } else if (declaration_type == AST_DECLARATION_COMPOUND) {
         // Consume the struct/union token
         get_next_token(lexer);
@@ -973,7 +1004,7 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
 
         result->compound = cpr.compound;
         result->compound->compound_type = compound_type;
-        Type_spec *new_type = put(type_table(lexer), result->name, TYPE_SPEC_COMPOUND, result->src_p, result->compound->member_count, result->compound->members);
+        Type_spec *new_type = put(type_table, result->name, TYPE_SPEC_COMPOUND, result->src_p, result->compound->member_count, result->compound->members);
 
         sfor_count (result->compound->members, result->compound->member_count) {
             if (it->member_type == MEMBER_SIMPLE) {
@@ -988,7 +1019,7 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
 
         positions.last_correct = positions.start;
 
-        result->_enum.enum_type = put(type_table(lexer), result->name, TYPE_SPEC_NAME, result->src_p);
+        result->_enum.enum_type = put(type_table, result->name, TYPE_SPEC_NAME, result->src_p);
 
         require_token_and_report_syntax_error(lexer, token_check, TOKEN_OPEN_BRACE, positions, "missing open brace '{' in enum declaration", false);
         if (lexer->parser->parsing_errors) return 0;
@@ -1032,8 +1063,8 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
         result->_typedef.base_type_name = declaration_token_or_type.name;
         result->_typedef.base_type_name_src_p = declaration_token_or_type.src_p;
 
-        Type_spec *base = get(lexer->parser->type_table, result->_typedef.base_type_name);
-        put(lexer->parser->type_table, result->_typedef.new_type_name, base->type, result->_typedef.new_type_name_src_p, base);
+        Type_spec *base = get(type_table, result->_typedef.base_type_name);
+        put(type_table, result->_typedef.new_type_name, base->type, result->_typedef.new_type_name_src_p, base);
 
         get_next_token(lexer);
     } else {

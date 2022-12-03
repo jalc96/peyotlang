@@ -13,7 +13,6 @@
     -debugger for the virtual machine, showing the content of the registers and the content of the stack, show a window of the code (like 11 lines of assembly, the current one, 5 above and 5 below)
     -function parsing is easier if a keyword is introduced for function declaration like "fn" or "func" "fn do_stuff(u32 a) -> u32 {return 2 * a;}" maybe "function" since a lot of languages use that
     -add introspection for example have .type in structs to check for the type of structs and also be able to iterate over the members of structs, implement this with an integer, each time a struct is declare the type integer is incremented and that is asign to the struct, the basic types of the language are the first numbers. Add also something like typedef?? 2022-11-14 add this as a statement like sizeof() or offsetof(), also add the name() statement
-    -replace the introspection statements for their values in the ast after the typechecking
     -add introspection, be able to check a struct type and iterate over struct members with members() statement or something like that, also i need to create a new type for iterating the members, maybe create in the bytecode a static table with the requested members() and iterate over that memory, for example.
         V2u :: struct {
             x :f32;
@@ -32,12 +31,12 @@
         str(x)typespec(f32)0 and the value should be accessed other way
     -add the hability to undefine variables with the keyword undef
     -arrays
-    -type checking in the ast
     -generics struct v2 <T> {
         T x, y;
     }
     maybe expand the struct later to v2_u32 internally in the ast if v2<u32> is in the code and another like v2_f32 if v2<f32> is found, etc. These will just invoke to the create_type() thing or whatever i make for the structs, allow to check the type that was used in the T.
     -operator overload
+    -operator overload check, only allow to overload some operators
     -before allocating the memory for the bytecode, calculate all of the constants sizes and take that into account
     -do str pooling in the .data segment for constant strs
     -interface with the OS to get memory/open_files/etc
@@ -54,8 +53,6 @@
             u32 y;
             A other;
         }
-    -link the break/continue/return statements to the closest previous loop/function (with a current_loop/current_function members in the parser maybe??)
-    -illegal breaks/continue if no loop found
     -lexical errors
     -get rid of crt: get stdout buffer from the OS and use stb_print for printing
     -maybe have 2 types of errors hard error when we have to stop the process and soft errors where we can keep doing stuff for example in the type checker its useful to have all of the errors at once but when parsing into the ast once you find an error you dont know what is happening in the input so its better to stop
@@ -756,6 +753,49 @@ s16 main(s16 arg_count, char **args) {
         }
     )PROGRAM";
 
+    char *program_undefined_operators = R"PROGRAM(
+        V2u :: struct {
+            x :u32;
+            y :u32;
+        }
+
+        f::(x :u32) -> u32 {
+            return x + 1;
+        }
+
+        main :: (in :u32, on: V2u, blah: f32) -> u32 {
+            a :V2u;
+            b :V2u;
+            a + b;
+            return 1;
+        }
+    )PROGRAM";
+
+    char *program_undefined_operators2 = R"PROGRAM(
+        V2u :: struct {
+            x :u32;
+            y :u32;
+        }
+
+        operator + :: (a: V2u, b: V2u)->V2u {
+            c: V2u;
+
+            c.x = a.x + b.x;
+            c.y = a.y + b.y;
+
+            return c;
+        }
+
+        main :: (in :u32, on: V2u, blah: f32) -> u32 {
+            a :V2u;
+            b :V2u;
+            a + b;
+            return 1;
+        }
+    )PROGRAM";
+
+    // TODO: variables in main are included in the global symbol table, this appears to have disappear
+    // TODO: revise the equality between operators
 
     Memory_pool allocator = {};
 
@@ -765,8 +805,10 @@ s16 main(s16 arg_count, char **args) {
 
     Symbol_table *global_scope = new_symbol_table(&allocator);
 
-    Parser *parser = new_parser(&allocator, type_table, global_scope);
-    Lexer lexer = create_lexer(program_continue_break_link, parser, &allocator);
+    Operator_table *operator_table = new_operator_table(&allocator);
+
+    Parser *parser = new_parser(&allocator, type_table, global_scope, operator_table);
+    Lexer lexer = create_lexer(program_undefined_operators2, parser, &allocator);
 
     // link continue/break with closest for
 
@@ -826,6 +868,7 @@ s16 main(s16 arg_count, char **args) {
 
     print(type_table);
     print(global_scope);
+    print(operator_table);
 
     restore_console();
 

@@ -274,6 +274,7 @@ internal Token get_next_token(Lexer *lexer) {
             {STATIC_STR("break"), TOKEN_BREAK},
             {STATIC_STR("continue"), TOKEN_CONTINUE},
             {STATIC_STR("return"), TOKEN_RETURN},
+            {STATIC_STR("operator"), TOKEN_OPERATOR},
 
             {STATIC_STR("sizeof"), TOKEN_SIZEOF},
             {STATIC_STR("offsetof"), TOKEN_OFFSETOF},
