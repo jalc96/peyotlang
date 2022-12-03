@@ -304,6 +304,41 @@ internal void report_no_return_for_function(Lexer *lexer, Ast_declaration *ast) 
     log_error(eb, "%.*s\n", STR_PRINT(rest));
 }
 
+internal void report_break_continue_outside_loop(Lexer *lexer, Ast_statement *ast) {
+    lexer->parser->type_errors = true;
+    Str_buffer *eb = &lexer->parser->error_buffer;
+    str name;
+    Src_position src_p = ast->src_p;
+
+    if (ast->type == AST_STATEMENT_BREAK) {
+        name = STATIC_STR("break");
+    } else {
+        assert(ast->type == AST_STATEMENT_CONTINUE, "this should never fire, ast->type was not break or continue in the break continue report");
+        name = STATIC_STR("continue");
+    }
+
+    u32 l0 = find_first_from_position(lexer->source, src_p.c0, '\n', true) + skip_new_line;
+    u32 lf = find_first_from_position(lexer->source, src_p.cf, '\n', false);
+
+    str line = slice(lexer->source, l0, lf);
+
+    Split_at a = split_at(line, src_p.c0 - l0);
+    str prev = a.p1;
+
+    Split_at b = split_at(a.p2, length(name));
+    str post = b.p2;
+
+    log_error(eb, STATIC_RED("TYPE ERROR"), 0);
+    log_error(eb, ": ");
+    log_error(eb, STATIC_COLOR("%.*s", 100, 100, 255), STR_PRINT(name));
+    log_error(eb, " outside of a loop\n");
+
+
+    log_error(eb, "    %d:%.*s", src_p.line, STR_PRINT(prev));
+    log_error(eb, STATIC_COLOR("%.*s", 100, 100, 255), STR_PRINT(name));
+    log_error(eb, "%.*s\n", STR_PRINT(post));
+}
+
 internal void report_missmatched_return_types(Lexer *lexer, Ast_statement *ast, Type_spec *function_type, Type_spec *return_type) {
     lexer->parser->type_errors = true;
     Str_buffer *eb = &lexer->parser->error_buffer;
@@ -464,11 +499,11 @@ internal void report_member_not_found(Lexer *lexer, str type_name, str member_na
 }
 
 internal void type_check(Lexer *lexer, Ast_declaration *ast);
-internal void type_check(Lexer *lexer, Ast_statement *ast, Ast_declaration *ast_function);
+internal void type_check(Lexer *lexer, Ast_statement *ast, Ast_declaration *ast_function, Ast_statement *ast_loop);
 internal void type_check(Lexer *lexer, Ast_expression *ast);
-internal void type_check(Lexer *lexer, Ast_if *ast, Ast_declaration *ast_function);
-internal void type_check(Lexer *lexer, Ast_loop *ast, Ast_declaration *ast_function);
-internal void type_check(Lexer *lexer, Ast_block *ast, bool create_scope, Ast_declaration *ast_function);
+internal void type_check(Lexer *lexer, Ast_if *ast, Ast_declaration *ast_function, Ast_statement *ast_loop);
+internal void type_check(Lexer *lexer, Ast_loop *ast, Ast_declaration *ast_function, Ast_statement *ast_loop);
+internal void type_check(Lexer *lexer, Ast_block *ast, bool create_scope, Ast_declaration *ast_function, Ast_statement *ast_loop);
 
 internal Type_spec *get_type_of_name(Symbol_table *symbol_table, Type_spec_table *type_table, str name) {
     Type_spec *result = {};
@@ -779,7 +814,7 @@ internal void type_check(Lexer *lexer, Ast_declaration *ast) {
             }
 
             // NOTE(Juan Antonio) 2022-11-09: false in create_scope because in the case of a function the parameters in the header are in the same scope level as the first level scope inside the function body
-            type_check(lexer, ast->function.block, false, ast);
+            type_check(lexer, ast->function.block, false, ast, 0);
             current_scope = current_scope->next;
             clear(&mp);
 
@@ -803,18 +838,18 @@ internal void type_check(Lexer *lexer, Ast_declaration *ast) {
     }
 }
 
-internal void type_check(Lexer *lexer, Ast_statement *ast, Ast_declaration *ast_function) {
+internal void type_check(Lexer *lexer, Ast_statement *ast, Ast_declaration *ast_function, Ast_statement *ast_loop) {
     Type_spec_table *type_table = lexer->parser->type_table;
 
     switch (ast->type) {
         case AST_STATEMENT_BLOCK: {
-            type_check(lexer, ast->block_statement, true, ast_function);
+            type_check(lexer, ast->block_statement, true, ast_function, ast_loop);
         } break;
         case AST_STATEMENT_IF: {
-            type_check(lexer, ast->if_statement, ast_function);
+            type_check(lexer, ast->if_statement, ast_function, ast_loop);
         } break;
         case AST_STATEMENT_LOOP: {
-            type_check(lexer, ast->loop_statement, ast_function);
+            type_check(lexer, ast->loop_statement, ast_function, ast);
         } break;
         case AST_STATEMENT_EXPRESSION: {
             type_check(lexer, ast->expression_statement);
@@ -822,8 +857,14 @@ internal void type_check(Lexer *lexer, Ast_statement *ast, Ast_declaration *ast_
         case AST_STATEMENT_DECLARATION: {
             type_check(lexer, ast->declaration_statement);
         } break;
-        case AST_STATEMENT_BREAK: {} break;
-        case AST_STATEMENT_CONTINUE: {} break;
+        case AST_STATEMENT_BREAK:
+        case AST_STATEMENT_CONTINUE: {
+            if (!ast_loop) {
+                report_break_continue_outside_loop(lexer, ast);
+            } else {
+                ast->break_continue_loop = ast_loop;
+            }
+        } break;
         case AST_STATEMENT_RETURN: {
             ast->return_statement.function = ast_function;
             ast_function->function.has_explicit_return = true;
@@ -870,23 +911,23 @@ internal void type_check(Lexer *lexer, Ast_expression *ast) {
     get_type(lexer, ast);
 }
 
-internal void type_check(Lexer *lexer, Ast_if *ast, Ast_declaration *ast_function) {
+internal void type_check(Lexer *lexer, Ast_if *ast, Ast_declaration *ast_function, Ast_statement *ast_loop) {
     If *ifs = ast->ifs;
 
     lfor (ifs) {
         type_check(lexer, &it->condition);
         if (type_errors(lexer->parser)) {return;}
 
-        type_check(lexer, &it->block, true, ast_function);
+        type_check(lexer, &it->block, true, ast_function, ast_loop);
         if (type_errors(lexer->parser)) {return;}
     }
 
     if (ast->else_block) {
-        type_check(lexer, ast->else_block, true, ast_function);
+        type_check(lexer, ast->else_block, true, ast_function, ast_loop);
     }
 }
 
-internal void type_check(Lexer *lexer, Ast_loop *ast, Ast_declaration *ast_function) {
+internal void type_check(Lexer *lexer, Ast_loop *ast, Ast_declaration *ast_function, Ast_statement *ast_loop) {
     if (ast->pre) {
         type_check(lexer, ast->pre);
         if (type_errors(lexer->parser)) {return;}
@@ -900,10 +941,10 @@ internal void type_check(Lexer *lexer, Ast_loop *ast, Ast_declaration *ast_funct
         if (type_errors(lexer->parser)) {return;}
     }
 
-    type_check(lexer, ast->block, true, ast_function);
+    type_check(lexer, ast->block, true, ast_function, ast_loop);
 }
 
-internal void type_check(Lexer *lexer, Ast_block *ast, bool create_scope, Ast_declaration *ast_function) {
+internal void type_check(Lexer *lexer, Ast_block *ast, bool create_scope, Ast_declaration *ast_function, Ast_statement *ast_loop) {
     // NOTE(Juan Antonio) 2022-11-09: the create_scope parameter is actually for the function parameters to have them in the same scope as the variables in the function block to not allow to shadow the parameters in the first level of the function scope
     Memory_pool mp = {};
 
@@ -915,7 +956,7 @@ internal void type_check(Lexer *lexer, Ast_block *ast, bool create_scope, Ast_de
 
     while (ast) {
         sfor_count (ast->statements, ast->statement_count) {
-            type_check(lexer, it, ast_function);
+            type_check(lexer, it, ast_function, ast_loop);
             if (type_errors(lexer->parser)) { return; }
         }
 

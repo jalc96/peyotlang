@@ -742,9 +742,17 @@ s16 main(s16 arg_count, char **args) {
         }
     )PROGRAM";
 
-    // TODO: annonymous structs and nesting with unions doesnt work
+    char *program_return_link_and_type_check = R"PROGRAM(
+        main :: () -> u32 {
+        }
+    )PROGRAM";
+
     char *program_continue_break_link = R"PROGRAM(
         main :: () -> u32 {
+            for (i :u32 = 1; i < 3; i ++) {
+                break;
+            }
+            return 1;
         }
     )PROGRAM";
 
