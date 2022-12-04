@@ -35,8 +35,8 @@
         T x, y;
     }
     maybe expand the struct later to v2_u32 internally in the ast if v2<u32> is in the code and another like v2_f32 if v2<f32> is found, etc. These will just invoke to the create_type() thing or whatever i make for the structs, allow to check the type that was used in the T.
-    -operator overload
     -operator overload check, only allow to overload some operators
+    -operator overload check, only allow 1 and 2 parameters for operators
     -before allocating the memory for the bytecode, calculate all of the constants sizes and take that into account
     -do str pooling in the .data segment for constant strs
     -interface with the OS to get memory/open_files/etc
@@ -796,8 +796,6 @@ s16 main(s16 arg_count, char **args) {
         }
     )PROGRAM";
 
-    // TODO: variables in main are included in the global symbol table, this appears to have disappear
-    // TODO: revise the equality between operators
 
     Memory_pool allocator = {};
 
@@ -812,7 +810,6 @@ s16 main(s16 arg_count, char **args) {
     Parser *parser = new_parser(&allocator, type_table, global_scope, operator_table);
     Lexer lexer = create_lexer(program_undefined_operators2, parser, &allocator);
 
-    // link continue/break with closest for
 
     get_next_token(&lexer);
     Lexer_savepoint lexer_savepoint = create_savepoint(&lexer);
@@ -870,7 +867,7 @@ s16 main(s16 arg_count, char **args) {
 
     print(type_table);
     print(global_scope);
-    print(operator_table);
+    // print(operator_table);
 
     restore_console();
 

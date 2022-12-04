@@ -623,7 +623,6 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast, bool need_lvalue
         if (type_errors(parser)) {return 0;}
 
         if (is_arithmetic(ast->type) || is_relational(ast->type)) {
-            // TODO: in the future check here if there is an operator that accepts these 2 types
             // TODO: with the operator overload the any_equals check is not necessary
             if (any_equals(l, r)) {
                 Type_spec *op_type;
@@ -636,22 +635,20 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast, bool need_lvalue
 
                 if (need_lvalue && !l_type) {
                     not_implemented;
-                    // error: ambiguous expression or something like that
+                    // TODO: error: ambiguous expression or something like that
                 } else {
                     Operator *op = get(parser->operator_table, to_op_token_type(ast->type), l->name, r->name, op_type->name);
 
                     if (op) {
                         result = l_type;
                     } else {
-                        // report_operator_not_found(lexer, ast, l, r);
-                        debug("error no operator found")
+                        report_binary_expression_missmatch_type_error(lexer, ast, l, r);
                     }
                 }
             } else {
                 report_binary_expression_missmatch_type_error(lexer, ast, l, r);
             }
         } else if (is_assignment(ast->type)) {
-            // TODO: in the future check here if there is an operator that accepts these 2 types
             // TODO: here we lose the hability to have more return types for operator overload in the r-value
             // for example if operator + (a :u32, b: u32) -> u32
             // and            operator + (a :u32, b: u32) -> f32
@@ -812,6 +809,7 @@ internal void type_check(Lexer *lexer, Function *function, Ast_declaration *ast_
     // NOTE(Juan Antonio) 2022-11-09: false in create_scope because in the case of a function the parameters in the header are in the same scope level as the first level scope inside the function body
     type_check(lexer, function->block, false, ast_function, 0);
     parser->current_scope = parser->current_scope->next;
+    if (type_errors(parser)) {return;}
     clear(&mp);
 
     if (function->needs_explicit_return && !function->has_explicit_return) {
