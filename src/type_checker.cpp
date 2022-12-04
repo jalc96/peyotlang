@@ -502,7 +502,7 @@ internal void report_member_not_found(Lexer *lexer, str type_name, str member_na
 
 internal void type_check(Lexer *lexer, Ast_declaration *ast);
 internal void type_check(Lexer *lexer, Ast_statement *ast, Ast_declaration *ast_function, Ast_statement *ast_loop);
-internal void type_check(Lexer *lexer, Ast_expression *ast);
+internal void type_check(Lexer *lexer, Ast_expression *ast, bool need_lvalue, Type_spec *l_type);
 internal void type_check(Lexer *lexer, Ast_if *ast, Ast_declaration *ast_function, Ast_statement *ast_loop);
 internal void type_check(Lexer *lexer, Ast_loop *ast, Ast_declaration *ast_function, Ast_statement *ast_loop);
 internal void type_check(Lexer *lexer, Ast_block *ast, bool create_scope, Ast_declaration *ast_function, Ast_statement *ast_loop);
@@ -557,7 +557,7 @@ internal Type_spec *to_signed(Type_spec_table *type_table, Type_spec *unsigned_t
     return result;
 }
 
-internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast) {
+internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast, bool need_lvalue, Type_spec *l_type) {
     // TODO: have a table of inplicit casts and check here for those like asigning a u8 to an u32 variable or something like that
     Type_spec *result = 0;
     Parser *parser = lexer->parser;
@@ -615,32 +615,50 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast) {
             case AST_EXPRESSION_FUNCTION_CALL: {} break;
         }
     } else if (is_binary(ast->type)) {
-        Type_spec *l = get_type(lexer, ast->binary.left);
-        Type_spec *r = get_type(lexer, ast->binary.right);
+        // TODO: should we pass here the l_value?? i think so
+        Type_spec *l = get_type(lexer, ast->binary.left, need_lvalue, l_type);
+        // The l-value is used for operator finding
+        Type_spec *r = get_type(lexer, ast->binary.right, true, l);
 
         if (type_errors(parser)) {return 0;}
 
         if (is_arithmetic(ast->type) || is_relational(ast->type)) {
             // TODO: in the future check here if there is an operator that accepts these 2 types
-            // TODO: revise the equality between operators
+            // TODO: with the operator overload the any_equals check is not necessary
             if (any_equals(l, r)) {
-                result = l;
+                Type_spec *op_type;
+
+                if (need_lvalue) {
+                    op_type = l_type;
+                } else {
+                    op_type = l;
+                }
+
+                if (need_lvalue && !l_type) {
+                    not_implemented;
+                    // error: ambiguous expression or something like that
+                } else {
+                    Operator *op = get(parser->operator_table, to_op_token_type(ast->type), l->name, r->name, op_type->name);
+
+                    if (op) {
+                        result = l_type;
+                    } else {
+                        // report_operator_not_found(lexer, ast, l, r);
+                        debug("error no operator found")
+                    }
+                }
             } else {
                 report_binary_expression_missmatch_type_error(lexer, ast, l, r);
             }
         } else if (is_assignment(ast->type)) {
             // TODO: in the future check here if there is an operator that accepts these 2 types
+            // TODO: here we lose the hability to have more return types for operator overload in the r-value
+            // for example if operator + (a :u32, b: u32) -> u32
+            // and            operator + (a :u32, b: u32) -> f32
+            // then here we dont know which one to use
+            // SOLUTION: use the l_type parameter
             if (any_equals(l, r)) {
                 result = l;
-
-                // TODO: operator check here
-                // TODO: do the hash only by names and the operator
-                // TODO: use the new_stack_operator
-                // if (get(parser->operator_table, l, r)) {
-
-                // } else {
-                //     report_operator_not_found(lexer, ast, l, r);
-                // }
             } else {
                 report_binary_expression_missmatch_type_error(lexer, ast, l, r);
             }
@@ -651,7 +669,7 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast) {
         }
     } else if (is_unary(ast->type)) {
         // TODO: check here if is a post/pre and only allow the right node to be a non pre/post to avoid a++++++++;
-        Type_spec *r = get_type(lexer, ast->binary.right);
+        Type_spec *r = get_type(lexer, ast->binary.right, false, 0);
 
         if (type_errors(parser)) {return 0;}
 
@@ -669,7 +687,7 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast) {
         Symbol *symbol = 0;
 
         if (e->type == AST_EXPRESSION_MEMBER) {
-            type = get_type(lexer, e);
+            type = get_type(lexer, e, false, 0);
         } else if (e->type == AST_EXPRESSION_LITERAL_TYPE) {
             type = get(type_table, name);
         } else {
@@ -693,7 +711,7 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast) {
         Symbol *symbol = 0;
 
         if (e->type == AST_EXPRESSION_MEMBER) {
-            type = get_type(lexer, e);
+            type = get_type(lexer, e, false, 0);
         } else if (e->type == AST_EXPRESSION_LITERAL_TYPE) {
             type = get(type_table, name);
         } else {
@@ -809,7 +827,8 @@ internal void type_check(Lexer *lexer, Ast_declaration *ast) {
     switch (ast->type) {
         case AST_DECLARATION_VARIABLE: {
             if (ast->variable.do_inference) {
-                ast->variable.variable_type = get_type(lexer, ast->variable.expression);
+                // TODO: here we dont pass the l-value to the r-value so if its not clear the type there an error must be returned "ambiguous stuff..."
+                ast->variable.variable_type = get_type(lexer, ast->variable.expression, false, 0);
             }
 
             Symbol *s = get(current_scope, ast->name);
@@ -825,7 +844,7 @@ internal void type_check(Lexer *lexer, Ast_declaration *ast) {
 
             if (ast->variable.expression) {
                 Type_spec *variable = get_type_of_name(lexer, ast->name);
-                Type_spec *value = get_type(lexer, ast->variable.expression);
+                Type_spec *value = get_type(lexer, ast->variable.expression, true, variable);
 
                 if (type_errors(parser)) {return;}
 
@@ -839,7 +858,7 @@ internal void type_check(Lexer *lexer, Ast_declaration *ast) {
             Function *f = ast->_operator.declaration;
             str op1 = f->params[0].type->name;
             str op2 = f->params[1].type->name;
-            Operator *op = new_operator(lexer->allocator, ast->_operator.operator_token, op1, op2, f->return_type_name);
+            Operator *op = new_operator(lexer->allocator, ast->_operator.operator_token, op1, op2, f->return_type_name, ast);
             put(operator_table, op);
             type_check(lexer, ast->_operator.declaration, ast);
             if (type_errors(lexer->parser)) {return;}
@@ -874,7 +893,7 @@ internal void type_check(Lexer *lexer, Ast_statement *ast, Ast_declaration *ast_
             type_check(lexer, ast->loop_statement, ast_function, ast);
         } break;
         case AST_STATEMENT_EXPRESSION: {
-            type_check(lexer, ast->expression_statement);
+            type_check(lexer, ast->expression_statement, false, 0);
         } break;
         case AST_STATEMENT_DECLARATION: {
             type_check(lexer, ast->declaration_statement);
@@ -904,7 +923,8 @@ internal void type_check(Lexer *lexer, Ast_statement *ast, Ast_declaration *ast_
             Type_spec *return_type;
 
             if (ast->return_statement.return_expression) {
-                return_type = get_type(lexer, ast->return_statement.return_expression);
+                // Here with function->return_type parameter we asume that we want to return the function return type for the operator overload
+                return_type = get_type(lexer, ast->return_statement.return_expression, true, function->return_type);
             } else {
                 return_type = get(type_table, STATIC_STR("void"));
             }
@@ -923,13 +943,13 @@ internal void type_check(Lexer *lexer, Ast_statement *ast, Ast_declaration *ast_
         } break;
 
         case AST_STATEMENT_SIZEOF: {
-            type_check(lexer, ast->sizeof_statement.expression);
+            type_check(lexer, ast->sizeof_statement.expression, false, 0);
         } break;
         case AST_STATEMENT_OFFSETOF: {
-            type_check(lexer, ast->offsetof_statement.expression);
+            type_check(lexer, ast->offsetof_statement.expression, false, 0);
         } break;
         case AST_STATEMENT_TYPEOF: {
-            type_check(lexer, ast->type_statement.expression);
+            type_check(lexer, ast->type_statement.expression, false, 0);
         } break;
 
         invalid_default_case_msg("ast_statement type_check missing type");
@@ -938,15 +958,15 @@ internal void type_check(Lexer *lexer, Ast_statement *ast, Ast_declaration *ast_
     if (type_errors(lexer->parser)) {return;}
 }
 
-internal void type_check(Lexer *lexer, Ast_expression *ast) {
-    get_type(lexer, ast);
+internal void type_check(Lexer *lexer, Ast_expression *ast, bool need_lvalue, Type_spec *l_type) {
+    get_type(lexer, ast, need_lvalue, l_type);
 }
 
 internal void type_check(Lexer *lexer, Ast_if *ast, Ast_declaration *ast_function, Ast_statement *ast_loop) {
     If *ifs = ast->ifs;
 
     lfor (ifs) {
-        type_check(lexer, &it->condition);
+        type_check(lexer, &it->condition, true, get(lexer->parser->type_table, STATIC_STR("bool")));
         if (type_errors(lexer->parser)) {return;}
 
         type_check(lexer, &it->block, true, ast_function, ast_loop);
@@ -964,11 +984,11 @@ internal void type_check(Lexer *lexer, Ast_loop *ast, Ast_declaration *ast_funct
         if (type_errors(lexer->parser)) {return;}
     }
 
-    type_check(lexer, ast->condition);
+    type_check(lexer, ast->condition, true, get(lexer->parser->type_table, STATIC_STR("bool")));
     if (type_errors(lexer->parser)) {return;}
 
     if (ast->post) {
-        type_check(lexer, ast->post);
+        type_check(lexer, ast->post, false, 0);
         if (type_errors(lexer->parser)) {return;}
     }
 

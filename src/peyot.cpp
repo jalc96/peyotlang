@@ -100,7 +100,9 @@ struct Pending_type;
 
 #include"lexer.cpp"
 #include"type_checker.h"
+struct Operator_table;
 #include"parser.h"
+#include"peyot_operators.h"
 #include"type_checker.cpp"
 #include"parser.cpp"
 
@@ -801,11 +803,11 @@ s16 main(s16 arg_count, char **args) {
 
     Type_spec_table *type_table = new_type_spec_table(&allocator);
     global_type_table = type_table;
-    initialize_native_types(type_table, &allocator);
-
     Symbol_table *global_scope = new_symbol_table(&allocator);
-
     Operator_table *operator_table = new_operator_table(&allocator);
+
+    initialize_native_types(type_table, &allocator);
+    initialize_operators(type_table, operator_table, &allocator);
 
     Parser *parser = new_parser(&allocator, type_table, global_scope, operator_table);
     Lexer lexer = create_lexer(program_undefined_operators2, parser, &allocator);

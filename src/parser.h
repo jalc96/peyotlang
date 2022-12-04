@@ -140,6 +140,29 @@ internal AST_EXPRESSION_TYPE token_type_to_operation(PEYOT_TOKEN_TYPE token_type
     return AST_NULL;
 }
 
+internal PEYOT_TOKEN_TYPE to_op_token_type(AST_EXPRESSION_TYPE type) {
+    switch (type) {
+        case AST_EXPRESSION_BINARY_ADD: {
+            return TOKEN_PLUS;
+        } break;
+        case AST_EXPRESSION_BINARY_SUB: {
+            return TOKEN_MINUS;
+        } break;
+        case AST_EXPRESSION_BINARY_MUL: {
+            return TOKEN_STAR;
+        } break;
+        case AST_EXPRESSION_BINARY_DIV: {
+            return TOKEN_SLASH;
+        } break;
+        case AST_EXPRESSION_BINARY_MOD: {
+            return TOKEN_PERCENT;
+        } break;
+        default: {
+            assert(false, "check for this in the calling site");
+            return TOKEN_NULL;
+        } break;
+    }
+}
 
 struct Call_parameter {
     Ast_expression *parameter;
@@ -161,7 +184,7 @@ struct Ast_expression {
         str str_value;
         str name;
     };
-
+// TODO: these two unions probably can merge??
     union {
         struct {
             Ast_expression *left;
@@ -574,6 +597,14 @@ struct Ast_declaration {
     };
 };
 
+internal Ast_declaration *new_ast_declaration(Memory_pool *allocator) {
+    Ast_declaration *result = push_struct(allocator, Ast_declaration);
+
+    *result = {};
+
+    return result;
+}
+
 internal void print(Ast_declaration *ast, u32 indent=0) {
     switch (ast->type) {
         case AST_DECLARATION_VARIABLE: {
@@ -594,7 +625,7 @@ internal void print(Ast_declaration *ast, u32 indent=0) {
             print_indent(indent);
 
             sfor_count(ast->function->params, ast->function->param_count) {
-                printf("%.*s, ", it->name.count, it->name.buffer);
+                printf("%.*s :%.*s, ", STR_PRINT(it->name), STR_PRINT(it->type->name));
             }
 
             putchar('\n');
@@ -609,7 +640,7 @@ internal void print(Ast_declaration *ast, u32 indent=0) {
             print_indent(indent);
 
             sfor_count(function->params, function->param_count) {
-                printf("%.*s, ", it->name.count, it->name.buffer);
+                printf("%.*s :%.*s, ", STR_PRINT(it->name), STR_PRINT(it->type->name));
             }
 
             putchar('\n');
