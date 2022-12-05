@@ -45,3 +45,12 @@ internal Pending_type *new_pending_type(Memory_pool *allocator, str type_name) {
 
     return result;
 }
+
+
+internal void push_pending_type(Parser *parser, Ast_declaration *pending_to_type, str type_name, Src_position type_name_location);
+internal void push_pending_type(Parser *parser, Ast_statement *pending_to_type, str type_name, Src_position type_name_location);
+internal void push_pending_type(Parser *parser, Ast_expression *pending_to_type, str type_name, Src_position type_name_location);
+internal void push_pending_type(Parser *parser, Ast_if *pending_to_type, str type_name, Src_position type_name_location);
+internal void push_pending_type(Parser *parser, Ast_loop *pending_to_type, str type_name, Src_position type_name_location);
+internal void push_pending_type(Parser *parser, Parameter *pending_to_type, str type_name, Src_position type_name_location);
+internal void push_pending_type(Parser *parser, Member *pending_to_type, str type_name, Src_position type_name_location);
