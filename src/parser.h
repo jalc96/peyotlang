@@ -7,12 +7,11 @@ internal void print(Ast_block *block, u32 indent=0);
 struct Parser {
 // TODO: maybe put the Lexer in here and pass this around instead??
     Type_spec_table *type_table;
-
     Symbol_table *current_scope;
     Symbol_table *first_free_table;
     Symbol *first_free_symbol;
-
     Operator_table *operator_table;
+
 
     bool parsing_errors;
     bool type_errors;
@@ -174,6 +173,7 @@ struct Ast_statement;
 struct Ast_expression {
     AST_EXPRESSION_TYPE type;
     Src_position src_p;
+    Type_spec *op_type;
 
     union {
         char char_value;
@@ -184,7 +184,7 @@ struct Ast_expression {
         str str_value;
         str name;
     };
-// TODO: these two unions probably can merge??
+
     union {
         struct {
             Ast_expression *left;
@@ -564,6 +564,7 @@ struct Function {
     Ast_block *block;
     bool needs_explicit_return;
     bool has_explicit_return;
+    Symbol_table *current_scope;
 };
 
 struct Ast_declaration {
@@ -690,6 +691,7 @@ struct Ast_loop {
     Ast_expression *condition;
     Ast_expression *post;
     Ast_block *block;
+    Symbol_table *current_scope;
 };
 
 internal Ast_loop *new_ast_loop(Memory_pool *allocator) {
@@ -736,7 +738,10 @@ struct Ast_statement {
     Src_position src_p;
 
     union {
-        Ast_block *block_statement;
+        struct {
+            Ast_block *block;
+            Symbol_table *current_scope;
+        } block_statement;
         Ast_if *if_statement;
         Ast_expression *expression_statement;
         Ast_declaration *declaration_statement;
@@ -844,6 +849,7 @@ struct If {
     Src_position src_p;
     Ast_expression condition;
     Ast_block block;
+    Symbol_table *current_scope;
     If *next;
 };
 
@@ -853,6 +859,7 @@ struct Ast_if {
     If *ifs;
 
     Ast_block *else_block;
+    Symbol_table *else_scope;
 };
 
 internal void print(Ast_if *ast, u32 indent=0) {
@@ -882,7 +889,7 @@ internal void print(Ast_if *ast, u32 indent=0) {
 internal void print(Ast_statement *ast, u32 indent, bool print_leaf) {
     switch (ast->type) {
         case AST_STATEMENT_BLOCK: {
-            print(ast->block_statement, indent);
+            print(ast->block_statement.block, indent);
         } break;
         case AST_STATEMENT_IF: {
             print(ast->if_statement, indent);

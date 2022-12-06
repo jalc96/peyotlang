@@ -40,6 +40,7 @@ enum BYTECODE_INSTRUCTION {
     // Jump if equals and if not equals
     JEQ,
     JNEQ,
+    TAG,
 
     BYTECODE_COUNT,
 };
@@ -101,15 +102,21 @@ struct Bytecode_instruction {
 
 struct Bytecode_generator {
     Memory_pool *allocator;
+
+    Type_spec_table *type_table;
+    Operator_table *operator_table;
+
     u64 bytecode_size;
     u64 bytecode_head;
     Bytecode_instruction *bytecode;
 };
 
-internal Bytecode_generator *new_bytecode_generator(Memory_pool *allocator) {
+internal Bytecode_generator *new_bytecode_generator(Memory_pool *allocator, Type_spec_table *type_table, Operator_table *operator_table) {
     Bytecode_generator *result = push_struct(allocator, Bytecode_generator);
 
     result->allocator = allocator;
+    result->type_table = type_table;
+    result->operator_table = operator_table;
     result->bytecode_size = BYTECODE_FIRST_SIZE;
     result->bytecode_head = 0;
     result->bytecode = push_array(result->allocator, Bytecode_instruction, result->bytecode_size);

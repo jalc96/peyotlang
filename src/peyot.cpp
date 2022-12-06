@@ -798,6 +798,14 @@ s16 main(s16 arg_count, char **args) {
         }
     )PROGRAM";
 
+    char *program_bytecode = R"PROGRAM(
+        main :: (in :u32) -> u32 {
+            a :u32;
+            a = 1 + 2;
+            return 1;
+        }
+    )PROGRAM";
+
 
     Memory_pool allocator = {};
 
@@ -810,7 +818,7 @@ s16 main(s16 arg_count, char **args) {
     initialize_operators(type_table, operator_table, &allocator);
 
     Parser *parser = new_parser(&allocator, type_table, global_scope, operator_table);
-    Lexer lexer = create_lexer(program_undefined_operators2, parser, &allocator);
+    Lexer lexer = create_lexer(program_bytecode, parser, &allocator);
 
 
     get_next_token(&lexer);
@@ -857,7 +865,9 @@ s16 main(s16 arg_count, char **args) {
                 report_type_errors(&lexer);
             } else {
                 Memory_pool bytecode_allocator = {};
-                Bytecode_generator *generator = new_bytecode_generator(&bytecode_allocator);
+                // TODO: the ast needs to keep the symbol tables so the bytecode generator knows the types of the variables, dont create stack Memory pools and dont clear them, store them in the correct ast node
+                Bytecode_generator *generator = new_bytecode_generator(&bytecode_allocator, type_table, operator_table);
+                create_bytecode(generator, ast);
 
                 print(ast);
                 rollback_lexer(lexer_savepoint);

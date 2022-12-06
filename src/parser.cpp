@@ -1409,7 +1409,7 @@ internal Ast_statement *parse_statement(Lexer *lexer, Ast_statement *result) {
 
     switch (result->type) {
         case AST_STATEMENT_BLOCK: {
-            result->block_statement = parse_block(lexer, 0);
+            result->block_statement.block = parse_block(lexer, 0);
         } break;
         case AST_STATEMENT_IF: {
             result->if_statement = parse_if(lexer, 0);
