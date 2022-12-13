@@ -849,7 +849,8 @@ s16 main(s16 arg_count, char **args) {
                 Memory_pool bytecode_allocator = {};
                 // TODO: the ast needs to keep the symbol tables so the bytecode generator knows the types of the variables, dont create stack Memory pools and dont clear them, store them in the correct ast node
                 Bytecode_generator *generator = new_bytecode_generator(&bytecode_allocator, type_table, operator_table);
-                create_bytecode(generator, ast);
+                NAME_AND_EXECUTE(create_bytecode(generator, ast));
+                print_bytecode(generator);
 
                 rollback_lexer(lexer_savepoint);
                 // test_parser(&lexer);

@@ -1339,6 +1339,7 @@ internal AST_STATEMENT_TYPE get_statement_type(Lexer *lexer) {
         case TOKEN_PLUS_PLUS:
         case TOKEN_MINUS_MINUS:
         case TOKEN_OPEN_PARENTHESIS:
+        case TOKEN_LITERAL_FLOAT:
         case TOKEN_LITERAL_INTEGER: {
             result = AST_STATEMENT_EXPRESSION;
         } break;

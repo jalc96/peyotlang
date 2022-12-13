@@ -6,6 +6,14 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_loop *ast);
 internal void create_bytecode(Bytecode_generator *generator, Ast_block *ast);
 internal void create_bytecode(Bytecode_generator *generator, Ast_program *ast);
 
+internal void emit_int(Bytecode_generator *generator, u64 value) {
+    Bytecode_instruction *push_stack = next(generator);
+    push_stack->instruction = PUSH;
+    // TODO: make this size match the type size, if its u8 -> 1, if its u16 -> 2, if its u32 -> 4, if its u64 -> 8
+    generator->stack_head += 8;
+    push_stack->a._address = generator->stack_head;
+    push_stack->b._u64 = value;
+}
 
 internal void create_bytecode(Bytecode_generator *generator, Function *function) {
     sfor_count (function->params, function->param_count) {
@@ -91,8 +99,10 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_expression *ast
                 // TODO: add to the string pool
             } break;
             case AST_EXPRESSION_LITERAL_INTEGER: {
+                emit_int(generator, ast->u64_value);
             } break;
             case AST_EXPRESSION_LITERAL_FLOAT: {
+                // emit_int(generator, ast->u64_value);
             } break;
             case AST_EXPRESSION_NAME: {
                 if (get(type_table, ast->name)) {

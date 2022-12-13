@@ -111,6 +111,7 @@ inline address get_alignment_offset(Memory_pool *pool, address alignment) {
 #define push_array(pool, type, count, ...) (type *) _push_size(pool, (count) * sizeof(type), ##__VA_ARGS__)
 #define push_size(pool, size, ...) _push_size(pool, size, ## __VA_ARGS__)
 #define push_copy(pool, size, source, ...) copy(size, source, _push_size(pool, size, ##__VA_ARGS__))
+#define push_array_copy(pool, type, count, source, ...) (type *) push_copy(pool, (count) * sizeof(type), source, ## __VA_ARGS__)
 
 inline address get_remaining_size(Memory_pool *pool, Arena_push_params params=default_pool_parans()) {
     address result = pool->size - (pool->used + get_alignment_offset(pool, params.alignment));
