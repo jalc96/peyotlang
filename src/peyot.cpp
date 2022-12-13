@@ -831,35 +831,17 @@ s16 main(s16 arg_count, char **args) {
     // Ast_block *ast = parse_block(&lexer, 0);
     // Ast_statement *ast = parse_statement(&lexer, 0);
     // Ast_declaration *ast = parse_declaration(&lexer, 0);
-#if DEVELOPMENT
-    printf("parse_program\n");
-#endif
-    Ast_program *ast = parse_program(&lexer, 0);
-#if DEVELOPMENT
-    printf("parse_program\n");
-#endif
+    NAME_AND_EXECUTE(Ast_program *ast = parse_program(&lexer, 0));
 
     if (lexer.parser->parsing_errors) {
         report_parsing_errors(&lexer);
     } else {
-#if DEVELOPMENT
-    printf("out_of_order_declaration\n");
-#endif
-        out_of_order_declaration(lexer.parser);
-#if DEVELOPMENT
-    printf("out_of_order_declaration\n");
-#endif
+        NAME_AND_EXECUTE(out_of_order_declaration(lexer.parser));
 
         if (out_of_order_declaration_errors(lexer.parser)) {
             report_type_declaration_errors(&lexer);
         } else {
-#if DEVELOPMENT
-    printf("type_check\n");
-            type_check(&lexer, ast);
-#endif
-#if DEVELOPMENT
-    printf("type_check\n");
-#endif
+            NAME_AND_EXECUTE(type_check(&lexer, ast))
 
             if (type_errors(lexer.parser)) {
                 report_type_errors(&lexer);
@@ -869,7 +851,6 @@ s16 main(s16 arg_count, char **args) {
                 Bytecode_generator *generator = new_bytecode_generator(&bytecode_allocator, type_table, operator_table);
                 create_bytecode(generator, ast);
 
-                print(ast);
                 rollback_lexer(lexer_savepoint);
                 // test_parser(&lexer);
                 BOLD(ITALIC(UNDERLINE(GREEN("\n\n\nfinished correctly\n"))));
