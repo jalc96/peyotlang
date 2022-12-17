@@ -1,18 +1,30 @@
 internal void create_bytecode(Bytecode_generator *generator, Ast_declaration *ast);
 internal void create_bytecode(Bytecode_generator *generator, Ast_statement *ast);
-internal void create_bytecode(Bytecode_generator *generator, Ast_expression *ast);
+internal void create_bytecode(Bytecode_generator *generator, Ast_expression *ast, u64 address);
 internal void create_bytecode(Bytecode_generator *generator, Ast_if *ast);
 internal void create_bytecode(Bytecode_generator *generator, Ast_loop *ast);
 internal void create_bytecode(Bytecode_generator *generator, Ast_block *ast);
 internal void create_bytecode(Bytecode_generator *generator, Ast_program *ast);
 
-internal void emit_int(Bytecode_generator *generator, u64 value) {
+internal void emit_load_value_to_stack(Bytecode_generator *generator, u64 address, u64 value) {
     Bytecode_instruction *push_stack = next(generator);
-    push_stack->instruction = PUSH;
-    // TODO: make this size match the type size, if its u8 -> 1, if its u16 -> 2, if its u32 -> 4, if its u64 -> 8
-    generator->stack_head += 8;
-    push_stack->a._address = generator->stack_head;
+    push_stack->instruction = MOVI;
+    push_stack->a._address = address;
     push_stack->b._u64 = value;
+}
+
+internal void emit_load_value_to_register_from_memory(Bytecode_generator *generator, REGISTER r, u64 address) {
+    Bytecode_instruction *instr = next(generator);
+    instr->instruction = MOVM;
+    instr->a.r = r;
+    instr->b._address = address;
+}
+
+internal void emit_op(Bytecode_generator *generator, BYTECODE_INSTRUCTION op, REGISTER r1, REGISTER r2) {
+    Bytecode_instruction *instr = next(generator);
+    instr->instruction = op;
+    instr->a.r = r1;
+    instr->b.r = r2;
 }
 
 internal void create_bytecode(Bytecode_generator *generator, Function *function) {
@@ -24,18 +36,26 @@ internal void create_bytecode(Bytecode_generator *generator, Function *function)
 
 internal void create_bytecode(Bytecode_generator *generator, Ast_declaration *ast) {
     Type_spec_table *type_table = generator->type_table;
+    Symbol_table *current_scope = generator->current_scope;
 
     switch (ast->type) {
         case AST_DECLARATION_VARIABLE: {
+            Type_spec *type = ast->variable.variable_type;
+            u64 address = push_stack(generator, type->size);
+            put(current_scope, ast->name, type->name, address);
+
             if (ast->variable.expression) {
-                create_bytecode(generator, ast->variable.expression);
+                create_bytecode(generator, ast->variable.expression, address);
+                print(current_scope);
             }
         } break;
         case AST_DECLARATION_OPERATOR: {
             create_bytecode(generator, ast->_operator.declaration);
         } break;
         case AST_DECLARATION_FUNCTION: {
+            push_new_scope(generator->allocator, &generator->current_scope);
             create_bytecode(generator, ast->function);
+            pop_scope(&generator->current_scope);
         } break;
         case AST_DECLARATION_COMPOUND: {} break;
         case AST_DECLARATION_ENUM: {} break;
@@ -60,7 +80,8 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_statement *ast)
             create_bytecode(generator, ast->loop_statement);
         } break;
         case AST_STATEMENT_EXPRESSION: {
-            create_bytecode(generator, ast->expression_statement);
+            u64 address = push_stack(generator, 8);
+            create_bytecode(generator, ast->expression_statement, address);
         } break;
         case AST_STATEMENT_DECLARATION: {
             create_bytecode(generator, ast->declaration_statement);
@@ -72,20 +93,20 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_statement *ast)
         } break;
 
         case AST_STATEMENT_SIZEOF: {
-            create_bytecode(generator, ast->sizeof_statement.expression);
+            // create_bytecode(generator, ast->sizeof_statement.expression);
         } break;
         case AST_STATEMENT_OFFSETOF: {
-            create_bytecode(generator, ast->offsetof_statement.expression);
+            // create_bytecode(generator, ast->offsetof_statement.expression);
         } break;
         case AST_STATEMENT_TYPEOF: {
-            create_bytecode(generator, ast->type_statement.expression);
+            // create_bytecode(generator, ast->type_statement.expression);
         } break;
 
         invalid_default_case_msg("ast_statement create_bytecode missing type");
     }
 }
 
-internal void create_bytecode(Bytecode_generator *generator, Ast_expression *ast) {
+internal void create_bytecode(Bytecode_generator *generator, Ast_expression *ast, u64 address) {
     // Symbol_table *current_scope;
     Type_spec_table *type_table = generator->type_table;
 
@@ -99,7 +120,7 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_expression *ast
                 // TODO: add to the string pool
             } break;
             case AST_EXPRESSION_LITERAL_INTEGER: {
-                emit_int(generator, ast->u64_value);
+                emit_load_value_to_stack(generator, address, ast->u64_value);
             } break;
             case AST_EXPRESSION_LITERAL_FLOAT: {
                 // emit_int(generator, ast->u64_value);
@@ -127,8 +148,16 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_expression *ast
             case AST_EXPRESSION_FUNCTION_CALL: {} break;
         }
     } else if (is_binary(ast->type)) {
-        create_bytecode(generator, ast->binary.left);
-        create_bytecode(generator, ast->binary.right);
+        // TODO: here the sizes and adresses should come out of the two create_bytecode calls
+        u64 left_address = push_stack(generator, 8);
+        u64 right_address = push_stack(generator, 8);
+        create_bytecode(generator, ast->binary.left, left_address);
+        create_bytecode(generator, ast->binary.right, right_address);
+
+        emit_load_value_to_register_from_memory(generator, R1, left_address);
+        emit_load_value_to_register_from_memory(generator, R2, right_address);
+        emit_op(generator, ADDI, R1, R2);
+
 
         if (is_arithmetic(ast->type) || is_relational(ast->type)) {
             // Operator *op = get(operator_table, to_op_token_type(ast->type), l->name, r->name, op_type->name);
@@ -144,7 +173,7 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_expression *ast
         Symbol *symbol = 0;
 
         if (e->type == AST_EXPRESSION_MEMBER) {
-            create_bytecode(generator, e);
+            // create_bytecode(generator, e);
         } else if (e->type == AST_EXPRESSION_LITERAL_TYPE) {
             // type = get(type_table, name);
         } else {
@@ -161,7 +190,7 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_expression *ast
         Symbol *symbol = 0;
 
         if (e->type == AST_EXPRESSION_MEMBER) {
-            create_bytecode(generator, e);
+            // create_bytecode(generator, e);
         } else if (e->type == AST_EXPRESSION_LITERAL_TYPE) {
             type = get(type_table, name);
         } else {
@@ -188,31 +217,37 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_if *ast) {
     If *ifs = ast->ifs;
 
     lfor (ifs) {
-        create_bytecode(generator, &it->condition);
+        // create_bytecode(generator, &it->condition);
 
-        create_bytecode(generator, &it->block);
+        // create_bytecode(generator, &it->block);
     }
 
     if (ast->else_block) {
-        create_bytecode(generator, ast->else_block);
+        // create_bytecode(generator, ast->else_block);
     }
 }
 
 internal void create_bytecode(Bytecode_generator *generator, Ast_loop *ast) {
+    push_new_scope(generator->allocator, &generator->current_scope);
+
     if (ast->pre) {
         create_bytecode(generator, ast->pre);
     }
 
-    create_bytecode(generator, ast->condition);
+    // create_bytecode(generator, ast->condition);
 
     if (ast->post) {
-        create_bytecode(generator, ast->post);
+        // create_bytecode(generator, ast->post);
     }
 
     create_bytecode(generator, ast->block);
+    pop_scope(&generator->current_scope);
 }
 
 internal void create_bytecode(Bytecode_generator *generator, Ast_block *ast) {
+    // TODO: maybe add the create_scope parameter like in the type checker??
+    push_new_scope(generator->allocator, &generator->current_scope);
+
     while (ast) {
         sfor_count (ast->statements, ast->statement_count) {
             create_bytecode(generator, it);
@@ -220,6 +255,8 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_block *ast) {
 
         ast = ast->next;
     }
+
+    pop_scope(&generator->current_scope);
 }
 
 internal void create_bytecode(Bytecode_generator *generator, Ast_program *ast) {

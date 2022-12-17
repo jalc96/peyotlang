@@ -2,7 +2,10 @@ struct Symbol {
     str name;
     // NOTE(Juan Antonio) 2022-11-05: maybe use a pointer to the type_spec?? that can make the out of order a bit more annoying to deal with though, storing the name allow to wait until the out of order is finished to check whether the type is declared or not and the type check is already made, so this seems more convenient.
     str type_name;
-    Src_position src_p;
+    union {
+        Src_position src_p;
+        u64 stack_offset;
+    };
     // Scope
     Symbol *next;
 };
@@ -13,6 +16,16 @@ internal Symbol *new_symbol(Memory_pool *allocator, str name, str type_name, Src
     result->name = name;
     result->type_name = type_name;
     result->src_p = src_p;
+
+    return result;
+}
+
+internal Symbol *new_symbol(Memory_pool *allocator, str name, str type_name, u64 stack_offset) {
+    Symbol *result = push_struct(allocator, Symbol);
+
+    result->name = name;
+    result->type_name = type_name;
+    result->stack_offset = stack_offset;
 
     return result;
 }
@@ -69,6 +82,15 @@ internal void put(Symbol_table *table, str name, str type_name, Src_position src
     table->symbols[i] = symbol;
 }
 
+internal void put(Symbol_table *table, str name, str type_name, u64 stack_offset) {
+    Symbol *symbol = new_symbol(table->allocator, name, type_name, stack_offset);
+
+    u32 i = get_symbol_index(symbol->name);
+
+    symbol->next = table->symbols[i];
+    table->symbols[i] = symbol;
+}
+
 internal Symbol *get(Symbol_table *table, str name) {
     Symbol *result = 0;
     u32 i = get_symbol_index(name);
@@ -86,4 +108,20 @@ internal Symbol *get(Symbol_table *table, str name) {
     }
 
     return result;
+}
+
+internal Symbol_table *push_new_scope(Memory_pool *allocator, Symbol_table **current_scope) {
+    Memory_pool *mp = push_struct(allocator, Memory_pool);
+
+    Symbol_table *result = new_symbol_table(mp);
+    result->next = *current_scope;
+    *current_scope = result;
+
+    return result;
+}
+
+internal void pop_scope(Symbol_table **current_scope) {
+    // Memory_pool *allocator = (*current_scope)->allocator;
+    *current_scope = (*current_scope)->next;
+    // clear(allocator);
 }

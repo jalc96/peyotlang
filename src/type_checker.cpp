@@ -557,20 +557,6 @@ internal Type_spec *to_signed(Type_spec_table *type_table, Type_spec *unsigned_t
     return result;
 }
 
-internal Symbol_table *push_new_scope(Lexer *lexer) {
-    Memory_pool *mp = push_struct(lexer->allocator, Memory_pool);
-
-    Symbol_table *result = new_symbol_table(mp);
-    result->next = lexer->parser->current_scope;
-    lexer->parser->current_scope = result;
-
-    return result;
-}
-
-internal void pop_scope(Lexer *lexer) {
-    lexer->parser->current_scope = lexer->parser->current_scope->next;
-}
-
 internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast, bool need_lvalue, Type_spec *l_type) {
     // TODO: have a table of inplicit casts and check here for those like asigning a u8 to an u32 variable or something like that
     Type_spec *result = 0;
@@ -812,7 +798,7 @@ internal u32 get_compound_size(Type_spec_table *type_table, str type_name, Ast_d
 
 internal void type_check(Lexer *lexer, Function *function, Ast_declaration *ast_function) {
     Parser *parser = lexer->parser;
-    function->current_scope = push_new_scope(lexer);
+    function->current_scope = push_new_scope(lexer->allocator, &parser->current_scope);
 
     sfor_count (function->params, function->param_count) {
         put(parser->current_scope, it->name, it->type->name, it->src_p);
@@ -821,7 +807,7 @@ internal void type_check(Lexer *lexer, Function *function, Ast_declaration *ast_
     // NOTE(Juan Antonio) 2022-11-09: false in create_scope because in the case of a function the parameters in the header are in the same scope level as the first level scope inside the function body
     Symbol_table *scope = function->current_scope;
     type_check(lexer, function->block, &scope, false, ast_function, 0);
-    pop_scope(lexer);
+    pop_scope(&parser->current_scope);
     if (type_errors(parser)) {return;}
 
     if (function->needs_explicit_return && !function->has_explicit_return) {
@@ -995,7 +981,7 @@ internal void type_check(Lexer *lexer, Ast_if *ast, Ast_declaration *ast_functio
 }
 
 internal void type_check(Lexer *lexer, Ast_loop *ast, Ast_declaration *ast_function, Ast_statement *ast_loop) {
-    push_new_scope(lexer);
+    push_new_scope(lexer->allocator, &lexer->parser->current_scope);
 
     if (ast->pre) {
         type_check(lexer, ast->pre);
@@ -1014,7 +1000,7 @@ internal void type_check(Lexer *lexer, Ast_loop *ast, Ast_declaration *ast_funct
     type_check(lexer, ast->block, &scope, false, ast_function, ast_loop);
     ast->current_scope = scope;
 
-    pop_scope(lexer);
+    pop_scope(&lexer->parser->current_scope);
 }
 
 internal void type_check(Lexer *lexer, Ast_block *ast, Symbol_table **scope_for_this_block, bool create_scope, Ast_declaration *ast_function, Ast_statement *ast_loop) {
@@ -1023,7 +1009,7 @@ internal void type_check(Lexer *lexer, Ast_block *ast, Symbol_table **scope_for_
     if (create_scope) {
         assert(*scope_for_this_block == 0, "scope for this block must be 0 when creating one");
         Symbol_table *old = lexer->parser->current_scope;
-        *scope_for_this_block = push_new_scope(lexer);
+        *scope_for_this_block = push_new_scope(lexer->allocator, &lexer->parser->current_scope);
         assert(old != *scope_for_this_block, "missmatch in scope entering block");
     } else {
         assert(lexer->parser->current_scope == *scope_for_this_block, "missmatch in scope entering block");
@@ -1040,7 +1026,7 @@ internal void type_check(Lexer *lexer, Ast_block *ast, Symbol_table **scope_for_
 
     if (create_scope) {
         assert(lexer->parser->current_scope == *scope_for_this_block, "missmatch in scope coming out of block");
-        pop_scope(lexer);
+        pop_scope(&lexer->parser->current_scope);
         assert(lexer->parser->current_scope != *scope_for_this_block, "missmatch in scope entering block");
     } else {
         assert(lexer->parser->current_scope == *scope_for_this_block, "missmatch in scope coming out of block");

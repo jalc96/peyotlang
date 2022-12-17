@@ -524,7 +524,7 @@ s16 main(s16 arg_count, char **args) {
 
             if path_str.count {
                 length: u32 = 1;
-                for (i :u32= 0; i < 10; i = i + 1) {
+                for (i :u32= 0; 10; i = i + 1) {
                     it :char;
 
                     if it == '/' {
@@ -541,6 +541,8 @@ s16 main(s16 arg_count, char **args) {
                 new.data = path_str.data + path_str.count - length + 1;
                 new.count = length - 1;
             }
+
+            return path;
         }
     )PROGRAM";
 
@@ -800,8 +802,7 @@ s16 main(s16 arg_count, char **args) {
 
     char *program_bytecode = R"PROGRAM(
         main :: (in :u32) -> u32 {
-            a :u32;
-            a = 1 + 2;
+            a :u32 = 1 + 2;
             return 1;
         }
     )PROGRAM";

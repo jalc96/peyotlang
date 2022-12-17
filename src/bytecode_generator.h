@@ -156,12 +156,18 @@ struct Bytecode_generator {
 
     Type_spec_table *type_table;
     Operator_table *operator_table;
+    Symbol_table *current_scope;
 
     u32 stack_head;
     u64 bytecode_size;
     u64 bytecode_head;
     Bytecode_instruction *bytecode;
 };
+
+internal u64 push_stack(Bytecode_generator *generator, u64 size) {
+    generator->stack_head += 8;
+    return generator->stack_head;
+}
 
 internal Bytecode_generator *new_bytecode_generator(Memory_pool *allocator, Type_spec_table *type_table, Operator_table *operator_table) {
     Bytecode_generator *result = push_struct(allocator, Bytecode_generator);
