@@ -11,7 +11,7 @@ internal void color_text(char *text, u8 r, u8 g, u8 b) {
 #define YELLOW(text) color_text(text, 255, 255, 0)
 #define GREEN(text) color_text(text, 0, 255, 0)
 #define DEBUG(text) ITALIC(UNDERLINE(BOLD(color_text(text, 255, 185, 0))))
-#define PEYOT_ERROR(text) {BOLD(RED("ERROR: ")); printf("%s\n", text);}
+#define PEYOT_ERROR(text) {BOLD(RED("ERROR: ")); assert(false, text);}
 #define ASSERT(text, file, line) {BOLD(RED("\nASSERT FAILED: ")); printf("%s[%d]: %s\n", file, line, text);}
 
 #define STATIC_COLOR_(text, r, g, b) "\033[38;2;" ## #r ## ";" ## #g ## ";" ## #b ## "m" text "\033[0m"

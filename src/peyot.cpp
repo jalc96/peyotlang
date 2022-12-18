@@ -802,7 +802,7 @@ s16 main(s16 arg_count, char **args) {
 
     char *program_bytecode = R"PROGRAM(
         main :: (in :u32) -> u32 {
-            a :u32 = 1 + 2;
+            a :u32 = 1 + 2 + 3;
             return 1;
         }
     )PROGRAM";

@@ -1,30 +1,74 @@
+enum EXPRESSION_BYTECODE_TYPE {
+    EB_NULL,
+
+    E_LITERAL,
+    E_REGISTER,
+
+    EB_COUNT,
+};
+
+struct Expression_bytecode_result {
+    EXPRESSION_BYTECODE_TYPE type;
+
+    union {
+        u64 _u64;
+        REGISTER r;
+    };
+};
+
+// TODO: address is probably deprecated
 internal void create_bytecode(Bytecode_generator *generator, Ast_declaration *ast);
 internal void create_bytecode(Bytecode_generator *generator, Ast_statement *ast);
-internal void create_bytecode(Bytecode_generator *generator, Ast_expression *ast, u64 address);
+internal Expression_bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expression *ast, u64 address);
 internal void create_bytecode(Bytecode_generator *generator, Ast_if *ast);
 internal void create_bytecode(Bytecode_generator *generator, Ast_loop *ast);
 internal void create_bytecode(Bytecode_generator *generator, Ast_block *ast);
 internal void create_bytecode(Bytecode_generator *generator, Ast_program *ast);
 
 internal void emit_load_value_to_stack(Bytecode_generator *generator, u64 address, u64 value) {
-    Bytecode_instruction *push_stack = next(generator);
-    push_stack->instruction = MOVI;
-    push_stack->a._address = address;
-    push_stack->b._u64 = value;
+    // Bytecode_instruction *push_stack = next(generator);
+    // push_stack->instruction = MOVI;
+    // push_stack->destination._address = address;
+    // push_stack->source._u64 = value;
 }
 
 internal void emit_load_value_to_register_from_memory(Bytecode_generator *generator, REGISTER r, u64 address) {
-    Bytecode_instruction *instr = next(generator);
-    instr->instruction = MOVM;
-    instr->a.r = r;
-    instr->b._address = address;
+    // Bytecode_instruction *result = next(generator);
+    // result->instruction = MOVM;
+    // result->destination.r = r;
+    // result->source._address = address;
+}
+
+internal void emit_mov_to_address(Bytecode_generator *generator, Address dst, Expression_bytecode_result src) {
+    Bytecode_instruction *result = next(generator);
+    result->instruction = MOVR;
+    result->destination = new_operand(ADDRESS, dst);
+
+    if (src.type == E_LITERAL) {
+        result->source = new_operand(_QWORD, src._u64);
+    } else {
+        result->source = new_operand(REGISTER_ID, src.r);
+    }
+}
+
+internal void emit_mov_to_register(Bytecode_generator *generator, REGISTER r, Expression_bytecode_result expr) {
+    Bytecode_instruction *result = next(generator);
+    result->destination = new_operand(REGISTER_ID, r);
+
+    if (expr.type == E_LITERAL) {
+        result->instruction = MOVI;
+        result->source = new_operand(_QWORD, expr._u64);
+    } else {
+        result->instruction = MOVR;
+        result->source = new_operand(REGISTER_ID, expr.r);
+    }
 }
 
 internal void emit_op(Bytecode_generator *generator, BYTECODE_INSTRUCTION op, REGISTER r1, REGISTER r2) {
-    Bytecode_instruction *instr = next(generator);
-    instr->instruction = op;
-    instr->a.r = r1;
-    instr->b.r = r2;
+    Bytecode_instruction *result = next(generator);
+    result->instruction = op;
+    result->destination = new_register_operand(r1);
+    result->source = new_register_operand(r2);
 }
 
 internal void create_bytecode(Bytecode_generator *generator, Function *function) {
@@ -45,8 +89,10 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_declaration *as
             put(current_scope, ast->name, type->name, address);
 
             if (ast->variable.expression) {
-                create_bytecode(generator, ast->variable.expression, address);
-                print(current_scope);
+                Expression_bytecode_result value = create_bytecode(generator, ast->variable.expression, address);
+                Address dst = new_address(RBP, (s32)address);
+                emit_mov_to_address(generator, dst, value);
+                print(current_scope, true);
             }
         } break;
         case AST_DECLARATION_OPERATOR: {
@@ -80,8 +126,8 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_statement *ast)
             create_bytecode(generator, ast->loop_statement);
         } break;
         case AST_STATEMENT_EXPRESSION: {
-            u64 address = push_stack(generator, 8);
-            create_bytecode(generator, ast->expression_statement, address);
+            // u64 address = push_stack(generator, 8);
+            create_bytecode(generator, ast->expression_statement, 0);
         } break;
         case AST_STATEMENT_DECLARATION: {
             create_bytecode(generator, ast->declaration_statement);
@@ -106,7 +152,8 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_statement *ast)
     }
 }
 
-internal void create_bytecode(Bytecode_generator *generator, Ast_expression *ast, u64 address) {
+internal Expression_bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expression *ast, u64 address) {
+    Expression_bytecode_result result = {};
     // Symbol_table *current_scope;
     Type_spec_table *type_table = generator->type_table;
 
@@ -120,7 +167,8 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_expression *ast
                 // TODO: add to the string pool
             } break;
             case AST_EXPRESSION_LITERAL_INTEGER: {
-                emit_load_value_to_stack(generator, address, ast->u64_value);
+                result.type = E_LITERAL;
+                result._u64 = ast->u64_value;
             } break;
             case AST_EXPRESSION_LITERAL_FLOAT: {
                 // emit_int(generator, ast->u64_value);
@@ -148,15 +196,14 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_expression *ast
             case AST_EXPRESSION_FUNCTION_CALL: {} break;
         }
     } else if (is_binary(ast->type)) {
-        // TODO: here the sizes and adresses should come out of the two create_bytecode calls
-        u64 left_address = push_stack(generator, 8);
-        u64 right_address = push_stack(generator, 8);
-        create_bytecode(generator, ast->binary.left, left_address);
-        create_bytecode(generator, ast->binary.right, right_address);
+        Expression_bytecode_result l = create_bytecode(generator, ast->binary.left, 0);
+        Expression_bytecode_result r = create_bytecode(generator, ast->binary.right, 0);
 
-        emit_load_value_to_register_from_memory(generator, R1, left_address);
-        emit_load_value_to_register_from_memory(generator, R2, right_address);
+        emit_mov_to_register(generator, R1, l);
+        emit_mov_to_register(generator, R2, r);
         emit_op(generator, ADDI, R1, R2);
+        result.type = E_REGISTER;
+        result.r = R1;
 
 
         if (is_arithmetic(ast->type) || is_relational(ast->type)) {
@@ -211,6 +258,8 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_expression *ast
 
         get(type_table, STATIC_STR("u32"));
     }
+
+    return result;
 }
 
 internal void create_bytecode(Bytecode_generator *generator, Ast_if *ast) {

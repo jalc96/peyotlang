@@ -30,10 +30,16 @@ internal Symbol *new_symbol(Memory_pool *allocator, str name, str type_name, u64
     return result;
 }
 
-internal void print_entire_list(Symbol *symbol, u32 indent=0) {
+internal void print_entire_list(Symbol *symbol, u32 indent, bool print_stack_offset) {
     lfor(symbol) {
         print_indent(indent);
-        printf("%.*s<%.*s>\n", STR_PRINT(it->name), STR_PRINT(it->type_name));
+
+        if (print_stack_offset) {
+            printf("%.*s<%.*s> %lld\n", STR_PRINT(it->name), STR_PRINT(it->type_name), it->stack_offset);
+        } else {
+            printf("%.*s<%.*s>\n", STR_PRINT(it->name), STR_PRINT(it->type_name));
+        }
+
         indent += 2;
     }
 }
@@ -59,11 +65,11 @@ internal Symbol_table *new_symbol_table(Memory_pool *allocator) {
     return result;
 }
 
-internal void print(Symbol_table *table) {
+internal void print(Symbol_table *table, bool print_stack_offset=false) {
     printf("---SYMBOL TABLE---\n");
 
     sfor(table->symbols) {
-        print_entire_list(*it, 4);
+        print_entire_list(*it, 4, print_stack_offset);
     }
 }
 

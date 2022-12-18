@@ -113,39 +113,180 @@ enum REGISTER {
     R17 = 18,
     R18 = 19,
     R19 = 20,
+    RBP = 21,
 
     REGISTER_COUNT,
 };
 
-union Operand {
-    // Tag is just a number but in the dissasembly is like tag_<tag>
-    u32 tag;
-    REGISTER r;
+internal char *to_string(REGISTER r) {
+    switch (r) {
+        case REGISTER_NULL: {return "REGISTER_NULL";} break;
 
-    u8  _u8;
-    u16 _u16;
-    u32 _u32;
-    u64 _u64;
+        case R0: {return "R0";} break;
+        case R1: {return "R1";} break;
+        case R2: {return "R2";} break;
+        case R3: {return "R3";} break;
+        case R4: {return "R4";} break;
+        case R5: {return "R5";} break;
+        case R6: {return "R6";} break;
+        case R7: {return "R7";} break;
+        case R8: {return "R8";} break;
+        case R9: {return "R9";} break;
+        case R10: {return "R10";} break;
+        case R11: {return "R11";} break;
+        case R12: {return "R12";} break;
+        case R13: {return "R13";} break;
+        case R14: {return "R14";} break;
+        case R15: {return "R15";} break;
+        case R16: {return "R16";} break;
+        case R17: {return "R17";} break;
+        case R18: {return "R18";} break;
+        case R19: {return "R19";} break;
+        case RBP: {return "RBP";} break;
 
-    s8  _s8;
-    s16 _s16;
-    s32 _s32;
-    s64 _s64;
+        case REGISTER_COUNT: {return "REGISTER_COUNT";} break;
+        invalid_default_case_msg("unhandled register in to_string");
+    }
 
-    f32 _f32;
-    f64 _f64;
+    return 0;
+}
 
-    u64 _address;
+enum OPERAND_TYPE {
+    OPERAND_NULL,
+
+    TAG_ID,
+    REGISTER_ID,
+
+    // The _ is because windows already has defined these names
+    _BYTE,
+    _WORD,
+    _DWORD,
+    _QWORD,
+
+    ADDRESS,
+
+    OPERAND_COUNT,
 };
 
+struct Address {
+    REGISTER r;
+    s32 offset;
+};
+
+internal Address new_address(REGISTER r, s32 offset) {
+    Address result;
+    result.r = r;
+    result.offset = offset;
+    return result;
+}
+
+struct Operand {
+    OPERAND_TYPE type;
+
+    union {
+        // Tag is just a number but in the dissasembly is like tag_<tag>
+        u32 tag;
+        REGISTER r;
+
+        u8  byte;
+        u16 word;
+        u32 dword;
+        u64 qword;
+
+        f32 _f32;
+        f64 _f64;
+
+        Address _address;
+    };
+};
+
+internal Operand new_operand(OPERAND_TYPE type, REGISTER r) {
+    Operand result;
+    result.type = type;
+    result.r = r;
+    return result;
+}
+
+internal Operand new_operand(OPERAND_TYPE type, u8  byte) {
+    Operand result;
+    result.type = type;
+    result.byte = byte;
+    return result;
+}
+
+internal Operand new_operand(OPERAND_TYPE type, u16 word) {
+    Operand result;
+    result.type = type;
+    result.word = word;
+    return result;
+}
+
+internal Operand new_operand(OPERAND_TYPE type, u32 tag_or_dword) {
+    Operand result;
+    result.type = type;
+    result.dword = tag_or_dword;
+    return result;
+}
+
+internal Operand new_operand(OPERAND_TYPE type, u64 qword) {
+    Operand result;
+    result.type = type;
+    result.qword = qword;
+    return result;
+}
+
+internal Operand new_operand(OPERAND_TYPE type, f32 _f32) {
+    Operand result;
+    result.type = type;
+    result._f32 = _f32;
+    return result;
+}
+
+internal Operand new_operand(OPERAND_TYPE type, f64 _f64) {
+    Operand result;
+    result.type = type;
+    result._f64 = _f64;
+    return result;
+}
+
+internal Operand new_operand(OPERAND_TYPE type, Address _address) {
+    Operand result;
+    result.type = type;
+    result._address = _address;
+    return result;
+}
+
+
+internal Operand new_register_operand(REGISTER r) {
+    Operand result = new_operand(REGISTER_ID, r);
+    return result;
+}
+
 internal void print(Operand o) {
-    printf("%lld", o._u64);
+    Address a = o._address;
+    char sign = a.offset >= 0 ? '+' : ' ';
+
+    switch (o.type) {
+        case OPERAND_NULL: {PEYOT_ERROR("this should not be printed");} break;
+
+        case      TAG_ID: {printf("tag_%u",      o.tag);} break;
+        case REGISTER_ID: {printf("%s",          to_string(o.r));} break;
+        case       _BYTE: {printf("%u",          o.byte);} break;
+        case       _WORD: {printf("%u",          o.word);} break;
+        case      _DWORD: {printf("%u",          o.dword);} break;
+        case      _QWORD: {printf("%llu",        o.qword);} break;
+        case     ADDRESS: {printf("[%s %c %d]", to_string(a.r), sign, a.offset);} break;
+
+        case OPERAND_COUNT: {PEYOT_ERROR("this should not be printed");} break;
+
+        invalid_default_case_msg("print operand unhandled type");
+    }
 }
 
 struct Bytecode_instruction {
     BYTECODE_INSTRUCTION instruction;
-    Operand a;
-    Operand b;
+    Operand destination;
+    Operand source;
 };
 
 // #define BYTECODE_FIRST_SIZE KILOBYTES(1)
@@ -165,8 +306,8 @@ struct Bytecode_generator {
 };
 
 internal u64 push_stack(Bytecode_generator *generator, u64 size) {
-    generator->stack_head += 8;
-    return generator->stack_head;
+    generator->stack_head += size;
+    return generator->stack_head - size;
 }
 
 internal Bytecode_generator *new_bytecode_generator(Memory_pool *allocator, Type_spec_table *type_table, Operator_table *operator_table) {
@@ -205,10 +346,10 @@ internal void print_bytecode(Bytecode_generator *generator) {
         putchar(' ');
         print(it->instruction);
         putchar(' ');
-        print(it->a);
+        print(it->destination);
         putchar(',');
         putchar(' ');
-        print(it->b);
+        print(it->source);
         putchar('\n');
     }
 }
