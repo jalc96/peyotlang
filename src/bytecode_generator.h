@@ -49,6 +49,34 @@ enum BYTECODE_INSTRUCTION {
     BYTECODE_COUNT,
 };
 
+internal BYTECODE_INSTRUCTION ast_type_to_arithmetic_bytecode_instruction(AST_EXPRESSION_TYPE type) {
+    switch(type) {
+        case AST_EXPRESSION_BINARY_ADD: {
+            return ADDI;
+        } break;
+
+        case AST_EXPRESSION_BINARY_SUB: {
+            return SUBI;
+        } break;
+
+        case AST_EXPRESSION_BINARY_MUL: {
+            return MULI;
+        } break;
+
+        case AST_EXPRESSION_BINARY_DIV: {
+            return DIVI;
+        } break;
+
+        case AST_EXPRESSION_BINARY_MOD: {
+            return MODI;
+        } break;
+
+        invalid_default_case_msg("invalid ast_expression_type for arithmetic bytecode generation");
+    }
+
+    return BYTECODE_NULL;
+}
+
 internal void print(BYTECODE_INSTRUCTION instruction) {
     switch (instruction) {
         case BYTECODE_NULL: {printf("BYTECODE_NULL");} break;
@@ -90,35 +118,38 @@ internal void print(BYTECODE_INSTRUCTION instruction) {
     }
 }
 
-enum REGISTER {
+// TODO: when executing the bytecode instead of using the register number use something like this register = R0 + (op.r % REGISTER_COUNT) (because there is only 20 registers)
+// TODO: later maybe do a register allocator
+enum _REGISTER :u32 {
     REGISTER_NULL = 0,
 
-    R0  = 1,
-    R1  = 2,
-    R2  = 3,
-    R3  = 4,
-    R4  = 5,
-    R5  = 6,
-    R6  = 7,
-    R7  = 8,
-    R8  = 9,
-    R9  = 10,
-    R10 = 11,
-    R11 = 12,
-    R12 = 13,
-    R13 = 14,
-    R14 = 15,
-    R15 = 16,
-    R16 = 17,
-    R17 = 18,
-    R18 = 19,
-    R19 = 20,
-    RBP = 21,
+    RBP = 1,
+
+    R0  = 2,
+    R1  = 3,
+    R2  = 4,
+    R3  = 5,
+    R4  = 6,
+    R5  = 7,
+    R6  = 8,
+    R7  = 9,
+    R8  = 10,
+    R9  = 11,
+    R10 = 12,
+    R11 = 13,
+    R12 = 14,
+    R13 = 15,
+    R14 = 16,
+    R15 = 17,
+    R16 = 18,
+    R17 = 19,
+    R18 = 20,
+    R19 = 21,
 
     REGISTER_COUNT,
 };
 
-internal char *to_string(REGISTER r) {
+internal char *to_string(_REGISTER r) {
     switch (r) {
         case REGISTER_NULL: {return "REGISTER_NULL";} break;
 
@@ -169,11 +200,11 @@ enum OPERAND_TYPE {
 };
 
 struct Address {
-    REGISTER r;
+    u32 r;
     s32 offset;
 };
 
-internal Address new_address(REGISTER r, s32 offset) {
+internal Address new_address(u32 r, s32 offset) {
     Address result;
     result.r = r;
     result.offset = offset;
@@ -186,7 +217,8 @@ struct Operand {
     union {
         // Tag is just a number but in the dissasembly is like tag_<tag>
         u32 tag;
-        REGISTER r;
+        // REGISTER r;
+        u32 r;
 
         u8  byte;
         u16 word;
@@ -200,12 +232,12 @@ struct Operand {
     };
 };
 
-internal Operand new_operand(OPERAND_TYPE type, REGISTER r) {
-    Operand result;
-    result.type = type;
-    result.r = r;
-    return result;
-}
+// internal Operand new_operand(OPERAND_TYPE type, REGISTER r) {
+//     Operand result;
+//     result.type = type;
+//     result.r = r;
+//     return result;
+// }
 
 internal Operand new_operand(OPERAND_TYPE type, u8  byte) {
     Operand result;
@@ -221,10 +253,10 @@ internal Operand new_operand(OPERAND_TYPE type, u16 word) {
     return result;
 }
 
-internal Operand new_operand(OPERAND_TYPE type, u32 tag_or_dword) {
+internal Operand new_operand(OPERAND_TYPE type, u32 tag_or_dword_or_register) {
     Operand result;
     result.type = type;
-    result.dword = tag_or_dword;
+    result.dword = tag_or_dword_or_register;
     return result;
 }
 
@@ -257,7 +289,7 @@ internal Operand new_operand(OPERAND_TYPE type, Address _address) {
 }
 
 
-internal Operand new_register_operand(REGISTER r) {
+internal Operand new_register_operand(u32 r) {
     Operand result = new_operand(REGISTER_ID, r);
     return result;
 }
@@ -269,13 +301,22 @@ internal void print(Operand o) {
     switch (o.type) {
         case OPERAND_NULL: {PEYOT_ERROR("this should not be printed");} break;
 
-        case      TAG_ID: {printf("tag_%u",      o.tag);} break;
-        case REGISTER_ID: {printf("%s",          to_string(o.r));} break;
-        case       _BYTE: {printf("%u",          o.byte);} break;
-        case       _WORD: {printf("%u",          o.word);} break;
-        case      _DWORD: {printf("%u",          o.dword);} break;
-        case      _QWORD: {printf("%llu",        o.qword);} break;
-        case     ADDRESS: {printf("[%s %c %d]", to_string(a.r), sign, a.offset);} break;
+        case      TAG_ID: {printf("tag_%u",     o.tag);} break;
+        case REGISTER_ID: {printf("r%u",        o.r);} break;
+        case       _BYTE: {printf("%u",         o.byte);} break;
+        case       _WORD: {printf("%u",         o.word);} break;
+        case      _DWORD: {printf("%u",         o.dword);} break;
+        case      _QWORD: {printf("%llu",       o.qword);} break;
+        case     ADDRESS: {
+            switch (a.r) {
+                case RBP: {
+                    printf("[RBP %c %d]", sign, a.offset);
+                } break;
+                default: {
+                    printf("[R%u %c %d]", a.r, sign, a.offset);
+                } break;
+            }
+        } break;
 
         case OPERAND_COUNT: {PEYOT_ERROR("this should not be printed");} break;
 
@@ -302,6 +343,8 @@ struct Bytecode_generator {
     Operator_table *operator_table;
     Symbol_table *current_scope;
 
+    u32 current_register;
+
     u32 stack_head;
     u64 bytecode_size;
     u64 bytecode_head;
@@ -319,11 +362,17 @@ internal Bytecode_generator *new_bytecode_generator(Memory_pool *allocator, Type
     result->allocator = allocator;
     result->type_table = type_table;
     result->operator_table = operator_table;
+    result->current_register = R0;
     result->stack_head = 0;
     result->bytecode_size = BYTECODE_FIRST_SIZE;
     result->bytecode_head = 0;
     result->bytecode = push_array(result->allocator, Bytecode_instruction, result->bytecode_size);
 
+    return result;
+}
+
+internal u32 new_register(Bytecode_generator *generator) {
+    u32 result = generator->current_register++;
     return result;
 }
 

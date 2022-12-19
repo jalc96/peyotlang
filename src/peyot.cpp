@@ -800,13 +800,13 @@ s16 main(s16 arg_count, char **args) {
         }
     )PROGRAM";
 
-    // TODO: b := 1 * 2 + 3 * 4; the bytecode for this is garbage
+
     char *program_bytecode = R"PROGRAM(
         main :: (in :u32) -> u32 {
             a :u32;
-            a = 69;
-            d := 6;
-            b := 1 * 2 + 3 * 4;
+            a = 3;
+            d := 2;
+            b := a * 2 + 3 * d;
             return 1;
         }
     )PROGRAM";

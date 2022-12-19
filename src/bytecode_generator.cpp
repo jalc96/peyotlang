@@ -14,7 +14,7 @@ struct Expression_bytecode_result {
 
     union {
         u64 _u64;
-        REGISTER r;
+        u32 r;
         Address _address;
     };
 };
@@ -35,7 +35,7 @@ internal void emit_load_value_to_stack(Bytecode_generator *generator, u64 addres
     // push_stack->source._u64 = value;
 }
 
-internal void emit_load_value_to_register_from_memory(Bytecode_generator *generator, REGISTER r, u64 address) {
+internal void emit_load_value_to_register_from_memory(Bytecode_generator *generator, u32 r, u64 address) {
     // Bytecode_instruction *result = next(generator);
     // result->instruction = MOVM;
     // result->destination.r = r;
@@ -54,7 +54,7 @@ internal void emit_mov_to_address(Bytecode_generator *generator, Address dst, Ex
     }
 }
 
-internal void emit_mov_to_register(Bytecode_generator *generator, REGISTER dst, Expression_bytecode_result src) {
+internal void emit_mov_to_register(Bytecode_generator *generator, u32 dst, Expression_bytecode_result src) {
     if (src.type == E_REGISTER) {
         // Avoid MOVR R1, R1
         if (dst == src.r) {
@@ -78,7 +78,7 @@ internal void emit_mov_to_register(Bytecode_generator *generator, REGISTER dst, 
     }
 }
 
-internal void emit_op(Bytecode_generator *generator, BYTECODE_INSTRUCTION op, REGISTER r1, REGISTER r2) {
+internal void emit_op(Bytecode_generator *generator, BYTECODE_INSTRUCTION op, u32 r1, u32 r2) {
     Bytecode_instruction *result = next(generator);
     result->instruction = op;
     result->destination = new_register_operand(r1);
@@ -225,22 +225,26 @@ internal Expression_bytecode_result create_bytecode(Bytecode_generator *generato
             Expression_bytecode_result l = create_bytecode(generator, ast->binary.left, 0);
             Expression_bytecode_result r = create_bytecode(generator, ast->binary.right, 0);
 
+            u32 r1 = new_register(generator);
+            u32 r2 = new_register(generator);
             // TODO: is doing this in reversed order a good idea or a register allocator is needed?
-            emit_mov_to_register(generator, R2, r);
-            emit_mov_to_register(generator, R1, l);
-            emit_op(generator, ADDI, R1, R2);
+            emit_mov_to_register(generator, r1, l);
+            emit_mov_to_register(generator, r2, r);
 
             result.type = E_REGISTER;
-            result.r = R1;
+            result.r = r1;
 
             // TODO: add here the operators
-            // if (is_arithmetic(ast->type)) {
+            if (is_arithmetic(ast->type)) {
+                BYTECODE_INSTRUCTION instruction = ast_type_to_arithmetic_bytecode_instruction(ast->type);
+                emit_op(generator, instruction, r1, r2);
             //     // Operator *op = get(operator_table, to_op_token_type(ast->type), l->name, r->name, op_type->name);
             //     // assert(op, "compiler error: operator not found in bytecode generation");
+                // TODO: for comparisons maybe have a bitfield
             // } else if (is_relational(ast->type)) {
             // } else if (is_boolean(ast->type)) {
             // } else if (is_bit_operator(ast->type)) {
-            // }
+            }
         }
     } else if (is_unary(ast->type)) {
     } else if (ast->type == AST_EXPRESSION_TYPEOF) {
