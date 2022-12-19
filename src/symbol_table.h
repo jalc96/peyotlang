@@ -4,7 +4,7 @@ struct Symbol {
     str type_name;
     union {
         Src_position src_p;
-        u64 stack_offset;
+        s32 stack_offset;
     };
     // Scope
     Symbol *next;
@@ -35,7 +35,7 @@ internal void print_entire_list(Symbol *symbol, u32 indent, bool print_stack_off
         print_indent(indent);
 
         if (print_stack_offset) {
-            printf("%.*s<%.*s> %lld\n", STR_PRINT(it->name), STR_PRINT(it->type_name), it->stack_offset);
+            printf("%.*s<%.*s> %d\n", STR_PRINT(it->name), STR_PRINT(it->type_name), it->stack_offset);
         } else {
             printf("%.*s<%.*s>\n", STR_PRINT(it->name), STR_PRINT(it->type_name));
         }

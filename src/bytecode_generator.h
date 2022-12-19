@@ -289,8 +289,11 @@ struct Bytecode_instruction {
     Operand source;
 };
 
-// #define BYTECODE_FIRST_SIZE KILOBYTES(1)
+#if DEVELOPMENT
 #define BYTECODE_FIRST_SIZE 1
+#else
+#define BYTECODE_FIRST_SIZE KILOBYTES(1)
+#endif
 
 struct Bytecode_generator {
     Memory_pool *allocator;
@@ -329,6 +332,8 @@ internal Bytecode_instruction *next(Bytecode_generator *generator) {
 
     if (generator->bytecode_head >= generator->bytecode_size) {
         u64 new_size = generator->bytecode_size * 2;
+        debug("resizing bytecode buffer")
+        debug(new_size)
         Bytecode_instruction *new_bytecode = push_array_copy(generator->allocator, Bytecode_instruction, new_size, generator->bytecode);
 
         generator->bytecode_size = new_size;
@@ -341,9 +346,29 @@ internal Bytecode_instruction *next(Bytecode_generator *generator) {
 }
 
 internal void print_bytecode(Bytecode_generator *generator) {
+    u32 max_length = 0;
+    u32 head = generator->bytecode_head;
+
+    while (head) {
+        max_length++;
+        head /= 10;
+    }
+
+    debug(max_length)
+
     sfor_count(generator->bytecode, generator->bytecode_head) {
-        putchar(' ');
-        putchar(' ');
+        u32 line_length = 0;
+        u32 line = i;
+
+        while (line) {
+            line_length++;
+            line /= 10;
+        }
+
+        line_length = al_max(line_length, 1);
+
+        print_indent(max_length - line_length);
+        printf("%d:  ", i);
         print(it->instruction);
         putchar(' ');
         print(it->destination);

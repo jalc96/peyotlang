@@ -641,7 +641,7 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast, bool need_lvalue
                     Operator *op = get(parser->operator_table, to_op_token_type(ast->type), l->name, r->name, op_type->name);
 
                     if (op) {
-                        result = l_type;
+                        result = op_type;
                     } else {
                         report_binary_expression_missmatch_type_error(lexer, ast, l, r);
                     }

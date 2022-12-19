@@ -3,16 +3,19 @@ enum EXPRESSION_BYTECODE_TYPE {
 
     E_LITERAL,
     E_REGISTER,
+    E_MEMORY,
 
     EB_COUNT,
 };
 
+// TODO: now this is more like a source_type or something like this
 struct Expression_bytecode_result {
     EXPRESSION_BYTECODE_TYPE type;
 
     union {
         u64 _u64;
         REGISTER r;
+        Address _address;
     };
 };
 
@@ -51,16 +54,27 @@ internal void emit_mov_to_address(Bytecode_generator *generator, Address dst, Ex
     }
 }
 
-internal void emit_mov_to_register(Bytecode_generator *generator, REGISTER r, Expression_bytecode_result expr) {
-    Bytecode_instruction *result = next(generator);
-    result->destination = new_operand(REGISTER_ID, r);
+internal void emit_mov_to_register(Bytecode_generator *generator, REGISTER dst, Expression_bytecode_result src) {
+    if (src.type == E_REGISTER) {
+        // Avoid MOVR R1, R1
+        if (dst == src.r) {
+            // TODO: make this check elsewhere???
+            return;
+        }
+    }
 
-    if (expr.type == E_LITERAL) {
+    Bytecode_instruction *result = next(generator);
+    result->destination = new_operand(REGISTER_ID, dst);
+
+    if (src.type == E_LITERAL) {
         result->instruction = MOVI;
-        result->source = new_operand(_QWORD, expr._u64);
+        result->source = new_operand(_QWORD, src._u64);
+    } else if (src.type == E_MEMORY) {
+        result->instruction = MOVM;
+        result->source = new_operand(ADDRESS, src._address);
     } else {
         result->instruction = MOVR;
-        result->source = new_operand(REGISTER_ID, expr.r);
+        result->source = new_operand(REGISTER_ID, src.r);
     }
 }
 
@@ -179,7 +193,12 @@ internal Expression_bytecode_result create_bytecode(Bytecode_generator *generato
                     get(type_table, STATIC_STR("u32"));
                 } else {
                     // is a name
-                    // get_type_of_name(current_scope, type_table, ast->name);
+                    Symbol *s = get(generator->current_scope, ast->name);
+                    Address _address = new_address(RBP, s->stack_offset);
+
+                    result.type = E_MEMORY;
+                    result.r = RBP;
+                    result._address = _address;
                 }
             } break;
             case AST_EXPRESSION_MEMBER: {
@@ -196,22 +215,32 @@ internal Expression_bytecode_result create_bytecode(Bytecode_generator *generato
             case AST_EXPRESSION_FUNCTION_CALL: {} break;
         }
     } else if (is_binary(ast->type)) {
-        Expression_bytecode_result l = create_bytecode(generator, ast->binary.left, 0);
-        Expression_bytecode_result r = create_bytecode(generator, ast->binary.right, 0);
+        if (is_assignment(ast->type)) {
+            Expression_bytecode_result r = create_bytecode(generator, ast->binary.right, 0);
 
-        emit_mov_to_register(generator, R1, l);
-        emit_mov_to_register(generator, R2, r);
-        emit_op(generator, ADDI, R1, R2);
-        result.type = E_REGISTER;
-        result.r = R1;
+            Symbol *s = get(generator->current_scope, ast->binary.left->name);
+            Address dst = new_address(RBP, s->stack_offset);
+            emit_mov_to_address(generator, dst, r);
+        } else {
+            Expression_bytecode_result l = create_bytecode(generator, ast->binary.left, 0);
+            Expression_bytecode_result r = create_bytecode(generator, ast->binary.right, 0);
 
+            // TODO: is doing this in reversed order a good idea or a register allocator is needed?
+            emit_mov_to_register(generator, R2, r);
+            emit_mov_to_register(generator, R1, l);
+            emit_op(generator, ADDI, R1, R2);
 
-        if (is_arithmetic(ast->type) || is_relational(ast->type)) {
-            // Operator *op = get(operator_table, to_op_token_type(ast->type), l->name, r->name, op_type->name);
-            // assert(op, "compiler error: operator not found in bytecode generation");
-        } else if (is_assignment(ast->type)) {
-        } else if (is_boolean(ast->type)) {
-        } else if (is_bit_operator(ast->type)) {
+            result.type = E_REGISTER;
+            result.r = R1;
+
+            // TODO: add here the operators
+            // if (is_arithmetic(ast->type)) {
+            //     // Operator *op = get(operator_table, to_op_token_type(ast->type), l->name, r->name, op_type->name);
+            //     // assert(op, "compiler error: operator not found in bytecode generation");
+            // } else if (is_relational(ast->type)) {
+            // } else if (is_boolean(ast->type)) {
+            // } else if (is_bit_operator(ast->type)) {
+            // }
         }
     } else if (is_unary(ast->type)) {
     } else if (ast->type == AST_EXPRESSION_TYPEOF) {
