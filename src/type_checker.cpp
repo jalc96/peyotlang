@@ -638,7 +638,7 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast, bool need_lvalue
                     not_implemented;
                     // TODO: error: ambiguous expression or something like that
                 } else {
-                    Operator *op = get(parser->operator_table, to_op_token_type(ast->type), l->name, r->name, op_type->name);
+                    Operator *op = get(parser->operator_table, to_op_token_type(ast->type), l->name, r->name/*, op_type->name*/);
 
                     if (op) {
                         result = op_type;

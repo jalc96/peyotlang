@@ -250,11 +250,12 @@ internal Expression_bytecode_result create_bytecode(Bytecode_generator *generato
                 emit_op(generator, instruction, r1, r2);
 
 
-                Type_spec *lt = ast->binary.left->op_type;
-                Type_spec *rt = ast->binary.right->op_type;
-                // Operator *op = get(generator->operator_table, to_op_token_type(ast->type), lt->name, rt->name, op_type->name);
+                // Type_spec *lt = ast->binary.left->op_type;
+                // Type_spec *rt = ast->binary.right->op_type;
+                // Operator *op = get(generator->operator_table, to_op_token_type(ast->type), lt->name, rt->name);
                 // assert(op, "compiler error: operator not found in bytecode generation");
-                // TODO: for comparisons maybe have a bitfield
+
+                // TODO: for comparisons maybe have a flag bitfield to check in the jumps
             // } else if (is_relational(ast->type)) {
             // } else if (is_boolean(ast->type)) {
             // } else if (is_bit_operator(ast->type)) {

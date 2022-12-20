@@ -11,7 +11,7 @@ struct Operator {
     // TODO: probably this should be type_specs??
     str operand_1;
     str operand_2;
-    str return_type;
+    str _return_type;
     Ast_declaration *declaration;
     Operator *next;
 };
@@ -22,20 +22,20 @@ internal Operator *new_operator(Memory_pool *allocator, PEYOT_TOKEN_TYPE type, s
     result->type = type;
     result->operand_1 = op1;
     result->operand_2 = op2;
-    result->return_type = return_type;
+    // result->return_type = return_type;
     result->declaration = declaration;
     result->next = 0;
 
     return result;
 }
 
-internal Operator new_stack_operator(PEYOT_TOKEN_TYPE type, str op1, str op2, str return_type) {
+internal Operator new_stack_operator(PEYOT_TOKEN_TYPE type, str op1, str op2/*, str return_type*/) {
     Operator result = {};
 
     result.type = type;
     result.operand_1 = op1;
     result.operand_2 = op2;
-    result.return_type = return_type;
+    // result.return_type = return_type;
 
     return result;
 }
@@ -46,7 +46,7 @@ internal bool equals(Operator *a, Operator *b) {
            a->type == b->type
         && equals(a->operand_1, b->operand_1)
         && equals(a->operand_2, b->operand_2)
-        && equals(a->return_type, b->return_type)
+        // && equals(a->return_type, b->return_type)
     );
     return result;
 }
@@ -61,7 +61,7 @@ internal void print(Operator *op) {
     str ops = to_symbol(op->type);
     str op1 = op->operand_1;
     str op2 = op->operand_2;
-    str return_type = op->return_type;
+    str return_type = {};//op->return_type;
     printf("%.*s: %.*s, %.*s -> %.*s\n", STR_PRINT(ops), STR_PRINT(op1), STR_PRINT(op2), STR_PRINT(return_type));
 }
 
@@ -94,23 +94,23 @@ internal void print(Operator_table *table) {
     }
 }
 
-internal u32 get_operator_index(Operator *op) {
+internal u32 get_operator_index(Operator *op, u32 size) {
     u32 h = hash(op);
-    u32 result = h & (OPERATOR_TABLE_SIZE - 1);
+    u32 result = h & (size);
     return result;
 }
 
 internal void put(Operator_table *table, Operator *op) {
-    u32 index = get_operator_index(op);
+    u32 index = get_operator_index(op, OPERATOR_TABLE_SIZE - 1);
 
     op->next = table->operators[index];
     table->operators[index] = op;
 }
 
-internal Operator *get(Operator_table *table, PEYOT_TOKEN_TYPE op, str op1, str op2, str return_type) {
-    Operator t = new_stack_operator(op, op1, op2, return_type);
+internal Operator *get(Operator_table *table, PEYOT_TOKEN_TYPE op, str op1, str op2/*, str return_type*/) {
+    Operator t = new_stack_operator(op, op1, op2/*, return_type*/);
     Operator *result = 0;
-    u32 index = get_operator_index(&t);
+    u32 index = get_operator_index(&t, OPERATOR_TABLE_SIZE - 1);
     lfor (table->operators[index]) {
         if (equals(it, &t)) {
             // TODO: revise the equality between operators
