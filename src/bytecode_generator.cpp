@@ -225,11 +225,21 @@ internal Expression_bytecode_result create_bytecode(Bytecode_generator *generato
             Expression_bytecode_result l = create_bytecode(generator, ast->binary.left, 0);
             Expression_bytecode_result r = create_bytecode(generator, ast->binary.right, 0);
 
-            u32 r1 = new_register(generator);
-            u32 r2 = new_register(generator);
-            // TODO: is doing this in reversed order a good idea or a register allocator is needed?
-            emit_mov_to_register(generator, r1, l);
-            emit_mov_to_register(generator, r2, r);
+// before it was just moving the result to a new register like this: u32 r1 = new_register(generator);
+            u32 r1 = l.r;
+
+            if (l.type != E_REGISTER) {
+                r1 = new_register(generator);
+                emit_mov_to_register(generator, r1, l);
+            }
+
+            u32 r2 = r.r;
+
+            if (r.type != E_REGISTER) {
+                r2 = new_register(generator);
+                emit_mov_to_register(generator, r2, r);
+            }
+// before it was just moving the result to a new register like this: u32 r1 = new_register(generator);
 
             result.type = E_REGISTER;
             result.r = r1;
