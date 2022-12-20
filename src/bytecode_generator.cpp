@@ -248,8 +248,12 @@ internal Expression_bytecode_result create_bytecode(Bytecode_generator *generato
             if (is_arithmetic(ast->type)) {
                 BYTECODE_INSTRUCTION instruction = ast_type_to_arithmetic_bytecode_instruction(ast->type);
                 emit_op(generator, instruction, r1, r2);
-            //     // Operator *op = get(operator_table, to_op_token_type(ast->type), l->name, r->name, op_type->name);
-            //     // assert(op, "compiler error: operator not found in bytecode generation");
+
+
+                Type_spec *lt = ast->binary.left->op_type;
+                Type_spec *rt = ast->binary.right->op_type;
+                // Operator *op = get(generator->operator_table, to_op_token_type(ast->type), lt->name, rt->name, op_type->name);
+                // assert(op, "compiler error: operator not found in bytecode generation");
                 // TODO: for comparisons maybe have a bitfield
             // } else if (is_relational(ast->type)) {
             // } else if (is_boolean(ast->type)) {

@@ -108,9 +108,34 @@ struct Operator_table;
 #include"type_checker.cpp"
 #include"bytecode_generator.cpp"
 
+/*
+TODO: have this check and emit this error
+struct V2s {
+    s32 x;
+    s32 y;
+};
 
+struct V2f {
+    f32 x;
+    f32 y;
+};
 
+internal V2s operator +(V2s a, V2s b) {
+    V2s result;
+    return result;
+}
 
+internal V2f operator +(V2s a, V2s b) {
+    V2f result;
+    return result;
+}
+V2s p = {};
+V2s v = {};
+V2f pv = p + v;
+debug(pv.x)
+debug(pv.y)
+return 0;
+*/
 
 s16 main(s16 arg_count, char **args) {
     setup_console();

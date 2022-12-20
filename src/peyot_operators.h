@@ -44,9 +44,9 @@ internal bool equals(Operator *a, Operator *b) {
     // TODO: revise the equality between operators
     bool result = (
            a->type == b->type
-        || equals(a->operand_1, b->operand_1)
-        || equals(a->operand_2, b->operand_2)
-        || equals(a->return_type, b->return_type)
+        && equals(a->operand_1, b->operand_1)
+        && equals(a->operand_2, b->operand_2)
+        && equals(a->return_type, b->return_type)
     );
     return result;
 }
@@ -111,7 +111,6 @@ internal Operator *get(Operator_table *table, PEYOT_TOKEN_TYPE op, str op1, str 
     Operator t = new_stack_operator(op, op1, op2, return_type);
     Operator *result = 0;
     u32 index = get_operator_index(&t);
-
     lfor (table->operators[index]) {
         if (equals(it, &t)) {
             // TODO: revise the equality between operators
