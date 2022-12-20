@@ -57,6 +57,37 @@ internal u32 hash(Operator *op) {
     return result;
 }
 
+internal str *to_call_string(Operator *op) {
+    u32 size = (
+          length(to_symbol(op->type))
+        + length(op->operand_1)
+        + length(op->operand_2)
+    );
+    str *result = new_string(size);
+
+    u32 si = 0;
+
+    str s = to_symbol(op->type);
+
+    for (u32 i = 0; i < length(s); i++) {
+        result->buffer[si++] = s.buffer[i];
+    }
+
+    s = op->operand_1;
+
+    for (u32 i = 0; i < length(s); i++) {
+        result->buffer[si++] = s.buffer[i];
+    }
+
+    s = op->operand_2;
+
+    for (u32 i = 0; i < length(s); i++) {
+        result->buffer[si++] = s.buffer[i];
+    }
+
+    return result;
+}
+
 internal void print(Operator *op) {
     str ops = to_symbol(op->type);
     str op1 = op->operand_1;

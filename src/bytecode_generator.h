@@ -41,6 +41,7 @@ enum BYTECODE_INSTRUCTION {
     JEQ,
     JNEQ,
     TAG,
+    CALL,
 
     // Stack handling
     PUSH,
@@ -114,6 +115,7 @@ internal void print(BYTECODE_INSTRUCTION instruction) {
         case PUSH: {printf("PUSH");} break;
         case POP: {printf("POP");} break;
         case BYTECODE_COUNT: {printf("BYTECODE_COUNT");} break;
+        case CALL: {printf("CALL");} break;
         invalid_default_case_msg("missing instruction type in print");
     }
 }
@@ -196,6 +198,8 @@ enum OPERAND_TYPE {
 
     ADDRESS,
 
+    FUNCTION_NAME,
+
     OPERAND_COUNT,
 };
 
@@ -229,6 +233,8 @@ struct Operand {
         f64 _f64;
 
         Address _address;
+
+        str *function_name;
     };
 };
 
@@ -288,6 +294,13 @@ internal Operand new_operand(OPERAND_TYPE type, Address _address) {
     return result;
 }
 
+internal Operand new_operand(OPERAND_TYPE type, str *function_name) {
+    Operand result;
+    result.type = type;
+    result.function_name = function_name;
+    return result;
+}
+
 
 internal Operand new_register_operand(u32 r) {
     Operand result = new_operand(REGISTER_ID, r);
@@ -318,6 +331,11 @@ internal void print(Operand o) {
             }
         } break;
 
+        case FUNCTION_NAME: {
+            str n = *(o.function_name);
+            printf("%s", n.buffer);
+        } break;
+
         case OPERAND_COUNT: {PEYOT_ERROR("this should not be printed");} break;
 
         invalid_default_case_msg("print operand unhandled type");
@@ -336,6 +354,11 @@ struct Bytecode_instruction {
 #define BYTECODE_FIRST_SIZE KILOBYTES(1)
 #endif
 
+struct Memory_stack {
+    u32 offset;
+    Memory_stack *next;
+};
+
 struct Bytecode_generator {
     Memory_pool *allocator;
 
@@ -346,6 +369,8 @@ struct Bytecode_generator {
     u32 current_register;
 
     u32 stack_head;
+    Memory_stack *stack;
+    Memory_stack *first_free;
     u64 bytecode_size;
     u64 bytecode_head;
     Bytecode_instruction *bytecode;
@@ -356,6 +381,29 @@ internal u64 push_stack(Bytecode_generator *generator, u64 size) {
     return generator->stack_head - size;
 }
 
+internal void push_stack_call(Bytecode_generator *generator) {
+    Memory_stack *stack_link = generator->first_free;
+
+    if (!stack_link) {
+        stack_link = push_struct(generator->allocator, Memory_stack);
+    }
+
+    stack_link->offset = generator->stack_head;
+    stack_link->next = generator->stack;
+    generator->stack = stack_link;
+
+}
+
+internal void pop_stack_call(Bytecode_generator *generator) {
+    Memory_stack *stack_link = generator->stack;
+    generator->stack = stack_link->next;
+
+    stack_link->next = generator->first_free;
+    generator->first_free = stack_link;
+
+    generator->stack_head = stack_link->offset;
+}
+
 internal Bytecode_generator *new_bytecode_generator(Memory_pool *allocator, Type_spec_table *type_table, Operator_table *operator_table) {
     Bytecode_generator *result = push_struct(allocator, Bytecode_generator);
 
@@ -363,9 +411,7 @@ internal Bytecode_generator *new_bytecode_generator(Memory_pool *allocator, Type
     result->type_table = type_table;
     result->operator_table = operator_table;
     result->current_register = R0;
-    result->stack_head = 0;
     result->bytecode_size = BYTECODE_FIRST_SIZE;
-    result->bytecode_head = 0;
     result->bytecode = push_array(result->allocator, Bytecode_instruction, result->bytecode_size);
 
     return result;
@@ -421,9 +467,13 @@ internal void print_bytecode(Bytecode_generator *generator) {
         print(it->instruction);
         putchar(' ');
         print(it->destination);
-        putchar(',');
-        putchar(' ');
-        print(it->source);
+
+        if (it->instruction != CALL) {
+            putchar(',');
+            putchar(' ');
+            print(it->source);
+        }
+
         putchar('\n');
     }
 }

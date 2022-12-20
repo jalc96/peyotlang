@@ -3,6 +3,22 @@ struct str {
     char *buffer;
 };
 
+struct String_context {
+    Memory_pool *allocator;
+};
+
+global_variable String_context __string_context;
+global_variable String_context *string_context = &__string_context;
+
+internal str *new_string(u32 size, String_context *context = string_context) {
+    assert(context, "string context not set");
+    assert(context->allocator, "string context allocator not set");
+    str *result = push_struct(context->allocator, str);
+    result->count = size;
+    result->buffer = push_array(context->allocator, char, size);
+    return result;
+}
+
 void printf(str s, bool print_count=false) {
     // this is for the debug() macro
     if (print_count) {

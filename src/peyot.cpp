@@ -80,6 +80,7 @@ global_variable bool ASSERT_FOR_DEBUGGING = false;
 #include"memory_pool.h"
 
 #include"string.h"
+
 #include"lexer.h"
 #include"peyot_types.h"
 
@@ -843,6 +844,8 @@ s16 main(s16 arg_count, char **args) {
     global_type_table = type_table;
     Symbol_table *global_scope = new_symbol_table(&allocator);
     Operator_table *operator_table = new_operator_table(&allocator);
+
+    string_context->allocator = push_struct(&allocator, Memory_pool);
 
     initialize_native_types(type_table, &allocator);
     initialize_operators(type_table, operator_table, &allocator);

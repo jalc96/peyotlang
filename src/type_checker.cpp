@@ -745,6 +745,7 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast, bool need_lvalue
         }
     }
 
+    ast->op_type = result;
     return result;
 }
 

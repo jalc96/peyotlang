@@ -19,6 +19,27 @@ struct Expression_bytecode_result {
     };
 };
 
+internal Expression_bytecode_result new_expression_bytecode_result(u64 _u64) {
+    Expression_bytecode_result result;
+    result.type = E_LITERAL;
+    result._u64 = _u64;
+    return result;
+}
+
+internal Expression_bytecode_result new_expression_bytecode_result(u32 r) {
+    Expression_bytecode_result result;
+    result.type = E_REGISTER;
+    result.r = r;
+    return result;
+}
+
+internal Expression_bytecode_result new_expression_bytecode_result(Address _address) {
+    Expression_bytecode_result result;
+    result.type = E_MEMORY;
+    result._address = _address;
+    return result;
+}
+
 // TODO: address is probably deprecated
 internal void create_bytecode(Bytecode_generator *generator, Ast_declaration *ast);
 internal void create_bytecode(Bytecode_generator *generator, Ast_statement *ast);
@@ -83,6 +104,12 @@ internal void emit_op(Bytecode_generator *generator, BYTECODE_INSTRUCTION op, u3
     result->instruction = op;
     result->destination = new_register_operand(r1);
     result->source = new_register_operand(r2);
+}
+
+internal void emit_call(Bytecode_generator *generator, str *function_name) {
+    Bytecode_instruction *result = next(generator);
+    result->instruction = CALL;
+    result->destination = new_operand(FUNCTION_NAME, function_name);
 }
 
 internal void create_bytecode(Bytecode_generator *generator, Function *function) {
@@ -197,7 +224,6 @@ internal Expression_bytecode_result create_bytecode(Bytecode_generator *generato
                     Address _address = new_address(RBP, s->stack_offset);
 
                     result.type = E_MEMORY;
-                    result.r = RBP;
                     result._address = _address;
                 }
             } break;
@@ -223,36 +249,49 @@ internal Expression_bytecode_result create_bytecode(Bytecode_generator *generato
             emit_mov_to_address(generator, dst, r);
         } else {
             Expression_bytecode_result l = create_bytecode(generator, ast->binary.left, 0);
-            Expression_bytecode_result r = create_bytecode(generator, ast->binary.right, 0);
-
-// before it was just moving the result to a new register like this: u32 r1 = new_register(generator);
             u32 r1 = l.r;
 
-            if (l.type != E_REGISTER) {
-                r1 = new_register(generator);
-                emit_mov_to_register(generator, r1, l);
-            }
+            r1 = new_register(generator);
+            emit_mov_to_register(generator, r1, l);
 
+
+            Expression_bytecode_result r = create_bytecode(generator, ast->binary.right, 0);
             u32 r2 = r.r;
 
-            if (r.type != E_REGISTER) {
-                r2 = new_register(generator);
-                emit_mov_to_register(generator, r2, r);
-            }
-// before it was just moving the result to a new register like this: u32 r1 = new_register(generator);
+            r2 = new_register(generator);
+            emit_mov_to_register(generator, r2, r);
 
             result.type = E_REGISTER;
-            result.r = r1;
 
-            // TODO: add here the operators
             if (is_arithmetic(ast->type)) {
-                BYTECODE_INSTRUCTION instruction = ast_type_to_arithmetic_bytecode_instruction(ast->type);
-                emit_op(generator, instruction, r1, r2);
+                // BYTECODE_INSTRUCTION instruction = ast_type_to_arithmetic_bytecode_instruction(ast->type);
+                // emit_op(generator, instruction, r1, r2);
+                push_stack_call(generator);
+                {
+
+                    u64 size_1 = ast->binary.left->op_type->size;
+                    u64 address = push_stack(generator, size_1);
+                    Address dst1 = new_address(RBP, (s32)address);
+                    Expression_bytecode_result v1 = new_expression_bytecode_result(r1);
+                    emit_mov_to_address(generator, dst1, v1);
+
+                    u64 size_2 = ast->binary.right->op_type->size;
+                    address = push_stack(generator, size_2);
+                    Address dst2 = new_address(RBP, (s32)address);
+                    Expression_bytecode_result v2 = new_expression_bytecode_result(r2);
+                    emit_mov_to_address(generator, dst2, v2);
+                }
+                pop_stack_call(generator);
+
+                Type_spec *lt = ast->binary.left->op_type;
+                Type_spec *rt = ast->binary.right->op_type;
+                Operator *op = get(generator->operator_table, to_op_token_type(ast->type), lt->name, rt->name);
+                str *operator_name = to_call_string(op);
+                debug(*operator_name)
+                emit_call(generator, operator_name);
+                result.r = 1;
 
 
-                // Type_spec *lt = ast->binary.left->op_type;
-                // Type_spec *rt = ast->binary.right->op_type;
-                // Operator *op = get(generator->operator_table, to_op_token_type(ast->type), lt->name, rt->name);
                 // assert(op, "compiler error: operator not found in bytecode generation");
 
                 // TODO: for comparisons maybe have a flag bitfield to check in the jumps
