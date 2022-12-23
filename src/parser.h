@@ -11,6 +11,7 @@ struct Parser {
     Symbol_table *first_free_table;
     Symbol *first_free_symbol;
     Operator_table *operator_table;
+    Native_operations_table *native_operations_table;
 
 
     bool parsing_errors;
@@ -21,12 +22,13 @@ struct Parser {
     Pending_type sentinel;
 };
 
-internal Parser *new_parser(Memory_pool *allocator, Type_spec_table *type_table, Symbol_table *symbol_table, Operator_table *operator_table) {
+internal Parser *new_parser(Memory_pool *allocator, Type_spec_table *type_table, Symbol_table *symbol_table, Operator_table *operator_table, Native_operations_table *native_operations_table) {
     Parser *result = push_struct(allocator, Parser);
 
     result->type_table = type_table;
     result->current_scope = symbol_table;
     result->operator_table = operator_table;
+    result->native_operations_table = native_operations_table;
     result->parsing_errors = false;
     result->error_buffer = new_str_buffer(allocator, 65536);
     result->allocator = allocator;

@@ -638,12 +638,18 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast, bool need_lvalue
                     not_implemented;
                     // TODO: error: ambiguous expression or something like that
                 } else {
-                    Operator *op = get(parser->operator_table, to_op_token_type(ast->type), l->name, r->name/*, op_type->name*/);
+                    Native_types_op *native = get(lexer->parser->native_operations_table, to_op_token_type(ast->type), l->name, r->name);
 
-                    if (op) {
-                        result = op_type;
+                    if (native) {
+                        result = get(type_table, native->return_type);
                     } else {
-                        report_binary_expression_missmatch_type_error(lexer, ast, l, r);
+                        Operator *op = get(parser->operator_table, to_op_token_type(ast->type), l->name, r->name/*, op_type->name*/);
+
+                        if (op) {
+                            result = op_type;
+                        } else {
+                            report_binary_expression_missmatch_type_error(lexer, ast, l, r);
+                        }
                     }
                 }
             } else {

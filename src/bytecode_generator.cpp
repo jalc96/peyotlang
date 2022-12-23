@@ -241,6 +241,9 @@ internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expr
             case AST_EXPRESSION_FUNCTION_CALL: {} break;
         }
     } else if (is_binary(ast->type)) {
+        Type_spec *l_type = ast->binary.left->op_type;
+        Type_spec *r_type = ast->binary.right->op_type;
+
         if (is_assignment(ast->type)) {
             Bytecode_result r = create_bytecode(generator, ast->binary.right, 0);
 
@@ -263,39 +266,41 @@ internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expr
 
             result.type = E_REGISTER;
 
-            // if (is_arithmetic(ast->type)) {
+            if (is_native_expression(generator->native_operations_table, to_op_token_type(ast->type), l_type->name, r_type->name)) {
                 BYTECODE_INSTRUCTION instruction = ast_type_to_arithmetic_bytecode_instruction(ast->type);
                 emit_op(generator, instruction, r1, r2);
                 result.r = r1;
-                // 2022-12-23: this is commented because "everything is an operator definition" instead of having basic operators for the native types and then offer the hability to create new operators is a bad idea, once that is solved this can come back in the mean time we can only do adds
-                // push_stack_call(generator);
-                // {
-                //     u64 size_1 = ast->binary.left->op_type->size;
-                //     u64 address = push_stack(generator, size_1);
-                //     Address dst1 = new_address(RBP, (s32)address);
-                //     Bytecode_result v1 = new_expression_bytecode_result(r1);
-                //     emit_mov_to_address(generator, dst1, v1);
+            } else {
+                push_stack_call(generator);
+                {
+                    u64 size_1 = ast->binary.left->op_type->size;
+                    u64 address = push_stack(generator, size_1);
+                    Address dst1 = new_address(RBP, (s32)address);
+                    Bytecode_result v1 = new_expression_bytecode_result(r1);
+                    emit_mov_to_address(generator, dst1, v1);
 
-                //     u64 size_2 = ast->binary.right->op_type->size;
-                //     address = push_stack(generator, size_2);
-                //     Address dst2 = new_address(RBP, (s32)address);
-                //     Bytecode_result v2 = new_expression_bytecode_result(r2);
-                //     emit_mov_to_address(generator, dst2, v2);
-                // }
-                // pop_stack_call(generator);
+                    u64 size_2 = ast->binary.right->op_type->size;
+                    address = push_stack(generator, size_2);
+                    Address dst2 = new_address(RBP, (s32)address);
+                    Bytecode_result v2 = new_expression_bytecode_result(r2);
+                    emit_mov_to_address(generator, dst2, v2);
+                }
+                pop_stack_call(generator);
 
-                // Type_spec *lt = ast->binary.left->op_type;
-                // Type_spec *rt = ast->binary.right->op_type;
-                // Operator *op = get(generator->operator_table, to_op_token_type(ast->type), lt->name, rt->name);
-                // str *operator_name = to_call_string(op);
-                // debug(*operator_name)
-                // emit_call(generator, operator_name);
-                // result.r = 1;
+                Type_spec *lt = ast->binary.left->op_type;
+                Type_spec *rt = ast->binary.right->op_type;
+                Operator *op = get(generator->operator_table, to_op_token_type(ast->type), lt->name, rt->name);
+                str *operator_name = to_call_string(op);
+                debug(*operator_name)
+                emit_call(generator, operator_name);
+                result.r = 1;
 
 
-                // assert(op, "compiler error: operator not found in bytecode generation");
+                assert(op, "compiler error: operator not found in bytecode generation");
 
-                // TODO: for comparisons maybe have a flag bitfield to check in the jumps
+            }
+            // TODO: for comparisons maybe have a flag bitfield to check in the jumps
+            // if (is_arithmetic(ast->type)) {
             // } else if (is_relational(ast->type)) {
             // } else if (is_boolean(ast->type)) {
             // } else if (is_bit_operator(ast->type)) {

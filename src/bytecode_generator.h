@@ -365,6 +365,7 @@ struct Bytecode_generator {
     Type_spec_table *type_table;
     Operator_table *operator_table;
     Symbol_table *current_scope;
+    Native_operations_table *native_operations_table;
 
     u32 current_register;
 
@@ -404,12 +405,13 @@ internal void pop_stack_call(Bytecode_generator *generator) {
     generator->stack_head = stack_link->offset;
 }
 
-internal Bytecode_generator *new_bytecode_generator(Memory_pool *allocator, Type_spec_table *type_table, Operator_table *operator_table) {
+internal Bytecode_generator *new_bytecode_generator(Memory_pool *allocator, Type_spec_table *type_table, Operator_table *operator_table, Native_operations_table *native_operations_table) {
     Bytecode_generator *result = push_struct(allocator, Bytecode_generator);
 
     result->allocator = allocator;
     result->type_table = type_table;
     result->operator_table = operator_table;
+    result->native_operations_table = native_operations_table;
     result->current_register = R0;
     result->bytecode_size = BYTECODE_FIRST_SIZE;
     result->bytecode = push_array(result->allocator, Bytecode_instruction, result->bytecode_size);
