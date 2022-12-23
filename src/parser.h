@@ -156,6 +156,37 @@ internal PEYOT_TOKEN_TYPE to_op_token_type(AST_EXPRESSION_TYPE type) {
         case AST_EXPRESSION_BINARY_MOD: {
             return TOKEN_PERCENT;
         } break;
+        case AST_EXPRESSION_BINARY_EQUALS: {
+            return TOKEN_BINARY_EQUALS;
+        } break;
+        case AST_EXPRESSION_BINARY_NOT_EQUALS: {
+            return TOKEN_NOT_EQUALS;
+        } break;
+        case AST_EXPRESSION_BINARY_GREATER_THAN: {
+            return TOKEN_GREATER_THAN;
+        } break;
+        case AST_EXPRESSION_BINARY_GREATER_THAN_OR_EQUALS: {
+            return TOKEN_GREATER_THAN_OR_EQUALS;
+        } break;
+        case AST_EXPRESSION_BINARY_LESS_THAN: {
+            return TOKEN_LESS_THAN;
+        } break;
+        case AST_EXPRESSION_BINARY_LESS_THAN_OR_EQUALS: {
+            return TOKEN_LESS_THAN_OR_EQUALS;
+        } break;
+        case AST_EXPRESSION_BINARY_LOGICAL_OR: {
+            return TOKEN_BITWISE_AND;
+        } break;
+        case AST_EXPRESSION_BINARY_LOGICAL_AND: {
+            return TOKEN_BITWISE_OR;
+        } break;
+        case AST_EXPRESSION_BINARY_BITWISE_OR: {
+            return TOKEN_LOGICAL_AND;
+        } break;
+        case AST_EXPRESSION_BINARY_BITWISE_AND: {
+            return TOKEN_LOGICAL_OR;
+        } break;
+
         default: {
             assert(false, "check for this in the calling site");
             return TOKEN_NULL;

@@ -195,7 +195,7 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_statement *ast)
 
 internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expression *ast, u64 address) {
     Bytecode_result result = {};
-    // Symbol_table *current_scope;
+    Symbol_table *current_scope = generator->current_scope;
     Type_spec_table *type_table = generator->type_table;
 
     if (is_leaf(ast->type)) {
@@ -263,32 +263,34 @@ internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expr
 
             result.type = E_REGISTER;
 
-            if (is_arithmetic(ast->type)) {
-                // BYTECODE_INSTRUCTION instruction = ast_type_to_arithmetic_bytecode_instruction(ast->type);
-                // emit_op(generator, instruction, r1, r2);
-                push_stack_call(generator);
-                {
-                    u64 size_1 = ast->binary.left->op_type->size;
-                    u64 address = push_stack(generator, size_1);
-                    Address dst1 = new_address(RBP, (s32)address);
-                    Bytecode_result v1 = new_expression_bytecode_result(r1);
-                    emit_mov_to_address(generator, dst1, v1);
+            // if (is_arithmetic(ast->type)) {
+                BYTECODE_INSTRUCTION instruction = ast_type_to_arithmetic_bytecode_instruction(ast->type);
+                emit_op(generator, instruction, r1, r2);
+                result.r = r1;
+                // 2022-12-23: this is commented because "everything is an operator definition" instead of having basic operators for the native types and then offer the hability to create new operators is a bad idea, once that is solved this can come back in the mean time we can only do adds
+                // push_stack_call(generator);
+                // {
+                //     u64 size_1 = ast->binary.left->op_type->size;
+                //     u64 address = push_stack(generator, size_1);
+                //     Address dst1 = new_address(RBP, (s32)address);
+                //     Bytecode_result v1 = new_expression_bytecode_result(r1);
+                //     emit_mov_to_address(generator, dst1, v1);
 
-                    u64 size_2 = ast->binary.right->op_type->size;
-                    address = push_stack(generator, size_2);
-                    Address dst2 = new_address(RBP, (s32)address);
-                    Bytecode_result v2 = new_expression_bytecode_result(r2);
-                    emit_mov_to_address(generator, dst2, v2);
-                }
-                pop_stack_call(generator);
+                //     u64 size_2 = ast->binary.right->op_type->size;
+                //     address = push_stack(generator, size_2);
+                //     Address dst2 = new_address(RBP, (s32)address);
+                //     Bytecode_result v2 = new_expression_bytecode_result(r2);
+                //     emit_mov_to_address(generator, dst2, v2);
+                // }
+                // pop_stack_call(generator);
 
-                Type_spec *lt = ast->binary.left->op_type;
-                Type_spec *rt = ast->binary.right->op_type;
-                Operator *op = get(generator->operator_table, to_op_token_type(ast->type), lt->name, rt->name);
-                str *operator_name = to_call_string(op);
-                debug(*operator_name)
-                emit_call(generator, operator_name);
-                result.r = 1;
+                // Type_spec *lt = ast->binary.left->op_type;
+                // Type_spec *rt = ast->binary.right->op_type;
+                // Operator *op = get(generator->operator_table, to_op_token_type(ast->type), lt->name, rt->name);
+                // str *operator_name = to_call_string(op);
+                // debug(*operator_name)
+                // emit_call(generator, operator_name);
+                // result.r = 1;
 
 
                 // assert(op, "compiler error: operator not found in bytecode generation");
@@ -297,37 +299,53 @@ internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expr
             // } else if (is_relational(ast->type)) {
             // } else if (is_boolean(ast->type)) {
             // } else if (is_bit_operator(ast->type)) {
-            }
+            // }
         }
     } else if (is_unary(ast->type)) {
     } else if (ast->type == AST_EXPRESSION_TYPEOF) {
         Ast_expression *e = ast->statement->type_statement.expression;
-        Type_spec *type = e->op_type;
-        assert(type, "in bytecode generation the ast type must be set for typeof() directive");
+        str name = e->name;
+        Type_spec *type = 0;
+        Symbol *symbol = 0;
+        // assert(type, "in bytecode generation the ast type must be set for typeof() directive");
 
         if (e->type == AST_EXPRESSION_MEMBER) {
             // create_bytecode(generator, e);
         } else if (e->type == AST_EXPRESSION_LITERAL_TYPE) {
-            // type = get(type_table, name);
+            type = get(type_table, name);
         } else {
             assert(e->type == AST_EXPRESSION_NAME, "MAKE ERROR type() argument can only be a member of a struct or a name or a type");
-            // type = get(type_table, e->name);
+            type = get(type_table, e->name);
+
+            if (!type) {
+                symbol = get(current_scope, name);
+                type = get(type_table, symbol->type_name);
+                assert(type, "missing type in bytecode generation");
+            }
         }
 
         result.type = E_LITERAL;
         result._u64 = type->id;
     } else if (ast->type == AST_EXPRESSION_SIZEOF) {
         Ast_expression *e = ast->statement->sizeof_statement.expression;
-        Type_spec *type = e->op_type;
-        assert(type, "in bytecode generation the ast type must be set for sizeof() directive");
+        str name = e->name;
+        Type_spec *type = 0;
+        Symbol *symbol = 0;
+        // assert(type, "in bytecode generation the ast type must be set for typeof() directive");
 
         if (e->type == AST_EXPRESSION_MEMBER) {
             // create_bytecode(generator, e);
         } else if (e->type == AST_EXPRESSION_LITERAL_TYPE) {
-            // type = get(type_table, name);
+            type = get(type_table, name);
         } else {
-            assert(e->type == AST_EXPRESSION_NAME, "MAKE ERROR sizeof() argument can only be a member of a struct or a name or a type");
-            // type = get(type_table, e->name);
+            assert(e->type == AST_EXPRESSION_NAME, "MAKE ERROR type() argument can only be a member of a struct or a name or a type");
+            type = get(type_table, e->name);
+
+            if (!type) {
+                symbol = get(current_scope, name);
+                type = get(type_table, symbol->type_name);
+                assert(type, "missing type in bytecode generation");
+            }
         }
 
         result.type = E_LITERAL;

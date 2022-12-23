@@ -827,12 +827,24 @@ s16 main(s16 arg_count, char **args) {
     )PROGRAM";
 
 
-    char *program_bytecode = R"PROGRAM(
+    char *program_bytecode_1 = R"PROGRAM(
         main :: (in :u32) -> u32 {
             a :u32;
             a = 3;
             d := 2;
-            b := a * 2 + 3 * d;
+            b := a * 2 + 3 * type(d);
+            return 1;
+        }
+    )PROGRAM";
+
+
+    char *program_bytecode_2 = R"PROGRAM(
+        main :: (in :u32) -> u32 {
+            a := 3;
+            d := 2;
+            bol := d == a;
+            t := type(a);
+            s := sizeof(a);
             return 1;
         }
     )PROGRAM";
@@ -851,7 +863,7 @@ s16 main(s16 arg_count, char **args) {
     initialize_operators(type_table, operator_table, &allocator);
 
     Parser *parser = new_parser(&allocator, type_table, global_scope, operator_table);
-    Lexer lexer = create_lexer(program_bytecode, parser, &allocator);
+    Lexer lexer = create_lexer(program_bytecode_1, parser, &allocator);
 
 
     get_next_token(&lexer);
