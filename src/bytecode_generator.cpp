@@ -302,8 +302,8 @@ internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expr
     } else if (is_unary(ast->type)) {
     } else if (ast->type == AST_EXPRESSION_TYPEOF) {
         Ast_expression *e = ast->statement->type_statement.expression;
-        Type_spec *type = 0;
-        Symbol *symbol = 0;
+        Type_spec *type = e->op_type;
+        assert(type, "in bytecode generation the ast type must be set for typeof() directive");
 
         if (e->type == AST_EXPRESSION_MEMBER) {
             // create_bytecode(generator, e);
@@ -311,28 +311,27 @@ internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expr
             // type = get(type_table, name);
         } else {
             assert(e->type == AST_EXPRESSION_NAME, "MAKE ERROR type() argument can only be a member of a struct or a name or a type");
-            type = get(type_table, e->name);
-            // symbol = get(current_scope, e->name);
+            // type = get(type_table, e->name);
         }
 
-        get(type_table, STATIC_STR("u32"));
+        result.type = E_LITERAL;
+        result._u64 = type->id;
     } else if (ast->type == AST_EXPRESSION_SIZEOF) {
-        str name = ast->statement->sizeof_statement.name;
         Ast_expression *e = ast->statement->sizeof_statement.expression;
-        Type_spec *type = 0;
-        Symbol *symbol = 0;
+        Type_spec *type = e->op_type;
+        assert(type, "in bytecode generation the ast type must be set for sizeof() directive");
 
         if (e->type == AST_EXPRESSION_MEMBER) {
             // create_bytecode(generator, e);
         } else if (e->type == AST_EXPRESSION_LITERAL_TYPE) {
-            type = get(type_table, name);
+            // type = get(type_table, name);
         } else {
             assert(e->type == AST_EXPRESSION_NAME, "MAKE ERROR sizeof() argument can only be a member of a struct or a name or a type");
-            type = get(type_table, e->name);
-            // symbol = get(current_scope, e->name);
+            // type = get(type_table, e->name);
         }
 
-        get(type_table, STATIC_STR("u32"));
+        result.type = E_LITERAL;
+        result._u64 = type->size;
     } else if (ast->type == AST_EXPRESSION_OFFSETOF) {
         str type_name = ast->statement->offsetof_statement.type_name;
         str member_name = ast->statement->offsetof_statement.member_name;
