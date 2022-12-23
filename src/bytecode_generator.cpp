@@ -1,4 +1,4 @@
-enum EXPRESSION_BYTECODE_TYPE {
+enum BYTECODE_RESULT_TYPE {
     EB_NULL,
 
     E_LITERAL,
@@ -8,9 +8,8 @@ enum EXPRESSION_BYTECODE_TYPE {
     EB_COUNT,
 };
 
-// TODO: now this is more like a source_type or something like this
-struct Expression_bytecode_result {
-    EXPRESSION_BYTECODE_TYPE type;
+struct Bytecode_result {
+    BYTECODE_RESULT_TYPE type;
 
     union {
         u64 _u64;
@@ -19,22 +18,22 @@ struct Expression_bytecode_result {
     };
 };
 
-internal Expression_bytecode_result new_expression_bytecode_result(u64 _u64) {
-    Expression_bytecode_result result;
+internal Bytecode_result new_expression_bytecode_result(u64 _u64) {
+    Bytecode_result result;
     result.type = E_LITERAL;
     result._u64 = _u64;
     return result;
 }
 
-internal Expression_bytecode_result new_expression_bytecode_result(u32 r) {
-    Expression_bytecode_result result;
+internal Bytecode_result new_expression_bytecode_result(u32 r) {
+    Bytecode_result result;
     result.type = E_REGISTER;
     result.r = r;
     return result;
 }
 
-internal Expression_bytecode_result new_expression_bytecode_result(Address _address) {
-    Expression_bytecode_result result;
+internal Bytecode_result new_expression_bytecode_result(Address _address) {
+    Bytecode_result result;
     result.type = E_MEMORY;
     result._address = _address;
     return result;
@@ -43,7 +42,7 @@ internal Expression_bytecode_result new_expression_bytecode_result(Address _addr
 // TODO: address is probably deprecated
 internal void create_bytecode(Bytecode_generator *generator, Ast_declaration *ast);
 internal void create_bytecode(Bytecode_generator *generator, Ast_statement *ast);
-internal Expression_bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expression *ast, u64 address);
+internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expression *ast, u64 address);
 internal void create_bytecode(Bytecode_generator *generator, Ast_if *ast);
 internal void create_bytecode(Bytecode_generator *generator, Ast_loop *ast);
 internal void create_bytecode(Bytecode_generator *generator, Ast_block *ast);
@@ -63,7 +62,7 @@ internal void emit_load_value_to_register_from_memory(Bytecode_generator *genera
     // result->source._address = address;
 }
 
-internal void emit_mov_to_address(Bytecode_generator *generator, Address dst, Expression_bytecode_result src) {
+internal void emit_mov_to_address(Bytecode_generator *generator, Address dst, Bytecode_result src) {
     Bytecode_instruction *result = next(generator);
     result->instruction = MOVR;
     result->destination = new_operand(ADDRESS, dst);
@@ -75,7 +74,7 @@ internal void emit_mov_to_address(Bytecode_generator *generator, Address dst, Ex
     }
 }
 
-internal void emit_mov_to_register(Bytecode_generator *generator, u32 dst, Expression_bytecode_result src) {
+internal void emit_mov_to_register(Bytecode_generator *generator, u32 dst, Bytecode_result src) {
     if (src.type == E_REGISTER) {
         // Avoid MOVR R1, R1
         if (dst == src.r) {
@@ -107,6 +106,7 @@ internal void emit_op(Bytecode_generator *generator, BYTECODE_INSTRUCTION op, u3
 }
 
 internal void emit_call(Bytecode_generator *generator, str *function_name) {
+    // TODO: probably put here the push and pop stuff for the program counter when a function call happens
     Bytecode_instruction *result = next(generator);
     result->instruction = CALL;
     result->destination = new_operand(FUNCTION_NAME, function_name);
@@ -130,7 +130,7 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_declaration *as
             put(current_scope, ast->name, type->name, address);
 
             if (ast->variable.expression) {
-                Expression_bytecode_result value = create_bytecode(generator, ast->variable.expression, address);
+                Bytecode_result value = create_bytecode(generator, ast->variable.expression, address);
                 Address dst = new_address(RBP, (s32)address);
                 emit_mov_to_address(generator, dst, value);
                 print(current_scope, true);
@@ -193,8 +193,8 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_statement *ast)
     }
 }
 
-internal Expression_bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expression *ast, u64 address) {
-    Expression_bytecode_result result = {};
+internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expression *ast, u64 address) {
+    Bytecode_result result = {};
     // Symbol_table *current_scope;
     Type_spec_table *type_table = generator->type_table;
 
@@ -242,20 +242,20 @@ internal Expression_bytecode_result create_bytecode(Bytecode_generator *generato
         }
     } else if (is_binary(ast->type)) {
         if (is_assignment(ast->type)) {
-            Expression_bytecode_result r = create_bytecode(generator, ast->binary.right, 0);
+            Bytecode_result r = create_bytecode(generator, ast->binary.right, 0);
 
             Symbol *s = get(generator->current_scope, ast->binary.left->name);
             Address dst = new_address(RBP, s->stack_offset);
             emit_mov_to_address(generator, dst, r);
         } else {
-            Expression_bytecode_result l = create_bytecode(generator, ast->binary.left, 0);
+            Bytecode_result l = create_bytecode(generator, ast->binary.left, 0);
             u32 r1 = l.r;
 
             r1 = new_register(generator);
             emit_mov_to_register(generator, r1, l);
 
 
-            Expression_bytecode_result r = create_bytecode(generator, ast->binary.right, 0);
+            Bytecode_result r = create_bytecode(generator, ast->binary.right, 0);
             u32 r2 = r.r;
 
             r2 = new_register(generator);
@@ -268,17 +268,16 @@ internal Expression_bytecode_result create_bytecode(Bytecode_generator *generato
                 // emit_op(generator, instruction, r1, r2);
                 push_stack_call(generator);
                 {
-
                     u64 size_1 = ast->binary.left->op_type->size;
                     u64 address = push_stack(generator, size_1);
                     Address dst1 = new_address(RBP, (s32)address);
-                    Expression_bytecode_result v1 = new_expression_bytecode_result(r1);
+                    Bytecode_result v1 = new_expression_bytecode_result(r1);
                     emit_mov_to_address(generator, dst1, v1);
 
                     u64 size_2 = ast->binary.right->op_type->size;
                     address = push_stack(generator, size_2);
                     Address dst2 = new_address(RBP, (s32)address);
-                    Expression_bytecode_result v2 = new_expression_bytecode_result(r2);
+                    Bytecode_result v2 = new_expression_bytecode_result(r2);
                     emit_mov_to_address(generator, dst2, v2);
                 }
                 pop_stack_call(generator);
