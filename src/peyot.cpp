@@ -865,6 +865,18 @@ s16 main(s16 arg_count, char **args) {
         }
     )PROGRAM";
 
+    char *program_bytecode_loop = R"PROGRAM(
+        main :: (in :u32) -> u32 {
+            sum := 0;
+
+            for (i := 0; i; i = i + 1) {
+                sum = sum + i;
+            }
+
+            return 1;
+        }
+    )PROGRAM";
+
 
 
 
@@ -883,7 +895,7 @@ s16 main(s16 arg_count, char **args) {
     initialize_native_operators(native_operations_table);
 
     Parser *parser = new_parser(&allocator, type_table, global_scope, operator_table, native_operations_table);
-    Lexer lexer = create_lexer(program_bytecode_if, parser, &allocator);
+    Lexer lexer = create_lexer(program_bytecode_loop, parser, &allocator);
 
 
     get_next_token(&lexer);
