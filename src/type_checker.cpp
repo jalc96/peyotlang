@@ -971,7 +971,7 @@ internal void type_check(Lexer *lexer, Ast_if *ast, Ast_declaration *ast_functio
     If *ifs = ast->ifs;
 
     lfor (ifs) {
-        type_check(lexer, &it->condition, true, get(lexer->parser->type_table, STATIC_STR("bool")));
+        type_check(lexer, it->condition, true, get(lexer->parser->type_table, STATIC_STR("bool")));
         if (type_errors(lexer->parser)) {return;}
 
         Symbol_table *scope = 0;

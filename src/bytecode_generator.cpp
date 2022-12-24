@@ -25,6 +25,13 @@ internal Bytecode_result new_expression_bytecode_result(u64 _u64) {
     return result;
 }
 
+internal Bytecode_result new_expression_bytecode_literal(u64 _u64) {
+    Bytecode_result result;
+    result.type = E_LITERAL;
+    result._u64 = _u64;
+    return result;
+}
+
 internal Bytecode_result new_expression_bytecode_result(u32 r) {
     Bytecode_result result;
     result.type = E_REGISTER;
@@ -42,7 +49,7 @@ internal Bytecode_result new_expression_bytecode_result(Address _address) {
 // TODO: address is probably deprecated
 internal void create_bytecode(Bytecode_generator *generator, Ast_declaration *ast);
 internal void create_bytecode(Bytecode_generator *generator, Ast_statement *ast);
-internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expression *ast, u64 address);
+internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expression *ast);
 internal void create_bytecode(Bytecode_generator *generator, Ast_if *ast);
 internal void create_bytecode(Bytecode_generator *generator, Ast_loop *ast);
 internal void create_bytecode(Bytecode_generator *generator, Ast_block *ast);
@@ -112,6 +119,19 @@ internal void emit_call(Bytecode_generator *generator, str *function_name) {
     result->destination = new_operand(FUNCTION_NAME, function_name);
 }
 
+internal void emit_tag(Bytecode_generator *generator, Tag tag) {
+    Bytecode_instruction *result = next(generator);
+    result->instruction = TAG;
+    tag.bytecode_offset = generator->bytecode_head;
+    result->destination = new_operand(TAG_ID, tag);
+}
+
+internal void emit_jump(Bytecode_generator *generator, Tag tag, bool _equals, bool just_jump=false) {
+    Bytecode_instruction *result = next(generator);
+    result->instruction = just_jump ? JUMP :_equals ? JEQ : JNEQ;
+    result->destination = new_operand(TAG_ID, tag);
+}
+
 internal void create_bytecode(Bytecode_generator *generator, Function *function) {
     sfor_count (function->params, function->param_count) {
     }
@@ -130,7 +150,7 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_declaration *as
             put(current_scope, ast->name, type->name, address);
 
             if (ast->variable.expression) {
-                Bytecode_result value = create_bytecode(generator, ast->variable.expression, address);
+                Bytecode_result value = create_bytecode(generator, ast->variable.expression);
                 Address dst = new_address(RBP, (s32)address);
                 emit_mov_to_address(generator, dst, value);
                 print(current_scope, true);
@@ -168,7 +188,7 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_statement *ast)
         } break;
         case AST_STATEMENT_EXPRESSION: {
             // u64 address = push_stack(generator, 8);
-            create_bytecode(generator, ast->expression_statement, 0);
+            create_bytecode(generator, ast->expression_statement);
         } break;
         case AST_STATEMENT_DECLARATION: {
             create_bytecode(generator, ast->declaration_statement);
@@ -180,20 +200,20 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_statement *ast)
         } break;
 
         case AST_STATEMENT_SIZEOF: {
-            // create_bytecode(generator, ast->sizeof_statement.expression);
+            create_bytecode(generator, ast->sizeof_statement.expression);
         } break;
         case AST_STATEMENT_OFFSETOF: {
-            // create_bytecode(generator, ast->offsetof_statement.expression);
+            create_bytecode(generator, ast->offsetof_statement.expression);
         } break;
         case AST_STATEMENT_TYPEOF: {
-            // create_bytecode(generator, ast->type_statement.expression);
+            create_bytecode(generator, ast->type_statement.expression);
         } break;
 
         invalid_default_case_msg("ast_statement create_bytecode missing type");
     }
 }
 
-internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expression *ast, u64 address) {
+internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expression *ast) {
     Bytecode_result result = {};
     Symbol_table *current_scope = generator->current_scope;
     Type_spec_table *type_table = generator->type_table;
@@ -201,6 +221,9 @@ internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expr
     if (is_leaf(ast->type)) {
         switch (ast->type) {
             case AST_EXPRESSION_LITERAL_TYPE: {
+                Type_spec *t = get(type_table, STATIC_STR("u32"));
+                result.type = E_LITERAL;
+                result._u64 = t->id;
             } break;
             case AST_EXPRESSION_LITERAL_CHAR: {
             } break;
@@ -217,7 +240,10 @@ internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expr
             case AST_EXPRESSION_NAME: {
                 if (get(type_table, ast->name)) {
                     // is a type
-                    get(type_table, STATIC_STR("u32"));
+                    // TODO: when does this happen??
+                    Type_spec *t = get(type_table, STATIC_STR("u32"));
+                    result.type = E_LITERAL;
+                    result._u64 = t->id;
                 } else {
                     // is a name
                     Symbol *s = get(generator->current_scope, ast->name);
@@ -245,17 +271,17 @@ internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expr
         Type_spec *r_type = ast->binary.right->op_type;
 
         if (is_assignment(ast->type)) {
-            Bytecode_result r = create_bytecode(generator, ast->binary.right, 0);
+            Bytecode_result r = create_bytecode(generator, ast->binary.right);
 
             Symbol *s = get(generator->current_scope, ast->binary.left->name);
             Address dst = new_address(RBP, s->stack_offset);
             emit_mov_to_address(generator, dst, r);
         } else {
-            Bytecode_result l = create_bytecode(generator, ast->binary.left, 0);
+            Bytecode_result l = create_bytecode(generator, ast->binary.left);
             u32 r1 = new_register(generator);
             emit_mov_to_register(generator, r1, l);
 
-            Bytecode_result r = create_bytecode(generator, ast->binary.right, 0);
+            Bytecode_result r = create_bytecode(generator, ast->binary.right);
             u32 r2 = new_register(generator);
             emit_mov_to_register(generator, r2, r);
 
@@ -367,15 +393,48 @@ internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expr
 
 internal void create_bytecode(Bytecode_generator *generator, Ast_if *ast) {
     If *ifs = ast->ifs;
+    bool needs_end_jump = (
+           (bool)ast->else_block
+        || (bool)ifs->next
+    );
+
+    Tag end_tag = {};
+
+    if (needs_end_jump) {
+        end_tag = new_tag(generator);
+    }
 
     lfor (ifs) {
-        // create_bytecode(generator, &it->condition);
+        Tag tag = new_tag(generator);
+        Bytecode_result check = create_bytecode(generator, it->condition);
 
-        // create_bytecode(generator, &it->block);
+        if (check.type == E_LITERAL) {
+            u32 r1 = new_register(generator);
+            emit_mov_to_register(generator, r1, check);
+
+            u32 r2 = new_register(generator);
+            Bytecode_result zero =  new_expression_bytecode_literal(0);
+            emit_mov_to_register(generator, r2, zero);
+
+            emit_op(generator, GTI, r1, r2);
+        }
+
+        emit_jump(generator, tag, false);
+        create_bytecode(generator, &it->block);
+
+        if (needs_end_jump) {
+            emit_jump(generator, end_tag, false, true);
+        }
+
+        emit_tag(generator, tag);
     }
 
     if (ast->else_block) {
-        // create_bytecode(generator, ast->else_block);
+        create_bytecode(generator, ast->else_block);
+    }
+
+    if (needs_end_jump) {
+        emit_tag(generator, end_tag);
     }
 }
 

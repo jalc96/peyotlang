@@ -1204,7 +1204,7 @@ internal u32 parse_if_else(If_creation_iterator *it) {
         get_next_token(lexer);
         it->first_if = false;
 
-        parse_or_expression(lexer, &new_if->condition);
+        new_if->condition = parse_or_expression(lexer, 0);
 
         parse_block(lexer, &new_if->block);
 
@@ -1225,7 +1225,7 @@ internal u32 parse_if_else(If_creation_iterator *it) {
 
                 get_next_token(lexer);
 
-                parse_binary_expression(lexer, &new_if->condition);
+                new_if->condition = parse_binary_expression(lexer, 0);
 
                 parse_block(lexer, &new_if->block);
 

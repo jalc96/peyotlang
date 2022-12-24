@@ -38,6 +38,7 @@ enum BYTECODE_INSTRUCTION {
     BAND,
 
     // Jump if equals and if not equals
+    JUMP,
     JEQ,
     JNEQ,
     TAG,
@@ -105,6 +106,7 @@ internal void print(BYTECODE_INSTRUCTION instruction) {
         case BNOT: {printf("BNOT");} break;
         case BOR: {printf("BOR");} break;
         case BAND: {printf("BAND");} break;
+        case JUMP: {printf("JUMP");} break;
         case JEQ: {printf("JEQ");} break;
         case JNEQ: {printf("JNEQ");} break;
         case TAG: {printf("TAG");} break;
@@ -211,12 +213,17 @@ internal Address new_address(u32 r, s32 offset) {
     return result;
 }
 
+struct Tag {
+    u32 id;
+    u32 bytecode_offset;
+};
+
 struct Operand {
     OPERAND_TYPE type;
 
     union {
         // Tag is just a number but in the dissasembly is like tag_<tag>
-        u32 tag;
+        Tag tag;
         // REGISTER r;
         u32 r;
 
@@ -252,6 +259,13 @@ internal Operand new_operand(OPERAND_TYPE type, u16 word) {
     Operand result;
     result.type = type;
     result.word = word;
+    return result;
+}
+
+internal Operand new_operand(OPERAND_TYPE type, Tag tag) {
+    Operand result;
+    result.type = type;
+    result.tag = tag;
     return result;
 }
 
@@ -310,7 +324,7 @@ internal void print(Operand o) {
     switch (o.type) {
         case OPERAND_NULL: {PEYOT_ERROR("this should not be printed");} break;
 
-        case      TAG_ID: {printf("tag_%u",     o.tag);} break;
+        case      TAG_ID: {printf("tag_%u",     o.tag.id);} break;
         case REGISTER_ID: {printf("r%u",        o.r);} break;
         case       _BYTE: {printf("%u",         o.byte);} break;
         case       _WORD: {printf("%u",         o.word);} break;
@@ -364,6 +378,7 @@ struct Bytecode_generator {
     Native_operations_table *native_operations_table;
 
     u32 current_register;
+    u32 current_tag;
 
     u32 stack_head;
     Memory_stack *stack;
@@ -372,6 +387,15 @@ struct Bytecode_generator {
     u64 bytecode_head;
     Bytecode_instruction *bytecode;
 };
+
+internal Tag new_tag(Bytecode_generator *generator) {
+    Tag result;
+
+    result.id = generator->current_tag++;
+    result.bytecode_offset = generator->bytecode_head;
+
+    return result;
+}
 
 internal u64 push_stack(Bytecode_generator *generator, u64 size) {
     generator->stack_head += size;
@@ -459,18 +483,31 @@ internal void print_bytecode(Bytecode_generator *generator) {
         }
 
         line_length = al_max(line_length, 1);
-
         print_indent(max_length - line_length);
-        printf("%d:  ", i);
-        print(it->instruction);
-        putchar(' ');
-        print(it->destination);
 
-        if (it->instruction != CALL) {
-            putchar(',');
+        if (it->instruction == TAG) {
+            printf("%d:", i);
+            print(it->destination);
+            putchar(':');
+        } else {
+            printf("%d:  ", i);
+            print(it->instruction);
             putchar(' ');
-            print(it->source);
+            print(it->destination);
+
+            bool is_a_jump = (
+                   it->instruction == CALL
+                || it->instruction == JUMP
+                || it->instruction == JEQ
+                || it->instruction == JNEQ
+            );
+            if (!is_a_jump) {
+                putchar(',');
+                putchar(' ');
+                print(it->source);
+            }
         }
+
 
         putchar('\n');
     }

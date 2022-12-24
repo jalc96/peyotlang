@@ -836,7 +836,6 @@ s16 main(s16 arg_count, char **args) {
         }
     )PROGRAM";
 
-
     char *program_bytecode_2 = R"PROGRAM(
         main :: (in :u32) -> u32 {
             a := 3;
@@ -847,6 +846,26 @@ s16 main(s16 arg_count, char **args) {
             return 1;
         }
     )PROGRAM";
+
+    char *program_bytecode_if = R"PROGRAM(
+        main :: (in :u32) -> u32 {
+            a := 3;
+            d := 2;
+            b :u32;
+
+            if (a == d) {
+                b = 1;
+            } else if (a > d) {
+                b = 3;
+            } else {
+                b = 2;
+            }
+
+            return 1;
+        }
+    )PROGRAM";
+
+
 
 
     Memory_pool allocator = {};
@@ -864,7 +883,7 @@ s16 main(s16 arg_count, char **args) {
     initialize_native_operators(native_operations_table);
 
     Parser *parser = new_parser(&allocator, type_table, global_scope, operator_table, native_operations_table);
-    Lexer lexer = create_lexer(program_bytecode_1, parser, &allocator);
+    Lexer lexer = create_lexer(program_bytecode_if, parser, &allocator);
 
 
     get_next_token(&lexer);

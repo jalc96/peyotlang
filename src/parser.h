@@ -880,7 +880,7 @@ internal void print(Ast_block *block, u32 indent) {
 //
 struct If {
     Src_position src_p;
-    Ast_expression condition;
+    Ast_expression *condition;
     Ast_block block;
     Symbol_table *current_scope;
     If *next;
@@ -908,7 +908,7 @@ internal void print(Ast_if *ast, u32 indent=0) {
             printf("if else");
         }
 
-        print(&it->condition);
+        print(it->condition);
         print(&it->block, indent);
     }
 
