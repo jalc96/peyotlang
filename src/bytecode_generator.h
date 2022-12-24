@@ -50,27 +50,23 @@ enum BYTECODE_INSTRUCTION {
     BYTECODE_COUNT,
 };
 
-internal BYTECODE_INSTRUCTION ast_type_to_arithmetic_bytecode_instruction(AST_EXPRESSION_TYPE type) {
+internal BYTECODE_INSTRUCTION ast_binary_type_to_bytecode_instruction(AST_EXPRESSION_TYPE type, bool is_float) {
     switch(type) {
-        case AST_EXPRESSION_BINARY_ADD: {
-            return ADDI;
-        } break;
-
-        case AST_EXPRESSION_BINARY_SUB: {
-            return SUBI;
-        } break;
-
-        case AST_EXPRESSION_BINARY_MUL: {
-            return MULI;
-        } break;
-
-        case AST_EXPRESSION_BINARY_DIV: {
-            return DIVI;
-        } break;
-
-        case AST_EXPRESSION_BINARY_MOD: {
-            return MODI;
-        } break;
+        case AST_EXPRESSION_BINARY_ADD: {return is_float ? ADDF : ADDI;} break;
+        case AST_EXPRESSION_BINARY_SUB: {return is_float ? SUBF : SUBI;} break;
+        case AST_EXPRESSION_BINARY_MUL: {return is_float ? MULF : MULI;} break;
+        case AST_EXPRESSION_BINARY_DIV: {return is_float ? DIVF : DIVI;} break;
+        case AST_EXPRESSION_BINARY_MOD: {return MODI;} break;
+        case AST_EXPRESSION_BINARY_EQUALS: {return EQ;} break;
+        case AST_EXPRESSION_BINARY_NOT_EQUALS: {return NEQ;} break;
+        case AST_EXPRESSION_BINARY_GREATER_THAN: {return is_float ? GTF : GTI;} break;
+        case AST_EXPRESSION_BINARY_GREATER_THAN_OR_EQUALS: {return is_float ? GTOEF : GTOEI;} break;
+        case AST_EXPRESSION_BINARY_LESS_THAN: {return is_float ? LTF : LTI;} break;
+        case AST_EXPRESSION_BINARY_LESS_THAN_OR_EQUALS: {return is_float ? LTOEF : LTOEI;} break;
+        case AST_EXPRESSION_BINARY_LOGICAL_OR: {return LOR;} break;
+        case AST_EXPRESSION_BINARY_LOGICAL_AND: {return LAND;} break;
+        case AST_EXPRESSION_BINARY_BITWISE_OR: {return BOR;} break;
+        case AST_EXPRESSION_BINARY_BITWISE_AND: {return BAND;} break;
 
         invalid_default_case_msg("invalid ast_expression_type for arithmetic bytecode generation");
     }

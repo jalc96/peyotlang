@@ -252,22 +252,19 @@ internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expr
             emit_mov_to_address(generator, dst, r);
         } else {
             Bytecode_result l = create_bytecode(generator, ast->binary.left, 0);
-            u32 r1 = l.r;
-
-            r1 = new_register(generator);
+            u32 r1 = new_register(generator);
             emit_mov_to_register(generator, r1, l);
 
-
             Bytecode_result r = create_bytecode(generator, ast->binary.right, 0);
-            u32 r2 = r.r;
-
-            r2 = new_register(generator);
+            u32 r2 = new_register(generator);
             emit_mov_to_register(generator, r2, r);
 
             result.type = E_REGISTER;
+            Native_types_op *native = get(generator->native_operations_table, to_op_token_type(ast->type), l_type->name, r_type->name);
 
-            if (is_native_expression(generator->native_operations_table, to_op_token_type(ast->type), l_type->name, r_type->name)) {
-                BYTECODE_INSTRUCTION instruction = ast_type_to_arithmetic_bytecode_instruction(ast->type);
+            if (native) {
+                bool is_float = equals(native->return_type, STATIC_STR("f32"));
+                BYTECODE_INSTRUCTION instruction = ast_binary_type_to_bytecode_instruction(ast->type, is_float);
                 emit_op(generator, instruction, r1, r2);
                 result.r = r1;
             } else {
@@ -295,9 +292,7 @@ internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expr
                 emit_call(generator, operator_name);
                 result.r = 1;
 
-
                 assert(op, "compiler error: operator not found in bytecode generation");
-
             }
             // TODO: for comparisons maybe have a flag bitfield to check in the jumps
             // if (is_arithmetic(ast->type)) {
