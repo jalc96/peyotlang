@@ -10,7 +10,7 @@ enum BYTECODE_RESULT_TYPE {
 
 struct Bytecode_result {
     BYTECODE_RESULT_TYPE type;
-    bool is_leaf;
+    bool comparison_needed;
 
     union {
         u64 _u64;
@@ -22,7 +22,7 @@ struct Bytecode_result {
 internal Bytecode_result new_expression_bytecode_result(u64 _u64) {
     Bytecode_result result;
     result.type = E_LITERAL;
-    result.is_leaf = true;
+    result.comparison_needed = true;
     result._u64 = _u64;
     return result;
 }
@@ -30,7 +30,7 @@ internal Bytecode_result new_expression_bytecode_result(u64 _u64) {
 internal Bytecode_result new_expression_bytecode_literal(u64 _u64) {
     Bytecode_result result;
     result.type = E_LITERAL;
-    result.is_leaf = true;
+    result.comparison_needed = true;
     result._u64 = _u64;
     return result;
 }
@@ -38,7 +38,7 @@ internal Bytecode_result new_expression_bytecode_literal(u64 _u64) {
 internal Bytecode_result new_expression_bytecode_result(u32 r) {
     Bytecode_result result;
     result.type = E_REGISTER;
-    result.is_leaf = true;
+    result.comparison_needed = true;
     result.r = r;
     return result;
 }
@@ -46,7 +46,7 @@ internal Bytecode_result new_expression_bytecode_result(u32 r) {
 internal Bytecode_result new_expression_bytecode_result(Address _address) {
     Bytecode_result result;
     result.type = E_MEMORY;
-    result.is_leaf = true;
+    result.comparison_needed = true;
     result._address = _address;
     return result;
 }
@@ -198,8 +198,11 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_statement *ast)
         case AST_STATEMENT_DECLARATION: {
             create_bytecode(generator, ast->declaration_statement);
         } break;
-        case AST_STATEMENT_BREAK:
+        case AST_STATEMENT_BREAK:{
+            emit_jump(generator, *ast->break_continue_loop->loop_statement->end_tag, false, true);
+        } break;
         case AST_STATEMENT_CONTINUE: {
+            emit_jump(generator, *ast->break_continue_loop->loop_statement->post_tag, false, true);
         } break;
         case AST_STATEMENT_RETURN: {
         } break;
@@ -220,7 +223,7 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_statement *ast)
 
 internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expression *ast) {
     Bytecode_result result = {};
-    result.is_leaf = true;
+    result.comparison_needed = true;
     Symbol_table *current_scope = generator->current_scope;
     Type_spec_table *type_table = generator->type_table;
 
@@ -273,7 +276,6 @@ internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expr
             case AST_EXPRESSION_FUNCTION_CALL: {} break;
         }
     } else if (is_binary(ast->type)) {
-        result.is_leaf = true;
         Type_spec *l_type = ast->binary.left->op_type;
         Type_spec *r_type = ast->binary.right->op_type;
 
@@ -328,14 +330,18 @@ internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expr
                 assert(op, "compiler error: operator not found in bytecode generation");
             }
             // TODO: for comparisons maybe have a flag bitfield to check in the jumps
-            // if (is_arithmetic(ast->type)) {
-            // } else if (is_relational(ast->type)) {
-            // } else if (is_boolean(ast->type)) {
-            // } else if (is_bit_operator(ast->type)) {
-            // }
+            if (is_arithmetic(ast->type)) {
+                result.comparison_needed = true;
+            } else if (is_relational(ast->type)) {
+                result.comparison_needed = false;
+            } else if (is_boolean(ast->type)) {
+                result.comparison_needed = false;
+            } else if (is_bit_operator(ast->type)) {
+                result.comparison_needed = true;
+            }
         }
     } else if (is_unary(ast->type)) {
-        result.is_leaf = true;
+        result.comparison_needed = true;
     } else if (ast->type == AST_EXPRESSION_TYPEOF) {
         Ast_expression *e = ast->statement->type_statement.expression;
         str name = e->name;
@@ -416,7 +422,7 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_if *ast) {
         Tag tag = new_tag(generator);
         Bytecode_result check = create_bytecode(generator, it->condition);
 
-        if (check.is_leaf) {
+        if (check.comparison_needed) {
             u32 r1 = new_register(generator);
             emit_mov_to_register(generator, r1, check);
 
@@ -455,13 +461,18 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_loop *ast) {
         create_bytecode(generator, ast->pre);
     }
 
-    Tag loop_tag = new_tag(generator);
-    Tag end_tag = new_tag(generator);
+    // TODO: tags bytecode_offset is wrong it has to be changed after emiting the bytecode maybe stored in a hash table???
+    Tag *loop_tag = new_tag_alloc(generator);
+    Tag *end_tag = new_tag_alloc(generator);
+    Tag *post_tag = new_tag_alloc(generator);
+    ast->loop_tag = loop_tag;
+    ast->end_tag = end_tag;
+    ast->post_tag = post_tag;
 
-    emit_tag(generator, loop_tag);
+    emit_tag(generator, *loop_tag);
     Bytecode_result check = create_bytecode(generator, ast->condition);
 
-    if (check.is_leaf) {
+    if (check.comparison_needed) {
         u32 r1 = new_register(generator);
         emit_mov_to_register(generator, r1, check);
 
@@ -470,19 +481,23 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_loop *ast) {
         emit_mov_to_register(generator, r2, zero);
 
         emit_op(generator, EQ, r1, r2);
-        emit_jump(generator, end_tag, true);
+        emit_jump(generator, *end_tag, true);
     } else {
-        emit_jump(generator, end_tag, false);
+        emit_jump(generator, *end_tag, false);
     }
 
     create_bytecode(generator, ast->block);
 
     if (ast->post) {
+        emit_tag(generator, *post_tag);
         create_bytecode(generator, ast->post);
+    } else {
+        // TODO: is this correct?
+        ast->post_tag = ast->end_tag;
     }
 
-    emit_jump(generator, loop_tag, false, true);
-    emit_tag(generator, end_tag);
+    emit_jump(generator, *loop_tag, false, true);
+    emit_tag(generator, *end_tag);
 
     pop_scope(&generator->current_scope);
 }

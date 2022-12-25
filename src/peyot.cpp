@@ -870,7 +870,15 @@ s16 main(s16 arg_count, char **args) {
             sum := 0;
 
             for (i := 0; i; i = i + 1) {
+                if (sum < 2) {
+                    continue;
+                }
+
                 sum = sum + i;
+
+                if (sum > 3) {
+                    break;
+                }
             }
 
             return 1;

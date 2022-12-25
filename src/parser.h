@@ -725,6 +725,9 @@ struct Ast_loop {
     Ast_expression *post;
     Ast_block *block;
     Symbol_table *current_scope;
+    struct Tag *loop_tag;
+    struct Tag *end_tag;
+    struct Tag *post_tag;
 };
 
 internal Ast_loop *new_ast_loop(Memory_pool *allocator) {

@@ -397,6 +397,15 @@ internal Tag new_tag(Bytecode_generator *generator) {
     return result;
 }
 
+internal Tag *new_tag_alloc(Bytecode_generator *generator) {
+    Tag *result = push_struct(generator->allocator, Tag);
+
+    result->id = generator->current_tag++;
+    result->bytecode_offset = generator->bytecode_head;
+
+    return result;
+}
+
 internal u64 push_stack(Bytecode_generator *generator, u64 size) {
     generator->stack_head += size;
     return generator->stack_head - size;
