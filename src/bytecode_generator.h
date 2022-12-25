@@ -215,7 +215,6 @@ internal Address new_address(u32 r, s32 offset) {
 
 struct Tag {
     u32 id;
-    u32 bytecode_offset;
 };
 
 struct Operand {
@@ -352,6 +351,85 @@ internal void print(Operand o) {
     }
 }
 
+#if DEVELOPMENT
+#define TAG_OFFSET_HASH_TABLE_SIZE 8
+#else
+#define TAG_OFFSET_HASH_TABLE_SIZE KILOBYTES(1)
+#endif
+
+struct Tag_offset {
+    u32 id;
+    u32 bytecode_offset;
+    Tag_offset *next;
+};
+
+internal Tag_offset *new_tag_offset(Memory_pool *allocator, u32 id, u32 bytecode_offset) {
+    Tag_offset *result = push_struct(allocator, Tag_offset);
+
+    result->id = id;
+    result->bytecode_offset = bytecode_offset;
+
+    return result;
+}
+
+internal void print(Tag_offset *tag) {
+    u32 bo = tag->bytecode_offset;
+    printf("tag_%u: %u\n", tag->id, bo);
+}
+
+internal void print_entire_list(Tag_offset *tag, u32 indent=0) {
+    lfor(tag) {
+        print_indent(indent);
+        print(it);
+        indent += 2;
+    }
+}
+
+struct Tag_offset_hash_table {
+    Tag_offset *table[TAG_OFFSET_HASH_TABLE_SIZE];
+    Memory_pool *allocator;
+};
+
+internal Tag_offset_hash_table *new_tag_offset_hash_table(Memory_pool *allocator) {
+    Tag_offset_hash_table *result = push_struct(allocator, Tag_offset_hash_table);
+    result->allocator = allocator;
+    return result;
+}
+
+internal void print(Tag_offset_hash_table *table) {
+    printf("---TAGS OFFSET---\n");
+
+    sfor(table->table) {
+        print_entire_list(*it, 4);
+    }
+}
+
+internal u32 get_tag_offset_index(u32 id) {
+    u32 result = id & (TAG_OFFSET_HASH_TABLE_SIZE - 1);
+    return result;
+}
+
+internal void put(Tag_offset_hash_table *table, Tag_offset *tag) {
+    u32 index = get_tag_offset_index(tag->id);
+    tag->next = table->table[index];
+    table->table[index] = tag;
+}
+
+internal Tag_offset *get(Tag_offset_hash_table *table, u32 id) {
+    Tag_offset *result = 0;
+
+    u32 index = get_tag_offset_index(id);
+
+    lfor (table->table[index]) {
+        if (it->id == id) {
+            result = it;
+            break;
+        }
+    }
+
+    return result;
+}
+
 struct Bytecode_instruction {
     BYTECODE_INSTRUCTION instruction;
     Operand destination;
@@ -376,6 +454,7 @@ struct Bytecode_generator {
     Operator_table *operator_table;
     Symbol_table *current_scope;
     Native_operations_table *native_operations_table;
+    Tag_offset_hash_table *tag_offset_table;
 
     u32 current_register;
     u32 current_tag;
@@ -392,7 +471,6 @@ internal Tag new_tag(Bytecode_generator *generator) {
     Tag result;
 
     result.id = generator->current_tag++;
-    result.bytecode_offset = generator->bytecode_head;
 
     return result;
 }
@@ -401,7 +479,6 @@ internal Tag *new_tag_alloc(Bytecode_generator *generator) {
     Tag *result = push_struct(generator->allocator, Tag);
 
     result->id = generator->current_tag++;
-    result->bytecode_offset = generator->bytecode_head;
 
     return result;
 }
@@ -434,13 +511,14 @@ internal void pop_stack_call(Bytecode_generator *generator) {
     generator->stack_head = stack_link->offset;
 }
 
-internal Bytecode_generator *new_bytecode_generator(Memory_pool *allocator, Type_spec_table *type_table, Operator_table *operator_table, Native_operations_table *native_operations_table) {
+internal Bytecode_generator *new_bytecode_generator(Memory_pool *allocator, Type_spec_table *type_table, Operator_table *operator_table, Native_operations_table *native_operations_table, Tag_offset_hash_table *tag_offset_table) {
     Bytecode_generator *result = push_struct(allocator, Bytecode_generator);
 
     result->allocator = allocator;
     result->type_table = type_table;
     result->operator_table = operator_table;
     result->native_operations_table = native_operations_table;
+    result->tag_offset_table = tag_offset_table;
     result->current_register = R0;
     result->bytecode_size = BYTECODE_FIRST_SIZE;
     result->bytecode = push_array(result->allocator, Bytecode_instruction, result->bytecode_size);

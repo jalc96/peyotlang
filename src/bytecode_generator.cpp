@@ -125,9 +125,11 @@ internal void emit_call(Bytecode_generator *generator, str *function_name) {
 }
 
 internal void emit_tag(Bytecode_generator *generator, Tag tag) {
+    u32 bytecode_offset = generator->bytecode_head;
     Bytecode_instruction *result = next(generator);
     result->instruction = TAG;
-    tag.bytecode_offset = generator->bytecode_head;
+    Tag_offset *to = new_tag_offset(generator->allocator, tag.id, bytecode_offset);
+    put(generator->tag_offset_table, to);
     result->destination = new_operand(TAG_ID, tag);
 }
 
@@ -461,7 +463,6 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_loop *ast) {
         create_bytecode(generator, ast->pre);
     }
 
-    // TODO: tags bytecode_offset is wrong it has to be changed after emiting the bytecode maybe stored in a hash table???
     Tag *loop_tag = new_tag_alloc(generator);
     Tag *end_tag = new_tag_alloc(generator);
     Tag *post_tag = new_tag_alloc(generator);
