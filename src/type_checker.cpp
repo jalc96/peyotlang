@@ -613,7 +613,25 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast, bool need_lvalue
                     assert(false, "undefined type this should never trigger because of the out of order declaration checks");
                 }
             } break;
-            case AST_EXPRESSION_FUNCTION_CALL: {} break;
+            case AST_EXPRESSION_FUNCTION_CALL: {
+                Symbol *symbol = get(current_scope, ast->name);
+                assert(symbol, "function name not found");
+
+                Call_parameter *params = ast->function_call.parameter;
+
+                lfor (params) {
+                    type_check(lexer, it->parameter, false, 0);
+                }
+
+                Type_spec *type = get(type_table, symbol->type_name);
+
+                if (type) {
+                    result = type;
+                } else {
+                    // TODO: if i store the type_names instead of the typespecs then its here where the error should be reported
+                    assert(false, "undefined type this should never trigger because of the out of order declaration checks");
+                }
+            } break;
         }
     } else if (is_binary(ast->type)) {
         // TODO: should we pass here the l_value?? i think so
@@ -808,7 +826,7 @@ internal void type_check(Lexer *lexer, Function *function, Ast_declaration *ast_
     function->current_scope = push_new_scope(lexer->allocator, &parser->current_scope);
 
     sfor_count (function->params, function->param_count) {
-        put(parser->current_scope, it->name, it->type->name, it->src_p);
+        put(function->current_scope, it->name, it->type->name, it->src_p);
     }
 
     // NOTE(Juan Antonio) 2022-11-09: false in create_scope because in the case of a function the parameters in the header are in the same scope level as the first level scope inside the function body

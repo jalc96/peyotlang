@@ -11,6 +11,7 @@ enum BYTECODE_RESULT_TYPE {
 struct Bytecode_result {
     BYTECODE_RESULT_TYPE type;
     bool comparison_needed;
+    u32 size;
 
     union {
         u64 _u64;
@@ -110,6 +111,16 @@ internal void emit_mov_to_register(Bytecode_generator *generator, u32 dst, Bytec
     }
 }
 
+internal void emit_nop(Bytecode_generator *generator) {
+    Bytecode_instruction *result = next(generator);
+    result->instruction = NOP;
+}
+
+internal void emit_return(Bytecode_generator *generator) {
+    Bytecode_instruction *result = next(generator);
+    result->instruction = RET;
+}
+
 internal void emit_op(Bytecode_generator *generator, BYTECODE_INSTRUCTION op, u32 r1, u32 r2) {
     Bytecode_instruction *result = next(generator);
     result->instruction = op;
@@ -140,10 +151,21 @@ internal void emit_jump(Bytecode_generator *generator, Tag tag, bool _equals, bo
 }
 
 internal void create_bytecode(Bytecode_generator *generator, Function *function) {
+    // Here we dont care if the function header variables are in a higher scope than the function body variables, the typecheck is already done
+    emit_nop(generator);
+    emit_nop(generator);
+
+    function->current_scope = generator->current_scope;
+
     sfor_count (function->params, function->param_count) {
+        // TODO: pop the params out of the stack and put them into the symbol table
+        u64 address = push_stack(generator, it->type->size);
+        put(function->current_scope, it->name, it->type->name, address);
     }
 
     create_bytecode(generator, function->block);
+    emit_nop(generator);
+    emit_nop(generator);
 }
 
 internal void create_bytecode(Bytecode_generator *generator, Ast_declaration *ast) {
@@ -167,9 +189,11 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_declaration *as
             create_bytecode(generator, ast->_operator.declaration);
         } break;
         case AST_DECLARATION_FUNCTION: {
+            push_stack_call(generator);
             push_new_scope(generator->allocator, &generator->current_scope);
             create_bytecode(generator, ast->function);
             pop_scope(&generator->current_scope);
+            pop_stack_call(generator);
         } break;
         case AST_DECLARATION_COMPOUND: {} break;
         case AST_DECLARATION_ENUM: {} break;
@@ -207,8 +231,10 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_statement *ast)
             emit_jump(generator, *ast->break_continue_loop->loop_statement->post_tag, false, true);
         } break;
         case AST_STATEMENT_RETURN: {
+            Bytecode_result re = create_bytecode(generator, ast->return_statement.return_expression);
+            emit_mov_to_register(generator, 0, re);
+            emit_return(generator);
         } break;
-
         case AST_STATEMENT_SIZEOF: {
             create_bytecode(generator, ast->sizeof_statement.expression);
         } break;
@@ -235,6 +261,7 @@ internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expr
                 Type_spec *t = get(type_table, STATIC_STR("u32"));
                 result.type = E_LITERAL;
                 result._u64 = t->id;
+                result.size = t->size;
             } break;
             case AST_EXPRESSION_LITERAL_CHAR: {
             } break;
@@ -244,9 +271,11 @@ internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expr
             case AST_EXPRESSION_LITERAL_INTEGER: {
                 result.type = E_LITERAL;
                 result._u64 = ast->u64_value;
+                result.size = 4;
             } break;
             case AST_EXPRESSION_LITERAL_FLOAT: {
                 // emit_int(generator, ast->u64_value);
+                // result.size = 4;
             } break;
             case AST_EXPRESSION_NAME: {
                 if (get(type_table, ast->name)) {
@@ -255,6 +284,7 @@ internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expr
                     Type_spec *t = get(type_table, STATIC_STR("u32"));
                     result.type = E_LITERAL;
                     result._u64 = t->id;
+                    result.size = t->size;
                 } else {
                     // is a name
                     Symbol *s = get(generator->current_scope, ast->name);
@@ -262,6 +292,8 @@ internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expr
 
                     result.type = E_MEMORY;
                     result._address = _address;
+                    Type_spec *t = get(type_table, s->type_name);
+                    result.size = t->size;
                 }
             } break;
             case AST_EXPRESSION_MEMBER: {
@@ -275,7 +307,55 @@ internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expr
 
                 // get(type_table, member_info->type_name);
             } break;
-            case AST_EXPRESSION_FUNCTION_CALL: {} break;
+            case AST_EXPRESSION_FUNCTION_CALL: {
+                Call_parameter *params = ast->function_call.parameter;
+                u32 parenthesis = 2;
+                u32 name_size = length(ast->name) + parenthesis;
+                u32 comma = 1;
+
+                lfor (params) {
+                    Type_spec *pt = it->parameter->op_type;
+                    name_size += length(pt->name) + comma;
+
+                    Bytecode_result param = create_bytecode(generator, it->parameter);
+                    u64 address = push_stack(generator, param.size);
+                    Address dst = new_address(RBP, (s32)address);
+                    emit_mov_to_address(generator, dst, param);
+                }
+
+                // Generate the call name in place
+                // subtract last comma
+                name_size -= comma;
+                str *call_name = new_string(name_size);
+                u32 index = 0;
+
+                str_for (ast->name) {
+                    call_name->buffer[index++] = it;
+                }
+
+                call_name->buffer[index++] = '(';
+
+                {
+                    lfor (params) {
+                        Type_spec *pt = it->parameter->op_type;
+                        {
+                            str_for (pt->name) {
+                                call_name->buffer[index++] = it;
+                            }
+                        }
+
+                        if (it->next) {
+                            call_name->buffer[index++] = ',';
+                        }
+                    }
+                }
+
+                call_name->buffer[index++] = ')';
+                // Generate the call name in place
+
+
+                emit_call(generator, call_name);
+            } break;
         }
     } else if (is_binary(ast->type)) {
         Type_spec *l_type = ast->binary.left->op_type;
@@ -325,7 +405,6 @@ internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expr
                 Type_spec *rt = ast->binary.right->op_type;
                 Operator *op = get(generator->operator_table, to_op_token_type(ast->type), lt->name, rt->name);
                 str *operator_name = to_call_string(op);
-                debug(*operator_name)
                 emit_call(generator, operator_name);
                 result.r = 1;
 
@@ -342,8 +421,11 @@ internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expr
                 result.comparison_needed = true;
             }
         }
+
+        result.size = ast->op_type->size;
     } else if (is_unary(ast->type)) {
         result.comparison_needed = true;
+        result.size = ast->op_type->size;
     } else if (ast->type == AST_EXPRESSION_TYPEOF) {
         Ast_expression *e = ast->statement->type_statement.expression;
         str name = e->name;
@@ -368,6 +450,7 @@ internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expr
 
         result.type = E_LITERAL;
         result._u64 = type->id;
+        result.size = 4;
     } else if (ast->type == AST_EXPRESSION_SIZEOF) {
         Ast_expression *e = ast->statement->sizeof_statement.expression;
         str name = e->name;
@@ -392,6 +475,7 @@ internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expr
 
         result.type = E_LITERAL;
         result._u64 = type->size;
+        result.size = 4;
     } else if (ast->type == AST_EXPRESSION_OFFSETOF) {
         str type_name = ast->statement->offsetof_statement.type_name;
         str member_name = ast->statement->offsetof_statement.member_name;
@@ -402,6 +486,7 @@ internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expr
         Member_info *member_info = get(base->member_info_table, member_name);
 
         get(type_table, STATIC_STR("u32"));
+        result.size = 4;
     }
 
     return result;

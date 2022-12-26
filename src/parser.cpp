@@ -133,7 +133,8 @@ internal Call_parameter_list_creator iterate_parameter_list(Lexer *lexer, Syntax
     // TODO: have a better check for this
     result.finished = (
            (t.type == TOKEN_CLOSE_PARENTHESIS) 
-        || (is_type(lexer->parser->type_table, t))
+        // 2022-12-26: this gives problems when passing variables as parameters so i comment it for now
+        // || (is_type(lexer->parser->type_table, t))
         // TODO: maybe -expression is missing here
     );
 
@@ -980,6 +981,7 @@ internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *resul
         positions.last_correct = positions.start;
 
         Function *function = parse_function(lexer, positions);
+        if (lexer->parser->parsing_errors) return 0;
         result->function = function;
 
         if (!result->function->return_type) {

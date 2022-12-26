@@ -1,5 +1,5 @@
 enum BYTECODE_INSTRUCTION {
-    BYTECODE_NULL,
+    NOP,
 
     // Load inmediate
     MOVI,
@@ -43,6 +43,7 @@ enum BYTECODE_INSTRUCTION {
     JNEQ,
     TAG,
     CALL,
+    RET,
 
     // Stack handling
     PUSH,
@@ -72,12 +73,12 @@ internal BYTECODE_INSTRUCTION ast_binary_type_to_bytecode_instruction(AST_EXPRES
         invalid_default_case_msg("invalid ast_expression_type for arithmetic bytecode generation");
     }
 
-    return BYTECODE_NULL;
+    return NOP;
 }
 
 internal void print(BYTECODE_INSTRUCTION instruction) {
     switch (instruction) {
-        case BYTECODE_NULL: {printf("BYTECODE_NULL");} break;
+        case NOP: {printf("NOP");} break;
         case MOVI: {printf("MOVI");} break;
         case MOVR: {printf("MOVR");} break;
         case MOVM: {printf("MOVM");} break;
@@ -114,6 +115,7 @@ internal void print(BYTECODE_INSTRUCTION instruction) {
         case POP: {printf("POP");} break;
         case BYTECODE_COUNT: {printf("BYTECODE_COUNT");} break;
         case CALL: {printf("CALL");} break;
+        case RET: {printf("RET");} break;
         invalid_default_case_msg("missing instruction type in print");
     }
 }
@@ -459,6 +461,9 @@ struct Bytecode_generator {
     u32 current_register;
     u32 current_tag;
 
+    bool call_params_stack_check;
+    u32 call_params_stack_head;
+
     u32 stack_head;
     Memory_stack *stack;
     Memory_stack *first_free;
@@ -488,6 +493,17 @@ internal u64 push_stack(Bytecode_generator *generator, u64 size) {
     return generator->stack_head - size;
 }
 
+internal void begin_function_call_stack(Bytecode_generator *generator) {
+    assert(generator->call_params_stack_check == false, "unpaired begin/end function_call_stack in begin");
+    generator->call_params_stack_check = true;
+    generator->call_params_stack_head = 0;
+}
+
+internal void end_function_call_stack(Bytecode_generator *generator) {
+    assert(generator->call_params_stack_check, "unpaired begin/end function_call_stack in end");
+    generator->call_params_stack_check = false;
+}
+
 internal void push_stack_call(Bytecode_generator *generator) {
     Memory_stack *stack_link = generator->first_free;
 
@@ -496,7 +512,7 @@ internal void push_stack_call(Bytecode_generator *generator) {
     }
 
     stack_link->offset = generator->stack_head;
-    stack_link->next = generator->stack;
+    stack_link->next = 0;
     generator->stack = stack_link;
 
 }
@@ -572,7 +588,11 @@ internal void print_bytecode(Bytecode_generator *generator) {
         line_length = al_max(line_length, 1);
         print_indent(max_length - line_length);
 
-        if (it->instruction == TAG) {
+        if (it->instruction == NOP) {
+            printf("%d:  NOP", i);
+        } else if (it->instruction == RET) {
+            printf("%d:  RET", i);
+        } else if (it->instruction == TAG) {
             printf("%d:", i);
             print(it->destination);
             putchar(':');

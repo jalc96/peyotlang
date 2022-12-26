@@ -28,6 +28,10 @@ void printf(str s, bool print_count=false) {
     }
 }
 
+void printf(str *s, bool print_count=false) {
+    printf(*s, print_count);
+}
+
 #if !defined(static_length)
     #define static_length(array) (sizeof(array) / sizeof((array)[0]))
 #endif
