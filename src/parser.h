@@ -224,6 +224,9 @@ struct Ast_expression {
             Ast_expression *right;
         } binary;
         struct {
+            Ast_expression *member_name;
+        } member;
+        struct {
             u32 parameter_count;
             Call_parameter *parameter;
         } function_call;
@@ -257,7 +260,7 @@ internal void print(Ast_expression *ast, u32 indent=0, bool is_declaration=false
         case AST_EXPRESSION_MEMBER: {
             printf("%.*s", STR_PRINT(ast->name));
             putchar('.');
-            printf("%.*s", STR_PRINT(ast->binary.right->name));
+            printf("%.*s", STR_PRINT(ast->member.member_name->name));
         } break;
         case AST_EXPRESSION_FUNCTION_CALL: {
             printf("%.*s(", STR_PRINT(ast->name));

@@ -927,6 +927,23 @@ s16 main(s16 arg_count, char **args) {
         }
     )PROGRAM";
 
+    char *program_bytecode_struct = R"PROGRAM(
+        V2u :: struct {
+            x :u32;
+            y :u32;
+        }
+
+        main :: (in :u32) -> u32 {
+            a := 69;
+            c :V2u;
+            c.x = 1;
+            c.y = 2;
+            c.x = c.y;
+
+            return 1;
+        }
+    )PROGRAM";
+
 
 
 
@@ -945,7 +962,7 @@ s16 main(s16 arg_count, char **args) {
     initialize_native_operators(native_operations_table);
 
     Parser *parser = new_parser(&allocator, type_table, global_scope, operator_table, native_operations_table);
-    Lexer lexer = create_lexer(program_bytecode_char, parser, &allocator);
+    Lexer lexer = create_lexer(program_bytecode_struct, parser, &allocator);
 
 
     get_next_token(&lexer);
@@ -991,8 +1008,8 @@ s16 main(s16 arg_count, char **args) {
     }
 
 
-    print(type_table);
-    print(global_scope);
+    // print(type_table);
+    // print(global_scope);
     // print(operator_table);
 
     restore_console();

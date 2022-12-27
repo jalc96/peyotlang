@@ -44,6 +44,14 @@ internal Bytecode_result new_expression_bytecode_result(u32 r) {
     return result;
 }
 
+internal Bytecode_result new_expression_bytecode_result_register(u32 r) {
+    Bytecode_result result;
+    result.type = E_REGISTER;
+    result.comparison_needed = true;
+    result.r = r;
+    return result;
+}
+
 internal Bytecode_result new_expression_bytecode_result(Address _address) {
     Bytecode_result result;
     result.type = E_MEMORY;
@@ -299,6 +307,26 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_statement *ast)
     }
 }
 
+internal u32 get_member_offset(Type_spec_table *type_table, Symbol_table *current_scope, str variable_name, str member_name) {
+    u32 result = 0;
+
+    Symbol *symbol = get(current_scope, variable_name);
+    Type_spec *type = get(type_table, symbol->type_name);
+    assert(type, "compiler error: type not found in bytecode generation");
+    Type_spec *base = get_base(type);
+
+    sfor_count (base->compound.members, base->compound.member_count) {
+        if (equals(it->name, member_name)) {
+            break;
+        }
+
+        Type_spec *member_type = get(type_table, it->type_name);
+        result += member_type->size;
+    }
+
+    return result;
+}
+
 internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expression *ast) {
     Bytecode_result result = {};
     result.comparison_needed = true;
@@ -342,7 +370,7 @@ internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expr
                     result.size = t->size;
                 } else {
                     // is a name
-                    Symbol *s = get(generator->current_scope, ast->name);
+                    Symbol *s = get(current_scope, ast->name);
                     Address _address = new_address(RBP, s->stack_offset);
 
                     result.type = E_MEMORY;
@@ -352,15 +380,15 @@ internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expr
                 }
             } break;
             case AST_EXPRESSION_MEMBER: {
-                // Symbol *symbol = get(current_scope, ast->name);
-                // Type_spec *type = get(type_table, symbol->type_name);
-                // assert(type, "compiler error: type not found in bytecode generation");
+                str member_name = ast->member.member_name->name;
+                u32 member_offset = get_member_offset(type_table, current_scope, ast->name, member_name);
+                Symbol *s = get(current_scope, ast->name);
+                Address _address = new_address(RBP, s->stack_offset + member_offset);
 
-                // Type_spec *base = get_base(type);
-                // Member_info *member_info = get(base->member_info_table, ast->binary.right->name);
-                // assert(member_info, "compiler error: member_info not found in bytecode generation");
-
-                // get(type_table, member_info->type_name);
+                result.type = E_MEMORY;
+                result._address = _address;
+                Type_spec *t = get(type_table, s->type_name);
+                result.size = t->size;
             } break;
             case AST_EXPRESSION_FUNCTION_CALL: {
                 Call_parameter *params = ast->function_call.parameter;
@@ -417,10 +445,24 @@ internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expr
         Type_spec *r_type = ast->binary.right->op_type;
 
         if (is_assignment(ast->type)) {
-            Bytecode_result r = create_bytecode(generator, ast->binary.right);
+            u32 member_offset = 0;
+            Ast_expression *v = ast->binary.left;
+
+            if (v->type == AST_EXPRESSION_MEMBER) {
+                str member_name = v->member.member_name->name;
+                member_offset = get_member_offset(type_table, current_scope, v->name, member_name);
+            }
 
             Symbol *s = get(generator->current_scope, ast->binary.left->name);
-            Address dst = new_address(RBP, s->stack_offset);
+            Address dst = new_address(RBP, s->stack_offset + member_offset);
+            Bytecode_result r = create_bytecode(generator, ast->binary.right);
+
+            if (r.type == E_MEMORY) {
+                u32 r1 = new_register(generator);
+                emit_mov_to_register(generator, r1, r);
+                r = new_expression_bytecode_result_register(r1);
+            }
+
             emit_mov_to_address(generator, dst, r);
         } else {
             Bytecode_result l = create_bytecode(generator, ast->binary.left);

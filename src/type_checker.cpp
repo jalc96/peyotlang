@@ -601,12 +601,12 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast, bool need_lvalue
 
                 if (type) {
                     Type_spec *base = get_base(type);
-                    Member_info *member_info = get(base->member_info_table, ast->binary.right->name);
+                    Member_info *member_info = get(base->member_info_table, ast->member.member_name->name);
 
                     if (member_info) {
                         result = get(type_table, member_info->type_name);
                     } else {
-                        report_member_not_found(lexer, ast->name, ast->binary.right->name, ast->src_p, true);
+                        report_member_not_found(lexer, ast->name, ast->member.member_name->name, ast->src_p, true);
                     }
                 } else {
                     // TODO: if i store the type_names instead of the typespecs then its here where the error should be reported
@@ -642,7 +642,8 @@ internal Type_spec *get_type(Lexer *lexer, Ast_expression *ast, bool need_lvalue
         if (type_errors(parser)) {return 0;}
 
         if (is_arithmetic(ast->type) || is_relational(ast->type)) {
-            // TODO: with the operator overload the any_equals check is not necessary
+            // TODO: with the operator overload the any_equals check is not necessary? now with the native types this might not be true and we need this check
+            // TODO: have a base inheritance with the native types an u16 its an u8 and an u32 its an u16 and so on
             if (any_equals(l, r)) {
                 Type_spec *op_type;
 

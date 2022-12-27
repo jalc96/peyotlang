@@ -293,10 +293,10 @@ internal Ast_expression *parse_factor(Lexer *lexer, Ast_expression *result) {
                 require_token_and_report_syntax_error(lexer, token_check, TOKEN_NAME, positions, "struct members must be accessed by a name identifier", true);
                 if (lexer->parser->parsing_errors) return 0;
 
-                result->binary.right = push_struct(lexer->allocator, Ast_expression);
-                leaf(result->binary.right, AST_EXPRESSION_NAME);
-                result->binary.right->name = token.name;
-                result->binary.right->src_p = token.src_p;
+                result->member.member_name = push_struct(lexer->allocator, Ast_expression);
+                leaf(result->member.member_name, AST_EXPRESSION_NAME);
+                result->member.member_name->name = token.name;
+                result->member.member_name->src_p = token.src_p;
             } else if (token.type == TOKEN_OPEN_PARENTHESIS) {
                 result->type = AST_EXPRESSION_FUNCTION_CALL;
 
