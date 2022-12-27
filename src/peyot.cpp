@@ -899,7 +899,6 @@ s16 main(s16 arg_count, char **args) {
         }
     )PROGRAM";
 
-// TODO: missing function tags
     char *program_bytecode_fibonacci = R"PROGRAM(
         function :: (x :u32) -> u32 {
             result :u32;
@@ -914,6 +913,15 @@ s16 main(s16 arg_count, char **args) {
 
         main :: (in :u32) -> u32 {
             sum := function(10);
+
+            return 1;
+        }
+    )PROGRAM";
+
+    char *program_bytecode_char_and_float = R"PROGRAM(
+        main :: (in :u32) -> u32 {
+            c := 'A';
+            f := 2.0;
 
             return 1;
         }
@@ -937,7 +945,7 @@ s16 main(s16 arg_count, char **args) {
     initialize_native_operators(native_operations_table);
 
     Parser *parser = new_parser(&allocator, type_table, global_scope, operator_table, native_operations_table);
-    Lexer lexer = create_lexer(program_bytecode_fibonacci, parser, &allocator);
+    Lexer lexer = create_lexer(program_bytecode_char, parser, &allocator);
 
 
     get_next_token(&lexer);

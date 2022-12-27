@@ -314,6 +314,9 @@ internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expr
                 result.size = t->size;
             } break;
             case AST_EXPRESSION_LITERAL_CHAR: {
+                result.type = E_LITERAL;
+                result._u64 = ast->u64_value;
+                result.size = 1;
             } break;
             case AST_EXPRESSION_LITERAL_STR: {
                 // TODO: add to the string pool
@@ -324,8 +327,10 @@ internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expr
                 result.size = 4;
             } break;
             case AST_EXPRESSION_LITERAL_FLOAT: {
-                // emit_int(generator, ast->u64_value);
-                // result.size = 4;
+                result.type = E_LITERAL;
+                // its just bytes
+                result._u64 = ast->u64_value;
+                result.size = 4;
             } break;
             case AST_EXPRESSION_NAME: {
                 if (get(type_table, ast->name)) {
