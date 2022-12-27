@@ -129,7 +129,6 @@ internal void emit_op(Bytecode_generator *generator, BYTECODE_INSTRUCTION op, u3
 }
 
 internal void emit_call(Bytecode_generator *generator, str *function_name) {
-    // TODO: probably put here the push and pop stuff for the program counter when a function call happens
     Bytecode_instruction *result = next(generator);
     result->instruction = CALL;
     result->destination = new_operand(FUNCTION_NAME, function_name);
@@ -144,6 +143,15 @@ internal void emit_tag(Bytecode_generator *generator, Tag tag) {
     result->destination = new_operand(TAG_ID, tag);
 }
 
+internal void emit_function_tag(Bytecode_generator *generator, str *function_name) {
+    u32 bytecode_offset = generator->bytecode_head;
+    Bytecode_instruction *result = next(generator);
+    result->instruction = FTAG;
+    Function_offset *function = new_function_offset(generator->allocator, function_name, bytecode_offset);
+    put(generator->function_offset_table, function);
+    result->destination = new_operand(FUNCTION_NAME, function_name);
+}
+
 internal void emit_jump(Bytecode_generator *generator, Tag tag, bool _equals, bool just_jump=false) {
     Bytecode_instruction *result = next(generator);
     result->instruction = just_jump ? JUMP :_equals ? JEQ : JNEQ;
@@ -152,9 +160,6 @@ internal void emit_jump(Bytecode_generator *generator, Tag tag, bool _equals, bo
 
 internal void create_bytecode(Bytecode_generator *generator, Function *function) {
     // Here we dont care if the function header variables are in a higher scope than the function body variables, the typecheck is already done
-    emit_nop(generator);
-    emit_nop(generator);
-
     function->current_scope = generator->current_scope;
 
     sfor_count (function->params, function->param_count) {
@@ -164,6 +169,11 @@ internal void create_bytecode(Bytecode_generator *generator, Function *function)
     }
 
     create_bytecode(generator, function->block);
+
+    emit_nop(generator);
+    emit_nop(generator);
+    emit_nop(generator);
+    emit_nop(generator);
     emit_nop(generator);
     emit_nop(generator);
 }
@@ -189,6 +199,46 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_declaration *as
             create_bytecode(generator, ast->_operator.declaration);
         } break;
         case AST_DECLARATION_FUNCTION: {
+            u32 parenthesis = 2;
+            u32 name_size = length(ast->name) + parenthesis;
+            u32 comma = 1;
+            Parameter *params = ast->function->params;
+
+            lfor (params) {
+                Type_spec *pt = it->type;
+                name_size += length(pt->name) + comma;
+            }
+
+            // subtract last comma
+            name_size -= comma;
+            str *function_name = new_string(name_size);
+            u32 index = 0;
+
+            str_for (ast->name) {
+                function_name->buffer[index++] = it;
+            }
+
+            function_name->buffer[index++] = '(';
+
+            {
+                lfor (params) {
+                    Type_spec *pt = it->type;
+                    {
+                        str_for (pt->name) {
+                            function_name->buffer[index++] = it;
+                        }
+                    }
+
+                    if (it->next) {
+                        function_name->buffer[index++] = ',';
+                    }
+                }
+            }
+
+            function_name->buffer[index++] = ')';
+
+            emit_function_tag(generator, function_name);
+
             push_stack_call(generator);
             push_new_scope(generator->allocator, &generator->current_scope);
             create_bytecode(generator, ast->function);

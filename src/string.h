@@ -167,6 +167,18 @@ internal bool equals(str a, str b) {
     return true;
 }
 
+internal bool equals(str *a, str b) {
+    return equals(*a, b);
+}
+
+internal bool equals(str a, str *b) {
+    return equals(a, *b);
+}
+
+internal bool equals(str *a, str *b) {
+    return equals(*a, *b);
+}
+
 internal str create_str(char *buffer) {
     str result;
     result.buffer = buffer;

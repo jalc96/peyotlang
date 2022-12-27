@@ -42,6 +42,7 @@ enum BYTECODE_INSTRUCTION {
     JEQ,
     JNEQ,
     TAG,
+    FTAG,
     CALL,
     RET,
 
@@ -111,6 +112,7 @@ internal void print(BYTECODE_INSTRUCTION instruction) {
         case JEQ: {printf("JEQ");} break;
         case JNEQ: {printf("JNEQ");} break;
         case TAG: {printf("TAG");} break;
+        case FTAG: {printf("FTAG");} break;
         case PUSH: {printf("PUSH");} break;
         case POP: {printf("POP");} break;
         case BYTECODE_COUNT: {printf("BYTECODE_COUNT");} break;
@@ -432,6 +434,86 @@ internal Tag_offset *get(Tag_offset_hash_table *table, u32 id) {
     return result;
 }
 
+#if DEVELOPMENT
+#define FUNCTION_OFFSET_HASH_TABLE_SIZE 8
+#else
+#define FUNCTION_OFFSET_HASH_TABLE_SIZE KILOBYTES(1)
+#endif
+
+struct Function_offset {
+    str *name;
+    u32 bytecode_offset;
+    Function_offset *next;
+};
+
+internal Function_offset *new_function_offset(Memory_pool *allocator, str *name, u32 bytecode_offset) {
+    Function_offset *result = push_struct(allocator, Function_offset);
+
+    result->name = name;
+    result->bytecode_offset = bytecode_offset;
+
+    return result;
+}
+
+internal void print(Function_offset *function) {
+    u32 bo = function->bytecode_offset;
+    printf("%.*s: %u\n", STR_PRINT(*function->name), bo);
+}
+
+internal void print_entire_list(Function_offset *function, u32 indent=0) {
+    lfor(function) {
+        print_indent(indent);
+        print(it);
+        indent += 2;
+    }
+}
+
+struct Function_offset_hash_table {
+    Function_offset *table[FUNCTION_OFFSET_HASH_TABLE_SIZE];
+    Memory_pool *allocator;
+};
+
+internal Function_offset_hash_table *new_function_offset_hash_table(Memory_pool *allocator) {
+    Function_offset_hash_table *result = push_struct(allocator, Function_offset_hash_table);
+    result->allocator = allocator;
+    return result;
+}
+
+internal void print(Function_offset_hash_table *table) {
+    printf("---FUNCTIONS OFFSET---\n");
+
+    sfor(table->table) {
+        print_entire_list(*it, 4);
+    }
+}
+
+internal u32 get_function_offset_index(str *name) {
+    u32 i = hash(*name);
+    u32 result = i & (FUNCTION_OFFSET_HASH_TABLE_SIZE - 1);
+    return result;
+}
+
+internal void put(Function_offset_hash_table *table, Function_offset *function) {
+    u32 index = get_function_offset_index(function->name);
+    function->next = table->table[index];
+    table->table[index] = function;
+}
+
+internal Function_offset *get(Function_offset_hash_table *table, str *name) {
+    Function_offset *result = 0;
+
+    u32 index = get_function_offset_index(name);
+
+    lfor (table->table[index]) {
+        if (equals(it->name, name)) {
+            result = it;
+            break;
+        }
+    }
+
+    return result;
+}
+
 struct Bytecode_instruction {
     BYTECODE_INSTRUCTION instruction;
     Operand destination;
@@ -457,10 +539,12 @@ struct Bytecode_generator {
     Symbol_table *current_scope;
     Native_operations_table *native_operations_table;
     Tag_offset_hash_table *tag_offset_table;
+    Function_offset_hash_table *function_offset_table;
 
     u32 current_register;
     u32 current_tag;
 
+// TODO: this is not necessary
     bool call_params_stack_check;
     u32 call_params_stack_head;
 
@@ -527,14 +611,18 @@ internal void pop_stack_call(Bytecode_generator *generator) {
     generator->stack_head = stack_link->offset;
 }
 
-internal Bytecode_generator *new_bytecode_generator(Memory_pool *allocator, Type_spec_table *type_table, Operator_table *operator_table, Native_operations_table *native_operations_table, Tag_offset_hash_table *tag_offset_table) {
+internal Bytecode_generator *new_bytecode_generator(Memory_pool *allocator, Type_spec_table *type_table, Operator_table *operator_table, Native_operations_table *native_operations_table) {
     Bytecode_generator *result = push_struct(allocator, Bytecode_generator);
 
     result->allocator = allocator;
     result->type_table = type_table;
     result->operator_table = operator_table;
     result->native_operations_table = native_operations_table;
-    result->tag_offset_table = tag_offset_table;
+
+    Memory_pool *offsets_allocator = push_struct(allocator, Memory_pool);
+    result->tag_offset_table = new_tag_offset_hash_table(offsets_allocator);
+    result->function_offset_table = new_function_offset_hash_table(offsets_allocator);
+
     result->current_register = R0;
     result->bytecode_size = BYTECODE_FIRST_SIZE;
     result->bytecode = push_array(result->allocator, Bytecode_instruction, result->bytecode_size);
@@ -592,6 +680,10 @@ internal void print_bytecode(Bytecode_generator *generator) {
             printf("%d:  NOP", i);
         } else if (it->instruction == RET) {
             printf("%d:  RET", i);
+        } else if (it->instruction == FTAG) {
+            printf("%d:", i);
+            print(it->destination);
+            putchar(':');
         } else if (it->instruction == TAG) {
             printf("%d:", i);
             print(it->destination);
