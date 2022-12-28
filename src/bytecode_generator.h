@@ -45,6 +45,7 @@ enum BYTECODE_INSTRUCTION {
     FTAG,
     CALL,
     RET,
+    LEAVE,
 
     // Stack handling
     PUSH,
@@ -118,6 +119,7 @@ internal void print(BYTECODE_INSTRUCTION instruction) {
         case BYTECODE_COUNT: {printf("BYTECODE_COUNT");} break;
         case CALL: {printf("CALL");} break;
         case RET: {printf("RET");} break;
+        case LEAVE: {printf("LEAVE");} break;
         invalid_default_case_msg("missing instruction type in print");
     }
 }
@@ -129,7 +131,7 @@ enum _REGISTER :u32 {
     REGISTER_NULL = 0,
 
     RBP = 1,
-    SBP,
+    RSP,
     // String memory pool pointer
     SMP,
 
@@ -331,7 +333,22 @@ internal void print(Operand o) {
         case OPERAND_NULL: {PEYOT_ERROR("this should not be printed");} break;
 
         case      TAG_ID: {printf("tag_%u",     o.tag.id);} break;
-        case REGISTER_ID: {printf("r%u",        o.r);} break;
+        case REGISTER_ID: {
+            switch (a.r) {
+                case RBP: {
+                    printf("rbp");
+                } break;
+                case RSP: {
+                    printf("rsp");
+                } break;
+                case SMP: {
+                    printf("smp");
+                } break;
+                default: {
+                    printf("r%u", o.r);
+                } break;
+            }
+        } break;
         case       _BYTE: {printf("%u",         o.byte);} break;
         case       _WORD: {printf("%u",         o.word);} break;
         case      _DWORD: {printf("%u",         o.dword);} break;
@@ -341,8 +358,8 @@ internal void print(Operand o) {
                 case RBP: {
                     printf("[RBP %c %d]", sign, a.offset);
                 } break;
-                case SBP: {
-                    printf("[SBP %c %d]", sign, a.offset);
+                case RSP: {
+                    printf("[RSP %c %d]", sign, a.offset);
                 } break;
                 case SMP: {
                     printf("[SMP %c %d]", sign, a.offset);
@@ -703,7 +720,7 @@ internal Bytecode_generator *new_bytecode_generator(Memory_pool *allocator, Type
     result->tag_offset_table = new_tag_offset_hash_table(offsets_allocator);
     result->function_offset_table = new_function_offset_hash_table(offsets_allocator);
 
-    result->current_register = 1;
+    result->current_register = R1;
     // result->bytecode_size = BYTECODE_FIRST_SIZE;
     // result->bytecode = push_array(result->allocator, Bytecode_instruction, result->bytecode_size);
     Memory_pool *string_pool_allocator = push_struct(allocator, Memory_pool);
@@ -839,6 +856,8 @@ internal void print_bytecode(Bytecode_generator *generator) {
             printf("%d:  NOP", i);
         } else if (it->instruction == RET) {
             printf("%d:  RET", i);
+        } else if (it->instruction == LEAVE) {
+            printf("%d:  LEAVE", i);
         } else if (it->instruction == FTAG) {
             printf("%d:", i);
             print(it->destination);

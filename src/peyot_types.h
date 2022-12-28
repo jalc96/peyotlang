@@ -305,6 +305,7 @@ internal void initialize_native_types(Type_spec_table *type_table, Memory_pool *
     }
 
     Type_spec *added = put(type_table, STATIC_STR("str"), TYPE_SPEC_NAME, {});
+    added->size = 12;
     put(added->member_info_table, STATIC_STR("count"), STATIC_STR("u32"), allocator);
     put(added->member_info_table, STATIC_STR("buffer"), STATIC_STR("char"), allocator);
 }

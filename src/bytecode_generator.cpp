@@ -76,6 +76,11 @@ internal void emit_nop(Bytecode_generator *generator) {
     result->instruction = NOP;
 }
 
+internal void emit_leave(Bytecode_generator *generator) {
+    Bytecode_instruction *result = generator->bytecode->next();
+    result->instruction = LEAVE;
+}
+
 internal void emit_return(Bytecode_generator *generator) {
     Bytecode_instruction *result = generator->bytecode->next();
     result->instruction = RET;
@@ -206,6 +211,9 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_declaration *as
 
             emit_function_tag(generator, function_name);
 
+            Bytecode_result rsp = new_expression_bytecode_result_register(RSP);
+            emit_mov_to_register(generator, RBP, rsp);
+
             push_stack_call(generator);
             push_new_scope(generator->allocator, &generator->current_scope);
             create_bytecode(generator, ast->function);
@@ -250,6 +258,7 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_statement *ast)
         case AST_STATEMENT_RETURN: {
             Bytecode_result re = create_bytecode(generator, ast->return_statement.return_expression);
             emit_mov_to_register(generator, 0, re);
+            emit_leave(generator);
             emit_return(generator);
         } break;
         case AST_STATEMENT_SIZEOF: {
