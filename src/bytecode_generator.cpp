@@ -84,7 +84,7 @@ internal void emit_load_value_to_register_from_memory(Bytecode_generator *genera
 }
 
 internal void emit_mov_to_address(Bytecode_generator *generator, Address dst, Bytecode_result src) {
-    Bytecode_instruction *result = next(generator);
+    Bytecode_instruction *result = generator->bytecode->next();
     result->instruction = MOVR;
     result->destination = new_operand(ADDRESS, dst);
 
@@ -104,7 +104,7 @@ internal void emit_mov_to_register(Bytecode_generator *generator, u32 dst, Bytec
         }
     }
 
-    Bytecode_instruction *result = next(generator);
+    Bytecode_instruction *result = generator->bytecode->next();
     result->destination = new_operand(REGISTER_ID, dst);
 
     if (src.type == E_LITERAL) {
@@ -120,31 +120,31 @@ internal void emit_mov_to_register(Bytecode_generator *generator, u32 dst, Bytec
 }
 
 internal void emit_nop(Bytecode_generator *generator) {
-    Bytecode_instruction *result = next(generator);
+    Bytecode_instruction *result = generator->bytecode->next();
     result->instruction = NOP;
 }
 
 internal void emit_return(Bytecode_generator *generator) {
-    Bytecode_instruction *result = next(generator);
+    Bytecode_instruction *result = generator->bytecode->next();
     result->instruction = RET;
 }
 
 internal void emit_op(Bytecode_generator *generator, BYTECODE_INSTRUCTION op, u32 r1, u32 r2) {
-    Bytecode_instruction *result = next(generator);
+    Bytecode_instruction *result = generator->bytecode->next();
     result->instruction = op;
     result->destination = new_register_operand(r1);
     result->source = new_register_operand(r2);
 }
 
 internal void emit_call(Bytecode_generator *generator, str *function_name) {
-    Bytecode_instruction *result = next(generator);
+    Bytecode_instruction *result = generator->bytecode->next();
     result->instruction = CALL;
     result->destination = new_operand(FUNCTION_NAME, function_name);
 }
 
 internal void emit_tag(Bytecode_generator *generator, Tag tag) {
-    u32 bytecode_offset = generator->bytecode_head;
-    Bytecode_instruction *result = next(generator);
+    u32 bytecode_offset = generator->bytecode->head;
+    Bytecode_instruction *result = generator->bytecode->next();
     result->instruction = TAG;
     Tag_offset *to = new_tag_offset(generator->allocator, tag.id, bytecode_offset);
     put(generator->tag_offset_table, to);
@@ -152,8 +152,8 @@ internal void emit_tag(Bytecode_generator *generator, Tag tag) {
 }
 
 internal void emit_function_tag(Bytecode_generator *generator, str *function_name) {
-    u32 bytecode_offset = generator->bytecode_head;
-    Bytecode_instruction *result = next(generator);
+    u32 bytecode_offset = generator->bytecode->head;
+    Bytecode_instruction *result = generator->bytecode->next();
     result->instruction = FTAG;
     Function_offset *function = new_function_offset(generator->allocator, function_name, bytecode_offset);
     put(generator->function_offset_table, function);
@@ -161,7 +161,7 @@ internal void emit_function_tag(Bytecode_generator *generator, str *function_nam
 }
 
 internal void emit_jump(Bytecode_generator *generator, Tag tag, bool _equals, bool just_jump=false) {
-    Bytecode_instruction *result = next(generator);
+    Bytecode_instruction *result = generator->bytecode->next();
     result->instruction = just_jump ? JUMP :_equals ? JEQ : JNEQ;
     result->destination = new_operand(TAG_ID, tag);
 }

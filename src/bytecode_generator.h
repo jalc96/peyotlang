@@ -314,7 +314,6 @@ internal Operand new_operand(OPERAND_TYPE type, str *function_name) {
     return result;
 }
 
-
 internal Operand new_register_operand(u32 r) {
     Operand result = new_operand(REGISTER_ID, r);
     return result;
@@ -526,6 +525,49 @@ struct Bytecode_instruction {
 #define BYTECODE_FIRST_SIZE KILOBYTES(1)
 #endif
 
+template<class T> struct Regrowable_linear_buffer {
+    Memory_pool *allocator;
+    T *buffer;
+    u32 size;
+    u32 head;
+    T *get_count(u32 count);
+    T *next();
+};
+
+template<class T> T *Regrowable_linear_buffer<T>::get_count(u32 count) {
+    T *result = 0;
+
+    if ((head + count) >= size) {
+        u64 new_size = al_max(size + count, size * 2);
+        debug("resizing buffer")
+        debug(new_size)
+        T *new_buffer = push_array_copy(allocator, T, new_size, buffer);
+
+        size = new_size;
+        buffer = new_buffer;
+    }
+
+    result = buffer + head;
+    head += count;
+
+    return result;
+}
+
+template<class T> T *Regrowable_linear_buffer<T>::next() {
+    T *result = get_count(1);
+    return result;
+}
+
+template <class T> internal Regrowable_linear_buffer<T> *new_regrowable_linear_buffer(Memory_pool *allocator) {
+    Regrowable_linear_buffer<T> *result = push_struct(allocator, Regrowable_linear_buffer<T>);
+
+    result->allocator = allocator;
+    result->size = BYTECODE_FIRST_SIZE;
+    result->buffer = push_array(result->allocator, T, result->size);
+
+    return result;
+}
+
 struct Memory_stack {
     u32 offset;
     Memory_stack *next;
@@ -551,9 +593,11 @@ struct Bytecode_generator {
     u32 stack_head;
     Memory_stack *stack;
     Memory_stack *first_free;
-    u64 bytecode_size;
-    u64 bytecode_head;
-    Bytecode_instruction *bytecode;
+
+    // u64 bytecode_size;
+    // u64 bytecode_head;
+    // Bytecode_instruction *bytecode;
+    Regrowable_linear_buffer<Bytecode_instruction> *bytecode;
 };
 
 internal Tag new_tag(Bytecode_generator *generator) {
@@ -624,8 +668,10 @@ internal Bytecode_generator *new_bytecode_generator(Memory_pool *allocator, Type
     result->function_offset_table = new_function_offset_hash_table(offsets_allocator);
 
     result->current_register = R0;
-    result->bytecode_size = BYTECODE_FIRST_SIZE;
-    result->bytecode = push_array(result->allocator, Bytecode_instruction, result->bytecode_size);
+    // result->bytecode_size = BYTECODE_FIRST_SIZE;
+    // result->bytecode = push_array(result->allocator, Bytecode_instruction, result->bytecode_size);
+    Memory_pool *string_pool_allocator = push_struct(allocator, Memory_pool);
+    result->bytecode = new_regrowable_linear_buffer<Bytecode_instruction>(allocator);
 
     return result;
 }
@@ -635,27 +681,27 @@ internal u32 new_register(Bytecode_generator *generator) {
     return result;
 }
 
-internal Bytecode_instruction *next(Bytecode_generator *generator) {
-    Bytecode_instruction *result = 0;
+// internal Bytecode_instruction *next(Bytecode_generator *generator) {
+//     Bytecode_instruction *result = 0;
 
-    if (generator->bytecode_head >= generator->bytecode_size) {
-        u64 new_size = generator->bytecode_size * 2;
-        debug("resizing bytecode buffer")
-        debug(new_size)
-        Bytecode_instruction *new_bytecode = push_array_copy(generator->allocator, Bytecode_instruction, new_size, generator->bytecode);
+//     if (generator->bytecode_head >= generator->bytecode_size) {
+//         u64 new_size = generator->bytecode_size * 2;
+//         debug("resizing bytecode buffer")
+//         debug(new_size)
+//         Bytecode_instruction *new_bytecode = push_array_copy(generator->allocator, Bytecode_instruction, new_size, generator->bytecode);
 
-        generator->bytecode_size = new_size;
-        generator->bytecode = new_bytecode;
-    }
+//         generator->bytecode_size = new_size;
+//         generator->bytecode = new_bytecode;
+//     }
 
-    result = generator->bytecode + generator->bytecode_head++;
+//     result = generator->bytecode + generator->bytecode_head++;
 
-    return result;
-}
+//     return result;
+// }
 
 internal void print_bytecode(Bytecode_generator *generator) {
     u32 max_length = 0;
-    u32 head = generator->bytecode_head;
+    u32 head = generator->bytecode->head;
 
     while (head) {
         max_length++;
@@ -664,7 +710,7 @@ internal void print_bytecode(Bytecode_generator *generator) {
 
     debug(max_length)
 
-    sfor_count(generator->bytecode, generator->bytecode_head) {
+    sfor_count(generator->bytecode->buffer, generator->bytecode->head) {
         u32 line_length = 0;
         u32 line = i;
 
