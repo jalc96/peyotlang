@@ -1,62 +1,14 @@
-enum BYTECODE_RESULT_TYPE {
-    EB_NULL,
+internal u32 add_to_string_pool(Regrowable_linear_buffer<u8> *string_pool, str s) {
+    u32 result = string_pool->head;
 
-    E_LITERAL,
-    E_REGISTER,
-    E_MEMORY,
+    u32 *str_size = (u32 *)string_pool->get_count(4);
+    *str_size = s.count;
+    char *target = (char *)string_pool->get_count(s.count);
 
-    EB_COUNT,
-};
+    str_for (s) {
+        target[i] = it;
+    }
 
-struct Bytecode_result {
-    BYTECODE_RESULT_TYPE type;
-    bool comparison_needed;
-    u32 size;
-
-    union {
-        u64 _u64;
-        u32 r;
-        Address _address;
-    };
-};
-
-internal Bytecode_result new_expression_bytecode_result(u64 _u64) {
-    Bytecode_result result;
-    result.type = E_LITERAL;
-    result.comparison_needed = true;
-    result._u64 = _u64;
-    return result;
-}
-
-internal Bytecode_result new_expression_bytecode_literal(u64 _u64) {
-    Bytecode_result result;
-    result.type = E_LITERAL;
-    result.comparison_needed = true;
-    result._u64 = _u64;
-    return result;
-}
-
-internal Bytecode_result new_expression_bytecode_result(u32 r) {
-    Bytecode_result result;
-    result.type = E_REGISTER;
-    result.comparison_needed = true;
-    result.r = r;
-    return result;
-}
-
-internal Bytecode_result new_expression_bytecode_result_register(u32 r) {
-    Bytecode_result result;
-    result.type = E_REGISTER;
-    result.comparison_needed = true;
-    result.r = r;
-    return result;
-}
-
-internal Bytecode_result new_expression_bytecode_result(Address _address) {
-    Bytecode_result result;
-    result.type = E_MEMORY;
-    result.comparison_needed = true;
-    result._address = _address;
     return result;
 }
 
@@ -199,6 +151,13 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_declaration *as
             if (ast->variable.expression) {
                 Bytecode_result value = create_bytecode(generator, ast->variable.expression);
                 Address dst = new_address(RBP, (s32)address);
+
+                if (value.type == E_MEMORY) {
+                    u32 r1 = new_register(generator);
+                    emit_mov_to_register(generator, r1, value);
+                    value = new_expression_bytecode_result_register(r1);
+                }
+
                 emit_mov_to_address(generator, dst, value);
                 print(current_scope, true);
             }
@@ -347,7 +306,12 @@ internal Bytecode_result create_bytecode(Bytecode_generator *generator, Ast_expr
                 result.size = 1;
             } break;
             case AST_EXPRESSION_LITERAL_STR: {
-                // TODO: add to the string pool
+                u32 smp_offset = add_to_string_pool(generator->string_pool, ast->str_value);
+                Address _address = new_address(SMP, smp_offset);
+
+                result.type = E_MEMORY;
+                result._address = _address;
+                result.size = ast->str_value.count;
             } break;
             case AST_EXPRESSION_LITERAL_INTEGER: {
                 result.type = E_LITERAL;

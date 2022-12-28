@@ -122,33 +122,37 @@ internal void print(BYTECODE_INSTRUCTION instruction) {
     }
 }
 
-// TODO: when executing the bytecode instead of using the register number use something like this register = R0 + (op.r % REGISTER_COUNT) (because there is only 20 registers)
+// The R0 register mus not be used never for things other than return values
+// TODO: when executing the bytecode instead of using the register number use something like this register = R1 + (op.r % REGISTER_COUNT) (because there is only 20 registers)
 // TODO: later maybe do a register allocator
 enum _REGISTER :u32 {
     REGISTER_NULL = 0,
 
     RBP = 1,
+    SBP,
+    // String memory pool pointer
+    SMP,
 
-    R0  = 2,
-    R1  = 3,
-    R2  = 4,
-    R3  = 5,
-    R4  = 6,
-    R5  = 7,
-    R6  = 8,
-    R7  = 9,
-    R8  = 10,
-    R9  = 11,
-    R10 = 12,
-    R11 = 13,
-    R12 = 14,
-    R13 = 15,
-    R14 = 16,
-    R15 = 17,
-    R16 = 18,
-    R17 = 19,
-    R18 = 20,
-    R19 = 21,
+    R0,
+    R1,
+    R2,
+    R3,
+    R4,
+    R5,
+    R6,
+    R7,
+    R8,
+    R9,
+    R10,
+    R11,
+    R12,
+    R13,
+    R14,
+    R15,
+    R16,
+    R17,
+    R18,
+    R19,
 
     REGISTER_COUNT,
 };
@@ -336,6 +340,12 @@ internal void print(Operand o) {
             switch (a.r) {
                 case RBP: {
                     printf("[RBP %c %d]", sign, a.offset);
+                } break;
+                case SBP: {
+                    printf("[SBP %c %d]", sign, a.offset);
+                } break;
+                case SMP: {
+                    printf("[SMP %c %d]", sign, a.offset);
                 } break;
                 default: {
                     printf("[R%u %c %d]", a.r, sign, a.offset);
@@ -568,6 +578,31 @@ template <class T> internal Regrowable_linear_buffer<T> *new_regrowable_linear_b
     return result;
 }
 
+template<class T> struct Regrowable_linear_buffer_iterator {
+    u32 index;
+    Regrowable_linear_buffer<T> *buffer;
+};
+
+template<class T> internal Regrowable_linear_buffer_iterator<T> iterate(Regrowable_linear_buffer<T> *buffer) {
+    Regrowable_linear_buffer_iterator<T> result;
+
+    result.index = 0;
+    result.buffer = buffer;
+
+    return result;
+}
+
+template<class T> internal bool valid(Regrowable_linear_buffer_iterator<T> it) {
+    bool result = it.index < it.buffer->head;
+    return result;
+}
+
+template<class T> internal T *next(Regrowable_linear_buffer_iterator<T> *it, u32 size) {
+    T *result = it->buffer->buffer + it->index;
+    it->index += size;
+    return result;
+}
+
 struct Memory_stack {
     u32 offset;
     Memory_stack *next;
@@ -597,6 +632,7 @@ struct Bytecode_generator {
     // u64 bytecode_size;
     // u64 bytecode_head;
     // Bytecode_instruction *bytecode;
+    Regrowable_linear_buffer<u8> *string_pool;
     Regrowable_linear_buffer<Bytecode_instruction> *bytecode;
 };
 
@@ -667,10 +703,11 @@ internal Bytecode_generator *new_bytecode_generator(Memory_pool *allocator, Type
     result->tag_offset_table = new_tag_offset_hash_table(offsets_allocator);
     result->function_offset_table = new_function_offset_hash_table(offsets_allocator);
 
-    result->current_register = R0;
+    result->current_register = 1;
     // result->bytecode_size = BYTECODE_FIRST_SIZE;
     // result->bytecode = push_array(result->allocator, Bytecode_instruction, result->bytecode_size);
     Memory_pool *string_pool_allocator = push_struct(allocator, Memory_pool);
+    result->string_pool = new_regrowable_linear_buffer<u8>(string_pool_allocator);
     result->bytecode = new_regrowable_linear_buffer<Bytecode_instruction>(allocator);
 
     return result;
@@ -699,7 +736,85 @@ internal u32 new_register(Bytecode_generator *generator) {
 //     return result;
 // }
 
+enum BYTECODE_RESULT_TYPE {
+    EB_NULL,
+
+    E_LITERAL,
+    E_REGISTER,
+    E_MEMORY,
+
+    EB_COUNT,
+};
+
+struct Bytecode_result {
+    BYTECODE_RESULT_TYPE type;
+    bool comparison_needed;
+    u32 size;
+
+    union {
+        u64 _u64;
+        u32 r;
+        Address _address;
+    };
+};
+
+internal Bytecode_result new_expression_bytecode_result(u64 _u64) {
+    Bytecode_result result;
+    result.type = E_LITERAL;
+    result.comparison_needed = true;
+    result._u64 = _u64;
+    return result;
+}
+
+internal Bytecode_result new_expression_bytecode_literal(u64 _u64) {
+    Bytecode_result result;
+    result.type = E_LITERAL;
+    result.comparison_needed = true;
+    result._u64 = _u64;
+    return result;
+}
+
+internal Bytecode_result new_expression_bytecode_result(u32 r) {
+    Bytecode_result result;
+    result.type = E_REGISTER;
+    result.comparison_needed = true;
+    result.r = r;
+    return result;
+}
+
+internal Bytecode_result new_expression_bytecode_result_register(u32 r) {
+    Bytecode_result result;
+    result.type = E_REGISTER;
+    result.comparison_needed = true;
+    result.r = r;
+    return result;
+}
+
+internal Bytecode_result new_expression_bytecode_result(Address _address) {
+    Bytecode_result result;
+    result.type = E_MEMORY;
+    result.comparison_needed = true;
+    result._address = _address;
+    return result;
+}
+
+internal void print_string_pool(Bytecode_generator *generator) {
+    printf(".STRING_POOL\n");
+
+    Regrowable_linear_buffer_iterator<u8> it = iterate(generator->string_pool);
+
+    while (valid(it)) {
+        u32 *size = (u32 *)next(&it, 4);
+        char *s = (char *)next(&it, *size);
+        str _s = {*size, s};
+        printf(_s, true);
+        putchar('\n');
+    }
+}
+
 internal void print_bytecode(Bytecode_generator *generator) {
+    printf(".CODE\n");
+
     u32 max_length = 0;
     u32 head = generator->bytecode->head;
 
@@ -707,8 +822,6 @@ internal void print_bytecode(Bytecode_generator *generator) {
         max_length++;
         head /= 10;
     }
-
-    debug(max_length)
 
     sfor_count(generator->bytecode->buffer, generator->bytecode->head) {
         u32 line_length = 0;
