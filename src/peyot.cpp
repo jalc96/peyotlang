@@ -103,11 +103,13 @@ struct Operator_table;
 #include"parser.h"
 #include"peyot_operators.h"
 #include"bytecode_generator.h"
+#include"virtual_machine.h"
 
 #include"lexer.cpp"
 #include"parser.cpp"
 #include"type_checker.cpp"
 #include"bytecode_generator.cpp"
+#include"virtual_machine.cpp"
 
 /*
 TODO: have this check and emit this error
@@ -953,7 +955,59 @@ s16 main(s16 arg_count, char **args) {
         }
     )PROGRAM";
 
+    char *program_bytecode_vm_basic = R"PROGRAM(
+        main :: (in :u32) -> u32 {
+            a := 1 + 2;
 
+            return 69;
+        }
+    )PROGRAM";
+
+    char *program_bytecode_vm_if = R"PROGRAM(
+        main :: (in :u32) -> u32 {
+            if (1) {
+                a := 1 + 2;
+            } else {
+                a := 1 + 4;
+            }
+
+            return 69;
+        }
+    )PROGRAM";
+
+    char *program_bytecode_vm_function = R"PROGRAM(
+        fib :: (x :u32) -> u32 {
+            result :u32;
+            if (x <= 1) {
+                result = 1;
+            } else {
+                result = fib(x - 1) + fib(x - 2);
+            }
+
+            return result;
+        }
+
+        main :: (in :u32) -> u32 {
+            a := 1 + 2;
+            b := fib(10);
+
+            return 69;
+        }
+    )PROGRAM";
+
+
+// TODO: void functions dont have the jump back, move that code from the return to the closing scope from the body of the function
+
+    char *program_bytecode_void_function = R"PROGRAM(
+        function ::(a :u32) ->void {
+            a = 23;
+        }
+        main :: (in :u32) -> u32 {
+            a := 1 + 2;
+
+            return 1;
+        }
+    )PROGRAM";
 
 
     Memory_pool allocator = {};
@@ -971,7 +1025,7 @@ s16 main(s16 arg_count, char **args) {
     initialize_native_operators(native_operations_table);
 
     Parser *parser = new_parser(&allocator, type_table, global_scope, operator_table, native_operations_table);
-    Lexer lexer = create_lexer(program_bytecode_string, parser, &allocator);
+    Lexer lexer = create_lexer(program_bytecode_vm_if, parser, &allocator);
 
 
     get_next_token(&lexer);
@@ -1008,11 +1062,14 @@ s16 main(s16 arg_count, char **args) {
                 print(generator->tag_offset_table);
                 print(generator->function_offset_table);
 
-                rollback_lexer(lexer_savepoint);
+                Memory_pool vm_allocator = {};
+                Virtual_machine *vm = new_virtual_machine(&vm_allocator, generator->tag_offset_table, generator->function_offset_table, generator->string_pool, generator->bytecode, KILOBYTES(1));
+                execute(vm);
+
+                // rollback_lexer(lexer_savepoint);
                 // test_parser(&lexer);
                 BOLD(ITALIC(UNDERLINE(GREEN("\n\n\nfinished correctly\n"))));
-
-                debug(lexer.current_line);
+                // debug(lexer.current_line);
             }
         }
     }
