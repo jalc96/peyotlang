@@ -37,12 +37,13 @@ internal void emit_load_value_to_register_from_memory(Bytecode_generator *genera
 
 internal void emit_mov_to_address(Bytecode_generator *generator, Address dst, Bytecode_result src) {
     Bytecode_instruction *result = generator->bytecode->next();
-    result->instruction = MOVR;
     result->destination = new_operand(ADDRESS, dst);
 
     if (src.type == E_LITERAL) {
+        result->instruction = MOVI;
         result->source = new_operand(_QWORD, src._u64);
     } else {
+        result->instruction = MOVR;
         result->source = new_operand(REGISTER_ID, src.r);
     }
 }

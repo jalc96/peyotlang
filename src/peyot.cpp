@@ -963,6 +963,18 @@ s16 main(s16 arg_count, char **args) {
         }
     )PROGRAM";
 
+    char *program_bytecode_vm_movs = R"PROGRAM(
+        main :: (in :u32) -> u32 {
+            a := 1;
+            a2 := 2;
+            a34 := 34;
+            b := a;
+            c := a+ b;
+
+            return 69;
+        }
+    )PROGRAM";
+
     char *program_bytecode_vm_if = R"PROGRAM(
         main :: (in :u32) -> u32 {
             if (1) {
@@ -1025,7 +1037,7 @@ s16 main(s16 arg_count, char **args) {
     initialize_native_operators(native_operations_table);
 
     Parser *parser = new_parser(&allocator, type_table, global_scope, operator_table, native_operations_table);
-    Lexer lexer = create_lexer(program_bytecode_vm_if, parser, &allocator);
+    Lexer lexer = create_lexer(program_bytecode_vm_movs, parser, &allocator);
 
 
     get_next_token(&lexer);
