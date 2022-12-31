@@ -1,3 +1,10 @@
+struct Call_stack {
+    u64 rbp;
+    u64 rsp;
+    u32 program_counter;
+    Call_stack *next;
+};
+
 struct Virtual_machine {
     Memory_pool *allocator;
     Tag_offset_hash_table *tag_offset_table;
@@ -9,9 +16,39 @@ struct Virtual_machine {
     u32 program_counter;
     bool check_is_true;
 
+    Call_stack *call_stack;
+    Call_stack *call_stack_first_free;
+
     u8 *stack;
     u64 registers[REGISTER_COUNT];
 };
+
+internal void push(Virtual_machine *vm, u64 rbp, u64 rsp, u32 program_counter) {
+    Call_stack *item = vm->call_stack_first_free;
+
+    if (!item) {
+        item = push_struct(vm->allocator, Call_stack);
+    }
+
+    item->rbp = rbp;
+    item->rsp = rsp;
+    item->program_counter = program_counter;
+    item->next = vm->call_stack;
+    vm->call_stack = item;
+}
+
+internal Call_stack *pop(Virtual_machine *vm) {
+    // This is going to be used inmediatly after poping it an then its not needed so it doesnt matter if its in the free list
+    Call_stack *result = vm->call_stack;
+
+    if (result) {
+        vm->call_stack = result->next;
+        result->next = vm->call_stack_first_free;
+        vm->call_stack_first_free = result;
+    }
+
+    return result;
+}
 
 internal u32 get_main_offset(Function_offset_hash_table *table) {
     u32 result = 0;

@@ -829,6 +829,41 @@ internal void print_string_pool(Bytecode_generator *generator) {
     }
 }
 
+internal void print_instruction(Bytecode_instruction *it, u32 i) {
+    if (it->instruction == NOP) {
+        printf("%d:  NOP", i);
+    } else if (it->instruction == RET) {
+        printf("%d:  RET", i);
+    } else if (it->instruction == LEAVE) {
+        printf("%d:  LEAVE", i);
+    } else if (it->instruction == FTAG) {
+        printf("%d:", i);
+        print(it->destination);
+        putchar(':');
+    } else if (it->instruction == TAG) {
+        printf("%d:", i);
+        print(it->destination);
+        putchar(':');
+    } else {
+        printf("%d:  ", i);
+        print(it->instruction);
+        putchar(' ');
+        print(it->destination);
+
+        bool is_a_jump = (
+               it->instruction == CALL
+            || it->instruction == JUMP
+            || it->instruction == JEQ
+            || it->instruction == JNEQ
+        );
+        if (!is_a_jump) {
+            putchar(',');
+            putchar(' ');
+            print(it->source);
+        }
+    }
+}
+
 internal void print_bytecode(Bytecode_generator *generator) {
     printf(".CODE\n");
 
@@ -852,38 +887,7 @@ internal void print_bytecode(Bytecode_generator *generator) {
         line_length = al_max(line_length, 1);
         print_indent(max_length - line_length);
 
-        if (it->instruction == NOP) {
-            printf("%d:  NOP", i);
-        } else if (it->instruction == RET) {
-            printf("%d:  RET", i);
-        } else if (it->instruction == LEAVE) {
-            printf("%d:  LEAVE", i);
-        } else if (it->instruction == FTAG) {
-            printf("%d:", i);
-            print(it->destination);
-            putchar(':');
-        } else if (it->instruction == TAG) {
-            printf("%d:", i);
-            print(it->destination);
-            putchar(':');
-        } else {
-            printf("%d:  ", i);
-            print(it->instruction);
-            putchar(' ');
-            print(it->destination);
-
-            bool is_a_jump = (
-                   it->instruction == CALL
-                || it->instruction == JUMP
-                || it->instruction == JEQ
-                || it->instruction == JNEQ
-            );
-            if (!is_a_jump) {
-                putchar(',');
-                putchar(' ');
-                print(it->source);
-            }
-        }
+        print_instruction(it, i);
 
 
         putchar('\n');

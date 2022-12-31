@@ -999,11 +999,15 @@ s16 main(s16 arg_count, char **args) {
             return result;
         }
 
-        main :: (in :u32) -> u32 {
-            a := 1 + 2;
-            b := fib(10);
+        f ::(a :u32) -> u32 {
+            result := a + 1;
+            return result;
+        }
 
-            return 69;
+        main :: (in :u32) -> u32 {
+            b := f(f(2));
+
+            return b;
         }
     )PROGRAM";
 
@@ -1037,7 +1041,7 @@ s16 main(s16 arg_count, char **args) {
     initialize_native_operators(native_operations_table);
 
     Parser *parser = new_parser(&allocator, type_table, global_scope, operator_table, native_operations_table);
-    Lexer lexer = create_lexer(program_bytecode_vm_movs, parser, &allocator);
+    Lexer lexer = create_lexer(program_bytecode_vm_function, parser, &allocator);
 
 
     get_next_token(&lexer);

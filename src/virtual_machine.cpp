@@ -34,6 +34,8 @@ internal void *get_memory(Virtual_machine *vm, Address _address) {
 
 internal void execute(Virtual_machine *vm) {
     vm->registers[RSP] = (u64)vm->stack;
+    u64 *rsp = vm->registers + RSP;
+    u64 *rbp = vm->registers + RBP;
 
     while (vm->program_counter < vm->bytecode->head) {
         Bytecode_instruction *it = vm->bytecode->buffer + vm->program_counter;
@@ -51,6 +53,10 @@ internal void execute(Virtual_machine *vm) {
                     debug(*mem);
                     *mem = s.dword;
                     debug(*mem);
+
+                    if (d._address.r == RBP) {
+                        *rsp = al_max(*rsp, (u64)mem);
+                    }
                 }
             } break;
             case MOVR: {
@@ -64,6 +70,10 @@ internal void execute(Virtual_machine *vm) {
                     debug(*mem);
                     *mem = *r;
                     debug(*mem);
+
+                    if (d._address.r == RBP) {
+                        *rsp = al_max(*rsp, (u64)mem);
+                    }
                 }
             } break;
             case MOVM: {
@@ -71,6 +81,10 @@ internal void execute(Virtual_machine *vm) {
                     u64 *r = get_register(vm, d.r);
                     u32 *mem = (u32 *)get_memory(vm, s._address);
                     *r = *mem;
+
+                    if (d._address.r == RBP) {
+                        *rsp = al_max(*rsp, (u64)mem);
+                    }
                 }
             } break;
             case ADDI: {
@@ -212,10 +226,18 @@ internal void execute(Virtual_machine *vm) {
             case TAG: {} break;
             case FTAG: {} break;
             case CALL: {
-                // add the current vm->program_counter to the stack then change whatever
+                push(vm, *rbp, *rsp, vm->program_counter);
+                Function_offset *fo = get(vm->function_offset_table, d.function_name);
+                vm->program_counter = fo->bytecode_offset;
             } break;
             case RET: {
-                // get the last vm->program_counter from the stack
+                Call_stack *last = pop(vm);
+
+                if (last) {
+                    *rbp = last->rbp;
+                    *rsp = last->rsp;
+                    vm->program_counter = last->program_counter;
+                }
             } break;
             case LEAVE: {} break;
             case PUSH: {} break;
@@ -228,11 +250,13 @@ internal void execute(Virtual_machine *vm) {
         vm->program_counter++;
 
 ignore_program_counter_increment:
-
-        print(it->instruction);
-        putchar(':');
+        print_instruction(it, vm->program_counter);
         putchar('\n');
+        debug(*rsp)
+        debug(*rbp)
         debug(vm->check_is_true)
         print_registers(vm);
     }
+
+    print_registers(vm);
 }
