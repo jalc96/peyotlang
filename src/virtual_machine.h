@@ -105,3 +105,16 @@ internal void print_registers(Virtual_machine *vm) {
     }
     putchar('\n');
 }
+
+internal void print_stack(Virtual_machine *vm, u64 from, u64 to) {
+    if (!from) return;
+
+    u32 *to_print = (u32 *)(from);
+
+    while ((u64)to_print <= to) {
+        printf("%u|", *to_print);
+        to_print++;
+    }
+
+    putchar('\n');
+}

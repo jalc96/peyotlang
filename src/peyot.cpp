@@ -1002,7 +1002,7 @@ s16 main(s16 arg_count, char **args) {
             return result;
         }
 
-        f ::(a :u32) -> u32 {
+        add_1 ::(a :u32) -> u32 {
             result := a + 1;
             return result;
         }
@@ -1019,10 +1019,19 @@ s16 main(s16 arg_count, char **args) {
             //  8: 21
             //  9: 34
             // 10: 55
-            // b := fib(2);
-            b := fib(4);
+            f1 := 0;
+            f2 := 1;
+            f := f1;
+            n := 30;
 
-            return b;
+            for (i := 0; i < n; i = i+1) {
+                f = f1 + f2;
+                f2 = f1;
+                f1 = f;
+            }
+
+
+            return f;
         }
     )PROGRAM";
 

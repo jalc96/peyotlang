@@ -32,7 +32,10 @@ internal void *get_memory(Virtual_machine *vm, Address _address) {
     return result;
 }
 
+#define DEBUG_VM 0
+
 internal void execute(Virtual_machine *vm) {
+    u32 i = 0;
     vm->registers[RSP] = (u64)vm->stack;
     u64 *rsp = vm->registers + RSP;
     u64 *rbp = vm->registers + RBP;
@@ -42,6 +45,11 @@ internal void execute(Virtual_machine *vm) {
         Operand d = it->destination;
         Operand s = it->source;
 
+#if DEBUG_VM
+        printf("(%u) ", i++);
+        print_instruction(it, vm->program_counter);
+#endif
+
         switch (it->instruction) {
             case NOP: {} break;
             case MOVI: {
@@ -50,9 +58,13 @@ internal void execute(Virtual_machine *vm) {
                     *r = s.qword;
                 } else if (d.type == ADDRESS) {
                     u32 *mem = (u32 *)get_memory(vm, d._address);
+#if DEBUG_VM
                     debug(*mem);
+#endif
                     *mem = s.dword;
+#if DEBUG_VM
                     debug(*mem);
+#endif
 
                     if (d._address.r == RBP) {
                         *rsp = al_max(*rsp, (u64)mem);
@@ -67,9 +79,13 @@ internal void execute(Virtual_machine *vm) {
                 } else if (d.type == ADDRESS) {
                     u32 *mem = (u32 *)get_memory(vm, d._address);
                     u64 *r = get_register(vm, s.r);
+#if DEBUG_VM
                     debug(*mem);
+#endif
                     *mem = *r;
+#if DEBUG_VM
                     debug(*mem);
+#endif
 
                     if (d._address.r == RBP) {
                         *rsp = al_max(*rsp, (u64)mem);
@@ -250,12 +266,17 @@ internal void execute(Virtual_machine *vm) {
         vm->program_counter++;
 
 ignore_program_counter_increment:
+        auto __=2;
+#if DEBUG_VM
+        printf(" -> ");
         print_instruction(it, vm->program_counter);
         putchar('\n');
         debug(*rsp)
         debug(*rbp)
         debug(vm->check_is_true)
         print_registers(vm);
+        print_stack(vm, *rbp, *rsp);
+#endif
     }
 
     print_registers(vm);
