@@ -61,6 +61,8 @@ enum PEYOT_TOKEN_TYPE {
     TOKEN_SLASH,
     TOKEN_PERCENT,
 
+    TOKEN_COMMENT,
+
     TOKEN_BINARY_EQUALS,
     TOKEN_NOT_EQUALS,
     TOKEN_GREATER_THAN,
@@ -165,6 +167,8 @@ internal str to_string(PEYOT_TOKEN_TYPE type) {
         case TOKEN_STAR: { result = STATIC_STR("TOKEN_STAR");} break;
         case TOKEN_SLASH: { result = STATIC_STR("TOKEN_SLASH");} break;
         case TOKEN_PERCENT: { result = STATIC_STR("TOKEN_PERCENT");} break;
+
+        case TOKEN_COMMENT: { result = STATIC_STR("TOKEN_COMMENT");} break;
 
         case TOKEN_BINARY_EQUALS: { result = STATIC_STR("TOKEN_BINARY_EQUALS");} break;
         case TOKEN_NOT_EQUALS: { result = STATIC_STR("TOKEN_NOT_EQUALS");} break;
@@ -296,6 +300,8 @@ internal str to_symbol(PEYOT_TOKEN_TYPE type, Token *token = 0) {
         case TOKEN_STAR: { result = STATIC_STR( "*");} break;
         case TOKEN_SLASH: { result = STATIC_STR( "/");} break;
         case TOKEN_PERCENT: { result = STATIC_STR( "%");} break;
+
+        case TOKEN_COMMENT: { result = STATIC_STR( "//");} break;
 
         case TOKEN_BINARY_EQUALS: { result = STATIC_STR( "==");} break;
         case TOKEN_NOT_EQUALS: { result = STATIC_STR( "!=");} break;

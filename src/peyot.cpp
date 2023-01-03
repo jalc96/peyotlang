@@ -987,10 +987,13 @@ s16 main(s16 arg_count, char **args) {
         }
     )PROGRAM";
 
+// TODO: fibonacci of 10 freaks out
     char *program_bytecode_vm_function = R"PROGRAM(
         fib :: (x :u32) -> u32 {
             result :u32;
-            if (x <= 1) {
+            if (x == 0) {
+                result = 0;
+            } else if (x == 1) {
                 result = 1;
             } else {
                 result = fib(x - 1) + fib(x - 2);
@@ -1005,7 +1008,19 @@ s16 main(s16 arg_count, char **args) {
         }
 
         main :: (in :u32) -> u32 {
-            b := f(f(2));
+            //  0: 0
+            //  1: 1
+            //  2: 1
+            //  3: 2
+            //  4: 3
+            //  5: 5
+            //  6: 8
+            //  7: 13
+            //  8: 21
+            //  9: 34
+            // 10: 55
+            // b := fib(2);
+            b := fib(4);
 
             return b;
         }

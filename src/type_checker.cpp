@@ -953,6 +953,8 @@ internal void type_check(Lexer *lexer, Ast_statement *ast, Ast_declaration *ast_
                 return_type = get(type_table, STATIC_STR("void"));
             }
 
+            if (type_errors(lexer->parser)) {return;}
+
             if (function->needs_explicit_return) {
                 // -> name
                 if (!equals(return_type, function_return_type)) {

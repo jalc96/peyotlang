@@ -155,7 +155,20 @@ internal Token get_next_token(Lexer *lexer) {
         advance(lexer);
     } else if (c == '/') {
         result.type = TOKEN_SLASH;
+
         advance(lexer);
+        c = get_char(lexer);
+
+        if (c == '/') {
+            result.type = TOKEN_COMMENT;
+
+            while(lexer->index < length(lexer->source) && c != '\n') {
+                advance(lexer);
+                c = get_char(lexer);
+            }
+
+            result = get_next_token(lexer);
+        }
     } else if (c == '%') {
         result.type = TOKEN_PERCENT;
         advance(lexer);
