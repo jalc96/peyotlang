@@ -3,62 +3,28 @@
     -MODES:
         -compile: creates a binary into a .pvm file
         -run: runs a binary .pvm file with the virtual machine
-    -dump the asm generated
     -take the ltl_interpreter path recomendator
     -windows layer, get rid of as much of std_lib/crt as possible
     -linux layer, get rid of as much of std_lib/crt as possible
-    -asm segments: https://www.tutorialspoint.com/assembly_programming/assembly_quick_guide.htm
-    -performance analysis probably multithread the asm creation just to test performance
-    -you can set the stack size of the program and if overflowed an error is shown
-    -debugger for the virtual machine, showing the content of the registers and the content of the stack, show a window of the code (like 11 lines of assembly, the current one, 5 above and 5 below)
-    -add introspection for example have .type in structs to check for the type of structs and also be able to iterate over the members of structs, implement this with an integer, each time a struct is declare the type integer is incremented and that is asign to the struct, the basic types of the language are the first numbers. Add also something like typedef?? 2022-11-14 add this as a statement like sizeof() or offsetof(), also add the name() statement
-    -add introspection, be able to check a struct type and iterate over struct members with members() statement or something like that, also i need to create a new type for iterating the members, maybe create in the bytecode a static table with the requested members() and iterate over that memory, for example.
-        V2u :: struct {
-            x :f32;
-            y :f32;
-        }
-        ...
-        p :V2u;
-        for members(p) {
-            it.name;
-            it.type;
-            it.offset;
-            it.value; <---- THIS IS VERY IMPORTANT FOR CREATING EASY COMPARATIONS BETWEEN VARIABLES
-        }
-        ...
-        then in the bytecode something like this (this is pseudocode):
-        str(x)typespec(f32)0 and the value should be accessed other way
-    -add the hability to undefine variables with the keyword undef
     -arrays
+    -pointers
     -generics struct v2 <T> {
         T x, y;
     }
     maybe expand the struct later to v2_u32 internally in the ast if v2<u32> is in the code and another like v2_f32 if v2<f32> is found, etc. These will just invoke to the create_type() thing or whatever i make for the structs, allow to check the type that was used in the T.
-    -operator overload check, only allow to overload some operators
-    -operator overload check, only allow 1 and 2 parameters for operators
-    -before allocating the memory for the bytecode, calculate all of the constants sizes and take that into account
-    -do str pooling in the .data segment for constant strs
     -interface with the OS to get memory/open_files/etc
-    -try Casey's idea for integers: dont have signed/unsigned types, have only integers and when type is important in an operation (multiply/divide/shift/etc) show an error and ask the user to specify someway (figure out this) which type is going to be used
-    -show an error like c when a case in a switch statement is already used
-        switch(thing){
-            case A: do_stuf();break;
-            case A: <---this throws an error
-        }
-    -entrypoint check
     -avoid infinitly big structs like:
         struct A {
             u32 x;
             u32 y;
             A other;
         }
-    -lexical errors
-    -get rid of crt: get stdout buffer from the OS and use stb_print for printing
     -maybe have 2 types of errors hard error when we have to stop the process and soft errors where we can keep doing stuff for example in the type checker its useful to have all of the errors at once but when parsing into the ast once you find an error you dont know what is happening in the input so its better to stop
-    -arrays
-    -pointers
-    -compound initializers
 */
+#if DEVELOPMENT
+#include "external/superluminal/include/PerformanceAPI.h"
+#endif
+
 
 #define STB_SPRINTF_IMPLEMENTATION
 #include"external/stb_sprintf.h"
@@ -111,36 +77,9 @@ struct Operator_table;
 #include"bytecode_generator.cpp"
 #include"virtual_machine.cpp"
 
-/*
-TODO: have this check and emit this error
-struct V2s {
-    s32 x;
-    s32 y;
-};
-
-struct V2f {
-    f32 x;
-    f32 y;
-};
-
-internal V2s operator +(V2s a, V2s b) {
-    V2s result;
-    return result;
-}
-
-internal V2f operator +(V2s a, V2s b) {
-    V2f result;
-    return result;
-}
-V2s p = {};
-V2s v = {};
-V2f pv = p + v;
-debug(pv.x)
-debug(pv.y)
-return 0;
-*/
 
 s16 main(s16 arg_count, char **args) {
+    PERFORMANCEAPI_INSTRUMENT_FUNCTION();
     setup_console();
 
     char *program_complex = R"PROGRAM(
@@ -1002,8 +941,45 @@ s16 main(s16 arg_count, char **args) {
             return result;
         }
 
+        main :: (in :u32) -> u32 {
+            //  0: 0
+            //  1: 1
+            //  2: 1
+            //  3: 2
+            //  4: 3
+            //  5: 5
+            //  6: 8
+            //  7: 13
+            //  8: 21
+            //  9: 34
+            // 10: 55
+            f := fib(4);
+
+            return f;
+        }
+    )PROGRAM";
+    char *program_bytecode_vm_function2 = R"PROGRAM(
+        fib :: (x :u32) -> u32 {
+            result :u32;
+            if (x == 0) {
+                result = 0;
+            } else if (x == 1) {
+                result = 1;
+            } else {
+                result = fib(x - 1) + fib(x - 2);
+            }
+
+            return result;
+        }
+
         add_1 ::(a :u32) -> u32 {
             result := a + 1;
+            return result;
+        }
+
+        function :: (x1 :u32, x2 :u32, x3 :u32, x4 :u32, x5 :u32) -> u32 {
+            result := add_1(x1) + add_1(x2) + add_1(x3) + add_1(x4) + add_1(x5);
+            result = result *result;
             return result;
         }
 
@@ -1022,12 +998,17 @@ s16 main(s16 arg_count, char **args) {
             f1 := 0;
             f2 := 1;
             f := f1;
-            n := 30;
+            n := 50;
 
             for (i := 0; i < n; i = i+1) {
                 f = f1 + f2;
                 f2 = f1;
                 f1 = f;
+
+                if (f2 > 2) {
+                    d := "a string so this is more juicy";
+                    l := function(3, 4, 5, 6, 7);
+                }
             }
 
 

@@ -841,6 +841,7 @@ internal u32 get_enum_items_count(Lexer *lexer) {
 internal Ast_block *parse_block(Lexer *lexer, Ast_block *result);
 
 internal Function *parse_function(Lexer *lexer, Syntax_error_positions positions) {
+    PERFORMANCEAPI_INSTRUMENT_FUNCTION();
     Function *result = push_struct(lexer->allocator, Function);
 
     Type_spec_table *type_table = lexer->parser->type_table;
@@ -906,6 +907,7 @@ internal Function *parse_function(Lexer *lexer, Syntax_error_positions positions
 }
 
 internal Ast_declaration *parse_declaration(Lexer *lexer, Ast_declaration *result) {
+    PERFORMANCEAPI_INSTRUMENT_FUNCTION();
     if (lexer->parser->parsing_errors) return 0;
 
     if (!result) {
@@ -1133,6 +1135,7 @@ internal Ast_statement *advance(Ast_block_creation_iterator *it) {
 internal Ast_statement *parse_statement(Lexer *lexer, Ast_statement *result);
 
 internal Ast_block *parse_block(Lexer *lexer, Ast_block *result) {
+    PERFORMANCEAPI_INSTRUMENT_FUNCTION();
     if (lexer->parser->parsing_errors) return 0;
 
     if (!result) {
@@ -1196,6 +1199,7 @@ internal bool parsing_if(If_creation_iterator it) {
 }
 
 internal u32 parse_if_else(If_creation_iterator *it) {
+    PERFORMANCEAPI_INSTRUMENT_FUNCTION();
     Lexer *lexer = it->lexer;
     u32 result = 0;
 
@@ -1248,6 +1252,7 @@ internal u32 parse_if_else(If_creation_iterator *it) {
 }
 
 internal Ast_if *parse_if(Lexer *lexer, Ast_if *result) {
+    PERFORMANCEAPI_INSTRUMENT_FUNCTION();
     if (lexer->parser->parsing_errors) return 0;
 
     if (!result) {
@@ -1269,6 +1274,7 @@ internal Ast_if *parse_if(Lexer *lexer, Ast_if *result) {
 //
 
 internal Ast_loop *parse_loop(Lexer *lexer, Ast_loop *result=0) {
+    PERFORMANCEAPI_INSTRUMENT_FUNCTION();
     if (lexer->parser->parsing_errors) return 0;
 
     if (!result) {
@@ -1396,6 +1402,7 @@ end_get_statement_type:
 }
 
 internal Ast_statement *parse_statement(Lexer *lexer, Ast_statement *result) {
+    PERFORMANCEAPI_INSTRUMENT_FUNCTION();
     if (lexer->parser->parsing_errors) return 0;
 
     if (!result) {
@@ -1592,6 +1599,7 @@ internal Ast_declaration *advance(Program_parser *it) {
 }
 
 internal Ast_program *parse_program(Lexer *lexer, Ast_program *result) {
+    PERFORMANCEAPI_INSTRUMENT_FUNCTION();
     if (!result) {
         result = new_ast_program(lexer->allocator);
     }

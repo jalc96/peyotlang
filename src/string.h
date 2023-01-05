@@ -350,6 +350,7 @@ internal Split_at split_at(str source, u32 at) {
 // http://www.cse.yorku.ca/~oz/hash.html
 
 internal u32 hash(str string) {
+    PERFORMANCEAPI_INSTRUMENT_FUNCTION();
     // djb2
     u32 hash = 5381;
 

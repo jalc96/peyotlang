@@ -177,9 +177,11 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_declaration *as
             u32 comma = 1;
             Parameter *params = ast->function->params;
 
-            lfor (params) {
+            {
+            sfor_count(params, ast->function->param_count) {
                 Type_spec *pt = it->type;
                 name_size += length(pt->name) + comma;
+            }
             }
 
             // subtract last comma
@@ -194,7 +196,7 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_declaration *as
             function_name->buffer[index++] = '(';
 
             {
-                lfor (params) {
+                sfor_count(params, ast->function->param_count) {
                     Type_spec *pt = it->type;
                     {
                         str_for (pt->name) {
@@ -202,7 +204,7 @@ internal void create_bytecode(Bytecode_generator *generator, Ast_declaration *as
                         }
                     }
 
-                    if (it->next) {
+                    if ((i + 1) < ast->function->param_count) {
                         function_name->buffer[index++] = ',';
                     }
                 }

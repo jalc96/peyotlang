@@ -74,6 +74,7 @@ internal void print(Symbol_table *table, bool print_stack_offset=false) {
 }
 
 internal u32 get_symbol_index(str name) {
+    PERFORMANCEAPI_INSTRUMENT_FUNCTION();
     u32 h = hash(name);
     u32 result = h & (SYMBOL_TABLE_SIZE - 1);
     return result;
