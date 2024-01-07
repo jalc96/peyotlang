@@ -1,3 +1,42 @@
+/*
+One problem with this type of parsing expressions is that if you only want to parse 3, you have to recurs ALL the way down starting from parse_binary_expression, and that is dog crap slow, one way that came to mind to solve this is to do a pre pass on the expression and select the lowest precedence operator as starting point
+
+have a function template and type
+
+#define EXPRESSION_PARSING_FUNCTION(name) Ast *name(Parser *parser, Ast *parent)
+typedef EXPRESSION_PARSING_FUNCTION(Expression_parsing_function)
+
+struct Expression_parsing_shortcut {
+    EXPRESSION_TYPE type;
+    Expression_parsing_function *parser;
+};
+
+then having a table with the expression types and the functions
+
+static Expression_parsing_shortcut expression_parsing_shortcut[] = {
+    AST_EXPRESSION_BINARY_ADD, parse_expression,
+    AST_EXPRESSION_BINARY_MUL, parse_term,
+    ...
+};
+
+then choose the lowest precedence as the first function to tall instead of always calling the least precedence one
+
+Lexer_savepoint savepoint = create_savepoint(lexer);
+
+EXPRESSION_TYPE lowest_precedence = HERE THE HIGHEST PRECEDENCE;
+
+while (!end_of_expression) {
+    Token t = get_next_token(lexer);
+    lowest_precedence = select_lowest_precedence(lowest_precedence, to_ast_type(t));
+}
+
+rollback_lexer(savepoint);
+
+
+
+expression_parsing_shortcut[lowest_precedence].parser(parser, root);
+
+*/
 internal void print(Ast_statement *ast, u32 indent=0, bool print_leaf=false);
 internal void print(Ast_block *block, u32 indent=0);
 
